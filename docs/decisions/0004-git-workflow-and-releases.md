@@ -13,3 +13,6 @@
 ## Consequences
 - PR titles must be valid Conventional Commits (enforce with a CI check).
 - Version numbers and the changelog are never edited by hand.
+
+## Amendment (2026-10-14): release PRs merge automatically
+The release PR is now squash-merged automatically once ruff, pyright and pytest pass on it, so every releasable merge to `main` (`feat`, `fix`, breaking changes) is released immediately. Because release-please opens the PR with `GITHUB_TOKEN`, GitHub does not run `CI` on it. A merge made with that token does not start a new workflow run either. So `release-please.yml` runs the checks itself (by calling `ci.yml` as a reusable workflow), merges, and then runs release-please again to tag and publish the release. To batch several changes into one release, stop the `merge-release-pr` job, e.g. by disabling the workflow temporarily.

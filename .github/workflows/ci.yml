@@ -4,6 +4,14 @@ on:
   pull_request:
   push:
     branches: [main]
+  # Called by release-please.yml to check the release PR, which GitHub does not run CI on
+  # because release-please opens it with GITHUB_TOKEN.
+  workflow_call:
+    inputs:
+      ref:
+        description: Branch or commit to check (defaults to the triggering ref).
+        type: string
+        default: ""
 
 permissions:
   contents: read
@@ -13,6 +21,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
       - uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true
