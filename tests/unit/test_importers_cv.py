@@ -288,3 +288,50 @@ def test_every_candidate_has_provenance() -> None:
         assert candidate.source_excerpt
         assert candidate.confidence is not None and 0 < candidate.confidence <= 1
     assert parsed.sections == {"header": 1, "skills": 2, "summary": 1}
+
+
+def test_named_entry_fields_are_used_as_given_and_extras_reported() -> None:
+    from jaa.importers.base import EntryFields
+
+    parsed = parse_cv(
+        [
+            SourceLine(text="Experience", location="line 1", is_heading=True),
+            SourceLine(
+                text="Widget Wrangler | Example Corp | Summer 2019 | Remote",
+                location="line 2",
+                entry=EntryFields(
+                    role="Widget Wrangler",
+                    organization="Example Corp",
+                    dates="Summer 2019",
+                    extra=("Remote",),
+                ),
+            ),
+            SourceLine(text="Wrangled widgets.", location="line 3", is_bullet=True),
+            SourceLine(
+                text="Example Labs | 2018",
+                location="line 4",
+                entry=EntryFields(organization="Example Labs", dates="2018"),
+            ),
+        ]
+    )
+    facts = by_key(parsed)
+    # "Wrangler" is not a title word; the markup says it is the role anyway.
+    assert facts["experience.example-corp.title"].value_normalized == "Widget Wrangler"
+    assert facts["experience.example-corp.employer"].confidence == 0.8
+    assert facts["experience.example-corp.description"].value_normalized == ["Wrangled widgets."]
+    dates = facts["experience.example-corp.dates"].value_normalized
+    assert isinstance(dates, dict) and dates["end"] == "2019"
+    assert facts["experience.example-labs.dates"].value_normalized == {
+        "start": None,
+        "end": "2018",
+        "current": False,
+    }
+    assert "experience.example-labs.title" not in facts
+    unused = [i for i in parsed.issues if i.code == "text_not_imported"]
+    assert len(unused) == 1
+    assert "2 lines" in unused[0].message  # "Remote" and the unparsed "Summer"
+
+
+def test_headings_list_every_section() -> None:
+    parsed = parse_cv(lines("Avery Synthetic", "Skills", "Python", "Hobbies", "Chess"))
+    assert parsed.headings == (("Skills", Section.SKILLS), ("Hobbies", Section.UNSUPPORTED))

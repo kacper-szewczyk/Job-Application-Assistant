@@ -28,6 +28,7 @@ EXPECTED_TABLES = {
     "applications",
     "application_answers",
     "document_artifacts",
+    "template_candidates",
 }
 
 

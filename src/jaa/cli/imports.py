@@ -22,6 +22,7 @@ from jaa.core.review import find_conflicts
 from jaa.importers.cv_file import prepare_cv_import
 from jaa.storage.profile import add_imported_facts
 from jaa.storage.repository import import_runs, profile_facts
+from jaa.storage.templates import list_template_candidates, register_template_candidate
 
 import_app = typer.Typer(
     help="Import CVs and profile sources as facts to review.",
@@ -54,24 +55,59 @@ def _print_issues(errors: list[JsonValue]) -> None:
         console.print(line)
 
 
+def _sections_line(summary: dict[str, JsonValue]) -> Text | None:
+    headings = summary.get("headings")
+    if not isinstance(headings, list) or not headings:
+        return None
+    read: list[str] = []
+    skipped: list[str] = []
+    for heading in headings:
+        if isinstance(heading, dict):
+            title = str(heading.get("title", ""))
+            (skipped if heading.get("section") == "unsupported" else read).append(title)
+    text = Text("Sections:  ")
+    text.append(", ".join(read) or "none recognized")
+    if skipped:
+        text.append(f"; not imported: {', '.join(skipped)}")
+    return text
+
+
 @import_app.command("cv")
 def import_cv(
     ctx: typer.Context,
-    path: Annotated[Path, typer.Argument(help="A PDF or DOCX CV.")],
+    path: Annotated[Path, typer.Argument(help="A PDF, DOCX or LaTeX (.tex) CV.")],
+    as_template: Annotated[
+        bool,
+        typer.Option(
+            "--as-template",
+            help="Also keep a LaTeX CV's source as a template candidate for generated CVs.",
+        ),
+    ] = False,
 ) -> None:
-    """Extract facts from a PDF or DOCX CV. Nothing is confirmed until you review it."""
+    """Extract facts from a PDF, DOCX or LaTeX CV. Nothing is confirmed until you review it."""
     with _database(ctx) as conn:
         try:
             prepared = prepare_cv_import(path)
         except ImportSourceError as exc:
             err_console.print(f"[red]Cannot import:[/red] {escape(str(exc))}")
             raise typer.Exit(code=2) from exc
+        if as_template and prepared.template is None:
+            err_console.print(
+                "[red]Cannot import:[/red] --as-template needs a LaTeX source; "
+                "this file is not LaTeX."
+            )
+            raise typer.Exit(code=2)
         earlier = import_runs.list(conn, source_sha256=prepared.run.source_sha256)
         result = add_imported_facts(conn, prepared.run, prepared.candidates)
         added_keys = {f.field_key for f in result.added}
         conflicts = [
             c for c in find_conflicts(profile_facts.list(conn)) if c.field_key in added_keys
         ]
+        template = None
+        if as_template and prepared.template is not None:
+            template = register_template_candidate(
+                conn, prepared.template, import_run_id=result.run.id
+            )
 
     run = result.run
     console.print(
@@ -84,6 +120,16 @@ def import_cv(
         f"{len(result.added)} new fact{'s' if len(result.added) != 1 else ''} to review, "
         f"{result.duplicates} already known."
     )
+    if (sections := _sections_line(run.summary)) is not None:
+        console.print(sections)
+    if template is not None:
+        candidate, created = template
+        files = len(candidate.files)
+        console.print(
+            f"{'Kept' if created else 'Already kept'} as template candidate #{candidate.id} "
+            f"({candidate.document_class or 'unknown class'}, {files} "
+            f"file{'s' if files != 1 else ''}); see `jaa import templates`."
+        )
     if run.errors:
         console.print(f"\n[bold]Issues ({len(run.errors)})[/bold]")
         _print_issues(run.errors)
@@ -146,6 +192,8 @@ def show_run(
     console.print(f"Facts:     {facts} stored from this import")
     if run.source_deleted_at:
         console.print(f"Source deleted: {run.source_deleted_at:%Y-%m-%d %H:%M} UTC")
+    if (headings := _sections_line(run.summary)) is not None:
+        console.print(headings)
     sections = run.summary.get("sections")
     if isinstance(sections, dict) and sections:
         found = ", ".join(f"{name} {count}" for name, count in sections.items())
@@ -155,3 +203,24 @@ def show_run(
         _print_issues(run.errors)
     else:
         console.print("No issues.")
+
+
+@import_app.command("templates")
+def list_templates(ctx: typer.Context) -> None:
+    """List LaTeX CVs kept as template candidates (`jaa import cv <file.tex> --as-template`)."""
+    with _database(ctx) as conn:
+        candidates = list_template_candidates(conn)
+    if not candidates:
+        console.print("No template candidates. Import a LaTeX CV with `--as-template`.")
+        return
+    table = Table("ID", "Kept (UTC)", "Class", "Main file", "Files", "Import")
+    for candidate in candidates:
+        table.add_row(
+            str(candidate.id),
+            f"{candidate.registered_at:%Y-%m-%d %H:%M}",
+            Text(candidate.document_class or "—"),
+            Text(candidate.main_file),
+            str(len(candidate.files)),
+            f"#{candidate.import_run_id}" if candidate.import_run_id else "—",
+        )
+    console.print(table)

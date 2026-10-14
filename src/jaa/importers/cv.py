@@ -340,6 +340,8 @@ class ParsedCV:
     issues: tuple[ImportIssue, ...]
     # Candidate counts per section, for the import summary.
     sections: dict[str, int]
+    # Every heading that started a section, as written, with the section it was read as.
+    headings: tuple[tuple[str, Section], ...] = ()
 
 
 # --- sections --------------------------------------------------------------------------------
@@ -440,6 +442,14 @@ def _segment(lines: Sequence[SourceLine], *, allow_single_date: bool) -> list[_E
                 entries.append(_Entry())
             entries[-1].details.append(line)
             continue
+        if line.entry is not None:
+            # The markup delimits entries itself, and names the dates part.
+            current = _Entry(header=[line])
+            entries.append(current)
+            if line.entry.dates and (found := _find_dates(line.entry.dates, allow_single=True)):
+                current.dates, current.dates_raw = found
+                current.date_line = line
+            continue
         found = _find_dates(text, allow_single=allow_single_date)
         current = entries[-1] if entries else None
         if current is None or current.details:
@@ -523,7 +533,17 @@ def _entries(block: _Block, out: _Collector, kind: _EntryKind) -> None:
             " ".join(t.split()).strip(" ,|-–—") for t in texts if t.strip(" ,|-–—")
         )
         at_split = _AT.split(heading, maxsplit=1) if kind is _EXPERIENCE else []
-        if len(at_split) == 2 and " | " not in at_split[0]:
+        if first.entry is not None:
+            named = first.entry
+            heading = first.text
+            primary, secondary, confidence = named.organization, named.role, 0.8
+            leftovers = [*named.extra, *(line.text for line in entry.header[1:])]
+            if named.dates:
+                # Whatever the date pattern did not cover ("Summer", "part-time") is reported.
+                rest = named.dates.replace(entry.dates_raw, " ") if entry.dates else named.dates
+                if rest := " ".join(rest.split()).strip(" ,|-–—()"):
+                    leftovers.append(rest)
+        elif len(at_split) == 2 and " | " not in at_split[0]:
             secondary = at_split[0].strip()
             rest = _parts(at_split[1])
             primary, leftovers, confidence = rest[0] if rest else None, rest[1:], 0.7
@@ -725,5 +745,8 @@ def parse_cv(lines: Sequence[SourceLine]) -> ParsedCV:
             )
         )
     return ParsedCV(
-        candidates=tuple(out.candidates), issues=tuple(out.issues), sections=dict(out.per_section)
+        candidates=tuple(out.candidates),
+        issues=tuple(out.issues),
+        sections=dict(out.per_section),
+        headings=tuple((block.title, block.section) for block in blocks[1:]),
     )

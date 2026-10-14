@@ -1,0 +1,38 @@
+\documentclass[letterpaper,11pt]{article}
+\usepackage{titlesec}
+\newcommand{\resumeItem}[1]{\item\small{{#1 \vspace{-2pt}}}}
+\newcommand{\resumeSubheading}[4]{
+  \vspace{-2pt}\item
+    \begin{tabular*}{0.97\textwidth}[t]{l@{\extracolsep{\fill}}r}
+      \textbf{#1} & #2 \\
+      \textit{\small#3} & \textit{\small #4} \\
+    \end{tabular*}\vspace{-7pt}
+}
+\newcommand{\resumeSubHeadingListStart}{\begin{itemize}[leftmargin=0.15in, label={}]}
+\newcommand{\resumeSubHeadingListEnd}{\end{itemize}}
+\newcommand{\resumeItemListStart}{\begin{itemize}}
+\newcommand{\resumeItemListEnd}{\end{itemize}\vspace{-5pt}}
+\begin{document}
+\begin{center}
+    \textbf{\Huge \scshape Jordan Example} \\ \vspace{1pt}
+    \small 555-010-9999 $|$ \href{mailto:jordan@example.test}{\underline{jordan@example.test}} $|$
+    \href{https://linkedin.com/in/jordan-example}{\underline{LinkedIn}}
+\end{center}
+\section{Experience}
+  \resumeSubHeadingListStart
+    \resumeSubheading
+      {Example Corp}{June 2020 -- Present}
+      {Software Engineer}{Remote}
+      \resumeItemListStart
+        \resumeItem{Built \textbf{APIs} with \href{https://x.test}{Flask}}
+        \resumeItem{Cut costs by 20\%}
+      \resumeItemListEnd
+  \resumeSubHeadingListEnd
+\section{Technical Skills}
+ \begin{itemize}[leftmargin=0.15in, label={}]
+    \small{\item{
+     \textbf{Languages}{: Java, Python, C\#} \\
+     \textbf{Frameworks}{: React, Node.js}
+    }}
+ \end{itemize}
+\end{document}

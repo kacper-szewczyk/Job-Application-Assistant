@@ -1,6 +1,6 @@
 """Types shared by the CV importers: located text lines, issues and the extraction result.
 
-Extractors (pdf, docx) turn a file into `SourceLine`s; `jaa.importers.cv` turns lines into
+Extractors (pdf, docx, latex) turn a file into `SourceLine`s; `jaa.importers.cv` turns lines into
 fact candidates. Neither writes to storage.
 """
 
@@ -43,6 +43,21 @@ class ImportIssue:
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
+class EntryFields:
+    """The parts of an experience/education entry as named by the source's markup.
+
+    LaTeX CV classes say which argument is the role and which the organization (moderncv's and
+    awesome-cv's `\\cventry`), so the parser does not have to guess the split.
+    """
+
+    role: str | None = field(default=None, repr=False)  # job title or degree
+    organization: str | None = field(default=None, repr=False)  # employer or institution
+    dates: str | None = field(default=None, repr=False)
+    # Other named parts (location, grade): not imported, so the parser reports them.
+    extra: tuple[str, ...] = field(default=(), repr=False)
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
 class SourceLine:
     """One line of text with where it came from (e.g. `page 2`, `paragraph 14`, `header`)."""
 
@@ -50,7 +65,10 @@ class SourceLine:
     location: str
     # Set by extractors that know the document structure (DOCX heading styles, numbering).
     is_heading: bool = False
+    # Also set for entry descriptions, so they are read as details of the entry above.
     is_bullet: bool = False
+    # Set when the line is an entry heading whose parts the markup names.
+    entry: EntryFields | None = None
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
