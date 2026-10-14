@@ -44,6 +44,11 @@ class RetentionChoice(StrEnum):
     DELETE_AFTER_IMPORT = "delete_after_import"
 
 
+class PreferenceStatus(StrEnum):
+    ANSWERED = "answered"
+    SKIPPED = "skipped"
+
+
 class ReusePolicy(StrEnum):
     ALWAYS_ASK = "always_ask"
     REUSE_WITH_REVIEW = "reuse_with_review"
@@ -160,6 +165,17 @@ class Preference:
     value: JsonValue = field(repr=False)
     is_sensitive: bool = False
     updated_at: datetime
+    status: PreferenceStatus = PreferenceStatus.ANSWERED
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class PreferenceEvent:
+    id: int | None = None
+    preference_key: str
+    status: PreferenceStatus
+    value: JsonValue = field(repr=False)
+    is_sensitive: bool = False
+    occurred_at: datetime
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

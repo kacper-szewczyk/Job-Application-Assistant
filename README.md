@@ -64,6 +64,19 @@ uv run jaa profile conflicts                  # re-imported values next to confi
 uv run jaa profile versions
 ```
 
+### Search and application preferences
+
+```bash
+uv run jaa onboard                       # interview; press Enter to skip any question
+uv run jaa onboard --all                 # revisit every answer (Enter keeps it)
+uv run jaa preferences list              # answers, skips, unasked questions (--reveal)
+uv run jaa preferences set salary.range "70000-90000 EUR per year"
+uv run jaa preferences skip search.industries
+uv run jaa preferences history search.target_roles
+```
+
+Salary and sponsorship answers are treated as sensitive: hidden in listings unless you pass `--reveal`, and never logged. See [ADR 0007](docs/decisions/0007-onboarding-preferences.md).
+
 ### Configuration
 
 | Variable | Default | Purpose |

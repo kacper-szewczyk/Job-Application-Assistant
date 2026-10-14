@@ -113,6 +113,16 @@ def populate(conn: sqlite3.Connection) -> Sample:
             updated_at=T0,
         ),
     )
+    repo.preference_events.insert(
+        conn,
+        m.PreferenceEvent(
+            preference_key="salary.min",
+            status=m.PreferenceStatus.ANSWERED,
+            value={"amount": 1, "currency": "EUR"},
+            is_sensitive=True,
+            occurred_at=T0,
+        ),
+    )
     answer = repo.answers.insert(
         conn,
         m.Answer(

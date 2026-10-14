@@ -31,3 +31,7 @@ class ReviewError(JaaError):
 
 class FactConflictError(ReviewError):
     """Confirming a fact would replace another confirmed value for the same field key."""
+
+
+class PreferenceError(JaaError):
+    """An unknown preference key, or a value that does not fit the question."""
