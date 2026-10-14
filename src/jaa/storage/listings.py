@@ -21,6 +21,7 @@ from jaa.connectors.base import Connector, JobListing, SourceIssue, effective_st
 from jaa.connectors.http import Transport
 from jaa.connectors.run import FetchOutcome, run_connector
 from jaa.core.clock import utcnow
+from jaa.core.dedupe import canonical_url, dedupe_key
 from jaa.core.errors import (
     ConnectorError,
     SourceAccessDeniedError,
@@ -35,6 +36,7 @@ from jaa.core.models import (
     SourceStatus,
     StatusActor,
 )
+from jaa.storage.duplicates import flag_duplicates
 from jaa.storage.jobs import insert_job
 from jaa.storage.repository import jobs, source_fetch_runs
 from jaa.storage.sources import latest_status_event, set_source_status
@@ -55,6 +57,8 @@ class ListingChanges:
     reappeared: tuple[int, ...] = ()
     # Listed before in this target, missing from this complete fetch.
     removed: tuple[int, ...] = ()
+    # Ids of new possible-duplicate flags (ADR 0014).
+    flagged: tuple[int, ...] = ()
 
 
 def content_sha256(listing: JobListing) -> str:
@@ -108,9 +112,13 @@ def _store(
     unchanged: list[int] = []
     reappeared: list[int] = []
     seen: set[str] = set()
+    # Jobs whose identity (canonical URL or duplicate key) is new or changed: checked for
+    # duplicates below.
+    rekeyed: list[int] = []
     for listing in listings:
         seen.add(listing.source_job_id)
         digest = content_sha256(listing)
+        keys = _keys(listing)
         current = _existing(conn, source, listing.source_job_id)
         if current is None:
             stored = insert_job(
@@ -118,7 +126,9 @@ def _store(
                 Job(
                     source=source,
                     source_job_id=listing.source_job_id,
-                    canonical_url=listing.url,
+                    canonical_url=keys["canonical_url"] or listing.url,
+                    source_url=listing.url,
+                    dedupe_key=keys["dedupe_key"],
                     employer=listing.company,
                     title=listing.title,
                     location=listing.location,
@@ -133,15 +143,23 @@ def _store(
                 ),
             )
             new.append(_id(stored))
+            rekeyed.append(_id(stored))
             continue
         job_id = _id(current)
         updates: dict[str, object] = {"last_seen_at": at, "source_target": target}
+        # Also fills in the keys of jobs stored before they existed.
+        if (current.canonical_url, current.dedupe_key, current.source_url) != (
+            keys["canonical_url"],
+            keys["dedupe_key"],
+            listing.url,
+        ):
+            updates |= keys | {"source_url": listing.url}
+            rekeyed.append(job_id)
         if current.removed_at is not None:
             updates["removed_at"] = None
             reappeared.append(job_id)
         if current.content_sha256 != digest:
             updates |= {
-                "canonical_url": listing.url,
                 "employer": listing.company,
                 "title": listing.title,
                 "location": listing.location,
@@ -155,13 +173,22 @@ def _store(
             unchanged.append(job_id)
         jobs.update(conn, job_id, **updates)
     removed = _mark_removed(conn, source, target, seen, at)
+    flagged = flag_duplicates(conn, rekeyed, at)
     return ListingChanges(
         new=tuple(new),
         changed=tuple(changed),
         unchanged=tuple(unchanged),
         reappeared=tuple(reappeared),
         removed=removed,
+        flagged=tuple(flagged),
     )
+
+
+def _keys(listing: JobListing) -> dict[str, str | None]:
+    return {
+        "canonical_url": canonical_url(listing.canonical_url or listing.url),
+        "dedupe_key": dedupe_key(listing.company, listing.title, listing.location),
+    }
 
 
 def _id(job: Job) -> int:
@@ -288,13 +315,14 @@ def fetch_and_store(
             ),
         )
     log.info(
-        "source=%s stored new=%s changed=%s unchanged=%s reappeared=%s removed=%s",
+        "source=%s stored new=%s changed=%s unchanged=%s reappeared=%s removed=%s flagged=%s",
         policy.key,
         len(changes.new),
         len(changes.changed),
         len(changes.unchanged),
         len(changes.reappeared),
         len(changes.removed),
+        len(changes.flagged),
     )
     return FetchReport(run=run, changes=changes, issues=outcome.issues)
 

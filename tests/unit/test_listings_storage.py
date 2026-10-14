@@ -48,7 +48,9 @@ def test_first_fetch_stores_new_jobs_and_the_run(conn: sqlite3.Connection) -> No
 
     a = _job(conn, rec.KEY_A)
     assert (a.source, a.source_target, a.status) == ("solid_jobs", "IT", JobStatus.DISCOVERED)
-    assert a.canonical_url == "https://solid.jobs/o/syntha01/jaa"
+    assert a.canonical_url == "https://solid.jobs/o/syntha01"
+    assert a.source_url == "https://solid.jobs/o/syntha01/jaa"
+    assert a.dedupe_key == "example widgets | senior widget engineer | warszawa hybrid"
     assert a.employer == "Example Widgets Sp. z o.o."
     assert a.first_seen_at == a.last_seen_at == run.finished_at
     assert a.removed_at is None

@@ -115,3 +115,25 @@ def test_invalid_listings_are_reported(listing: JobListing, problem: str) -> Non
     kept, issues = validate_listings(FakeBoard(), (listing,))
     assert kept == ()
     assert problem in issues[0].message
+
+
+@pytest.mark.parametrize(
+    ("canonical", "kept"),
+    [
+        (" https://x.test/1 ", "https://x.test/1"),
+        ("ftp://x.test/1", None),
+        ("https://u:p@x.test/1", None),
+        (None, None),
+    ],
+)
+def test_canonical_url_is_kept_only_when_usable(canonical: str | None, kept: str | None) -> None:
+    listing = JobListing(
+        source_job_id="1",
+        url="https://x.test/1?c=1",
+        canonical_url=canonical,
+        title="T",
+        company="C",
+    )
+    [cleaned], issues = validate_listings(FakeBoard(), (listing,))
+    assert issues == []
+    assert cleaned.canonical_url == kept
