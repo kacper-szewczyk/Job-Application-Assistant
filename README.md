@@ -18,7 +18,9 @@ A local-first assistant that helps one person maintain a verified candidate prof
 uv sync
 uv run jaa --help
 uv run jaa info   # shows the data directory and database path
-uv run jaa init   # creates the data directory (owner-only permissions)
+uv run jaa init   # creates the data directory and database (owner-only permissions)
+uv run jaa backup ~/jaa-backup.sqlite3   # consistent SQLite copy
+uv run jaa export ~/jaa-export.json      # JSON export, see docs/export-format.md
 ```
 
 ## Configuration
