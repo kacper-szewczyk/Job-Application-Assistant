@@ -97,3 +97,7 @@ class LatexCompileError(DocumentError):
 
 class SearchError(JaaError):
     """A job search or saved search is invalid or unknown."""
+
+
+class MatchError(JaaError):
+    """A job cannot be matched, e.g. because no profile facts are confirmed yet."""

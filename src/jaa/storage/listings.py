@@ -31,6 +31,7 @@ from jaa.core.errors import (
 from jaa.core.models import (
     FetchRunOutcome,
     Job,
+    JsonObject,
     JsonValue,
     SourceFetchRun,
     SourceStatus,
@@ -63,7 +64,7 @@ class ListingChanges:
 
 def content_sha256(listing: JobListing) -> str:
     """Hash of everything a listing says, to tell a changed listing from a re-fetched one."""
-    payload = [
+    payload: list[JsonValue] = [
         listing.url,
         listing.title,
         listing.company,
@@ -73,7 +74,30 @@ def content_sha256(listing: JobListing) -> str:
         listing.updated_at.isoformat() if listing.updated_at else None,
         [[q.key, q.label, q.kind.value, q.required, list(q.options)] for q in listing.questions],
     ]
-    return hashlib.sha256(json.dumps(payload, ensure_ascii=False).encode()).hexdigest()
+    # Added in T12: listings without details hash as before, so storing details does not mark
+    # every job changed on the first fetch after upgrading; listings with details do change once.
+    if not listing.details.is_empty():
+        payload.append(listing.details.to_json())
+    return hashlib.sha256(
+        json.dumps(payload, ensure_ascii=False, sort_keys=True).encode()
+    ).hexdigest()
+
+
+def requirements_json(listing: JobListing) -> JsonObject:
+    """What `jobs.requirements` holds: the listing's details and application questions."""
+    data = listing.details.to_json()
+    if listing.questions:
+        data["questions"] = [
+            {
+                "key": q.key,
+                "label": q.label,
+                "kind": q.kind.value,
+                "required": q.required,
+                "options": list(q.options),
+            }
+            for q in listing.questions
+        ]
+    return data
 
 
 def _existing(conn: sqlite3.Connection, source: str, source_job_id: str) -> Job | None:
@@ -140,6 +164,7 @@ def _store(
                     source_target=target,
                     content_sha256=digest,
                     source_updated_at=listing.updated_at,
+                    requirements=requirements_json(listing),
                 ),
             )
             new.append(_id(stored))
@@ -167,6 +192,7 @@ def _store(
                 "posted_at": listing.posted_at,
                 "content_sha256": digest,
                 "source_updated_at": listing.updated_at,
+                "requirements": requirements_json(listing),
             }
             changed.append(job_id)
         else:

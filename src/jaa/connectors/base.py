@@ -16,6 +16,7 @@ from datetime import date, datetime
 from enum import StrEnum
 from typing import TYPE_CHECKING, Final, Protocol
 
+from jaa.core.job_details import JobDetails
 from jaa.core.models import SourceStatus, SourceStatusEvent
 
 if TYPE_CHECKING:
@@ -48,6 +49,8 @@ class ListingField(StrEnum):
     POSTED_AT = "posted_at"
     UPDATED_AT = "updated_at"
     QUESTIONS = "questions"
+    # Structured skills, languages, experience level, work arrangement and salary (ADR 0015).
+    DETAILS = "details"
 
 
 # Without these a listing cannot be identified, deduplicated or shown, so every policy permits them.
@@ -180,6 +183,7 @@ class JobListing:
     posted_at: datetime | None = None
     updated_at: datetime | None = None
     questions: tuple[ApplicationQuestion, ...] = ()
+    details: JobDetails = field(default_factory=JobDetails)
 
 
 class IssueSeverity(StrEnum):

@@ -331,12 +331,22 @@ class SourceStatusEvent:
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class JobMatch:
+    """An advisory match of one job against one profile version (ADR 0015). Append-only.
+
+    `evidence`, `gaps`, `uncertainty` and `reasons` are JSON written by `jaa.matching.match`;
+    they quote requirement text and the matched words of profile facts, so they are personal.
+    """
+
     id: int | None = None
     job_id: int
     profile_version_id: int
     score: float
-    evidence: JsonArray = field(default_factory=list[JsonValue])
-    gaps: JsonArray = field(default_factory=list[JsonValue])
+    evidence: JsonArray = field(default_factory=list[JsonValue], repr=False)
+    gaps: JsonArray = field(default_factory=list[JsonValue], repr=False)
+    uncertainty: JsonArray = field(default_factory=list[JsonValue], repr=False)
+    reasons: JsonArray = field(default_factory=list[JsonValue], repr=False)
+    job_content_sha256: str | None = None
+    method: str = ""
     created_at: datetime
 
 

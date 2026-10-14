@@ -8,6 +8,7 @@ from jaa.connectors.base import IssueSeverity, JobListing, SourceIssue, SourceSt
 from jaa.connectors.run import FetchOutcome, run_connector
 from jaa.connectors.solid_jobs import (
     POLICY,
+    details,
     division,
     location_text,
     offer_url,
@@ -15,7 +16,8 @@ from jaa.connectors.solid_jobs import (
     parse_job,
 )
 from jaa.core.errors import ConnectorTargetError, SourceAccessDeniedError, SourceDataError
-from jaa.core.models import SourceStatus
+from jaa.core.job_details import JobDetails, ListedSkill, SalaryRange, WorkArrangement
+from jaa.core.models import JsonObject, SourceStatus
 from tests.fixtures import solid_jobs as rec
 from tests.fixtures.fake_connector import FakeClock, json_response
 
@@ -163,3 +165,39 @@ def test_offer_url_drops_only_our_campaign_segment() -> None:
         "https://solid.jobs/offer/abc/jaa",
     ):
         assert offer_url(kept) == kept
+
+
+def test_details_keep_skills_languages_level_arrangement_and_salary() -> None:
+    page = json.loads((rec.FIXTURES / "it_page0.json").read_bytes())
+    listing = parse_job(page["jobs"][0])
+    assert isinstance(listing, JobListing)
+    assert listing.details == JobDetails(
+        skills=(ListedSkill(name="Python", level="Advanced"),),
+        languages=(ListedSkill(name="Angielski", level="Advanced"),),
+        experience_level="Regular",
+        work_arrangement=WorkArrangement.HYBRID,
+        salaries=(
+            SalaryRange(min=15000, max=21000, currency="PLN", period="month", contract="B2B"),
+        ),
+    )
+
+
+@pytest.mark.parametrize(
+    ("fields", "arrangement"),
+    [
+        ({"isRemote": True, "locations": ["Gdańsk"]}, "remote"),
+        ({"isHybrid": True, "locations": []}, "hybrid"),
+        ({"locations": ["Gdańsk"]}, "on_site"),
+        ({"locations": []}, None),
+    ],
+)
+def test_work_arrangement(fields: JsonObject, arrangement: str | None) -> None:
+    found = details(fields)
+    assert (found.work_arrangement and found.work_arrangement.value) == arrangement
+
+
+def test_unusable_salary_is_dropped() -> None:
+    raw: JsonObject = {"salary": {"from": 0, "to": None, "currency": "PLN", "period": "Month"}}
+    assert details(raw).salaries == ()
+    raw = {"salary": {"from": 100, "to": 200, "currency": "PLN", "period": "Fortnight"}}
+    assert details(raw).salaries == ()

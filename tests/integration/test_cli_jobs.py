@@ -14,6 +14,7 @@ from jaa.storage.db import open_database
 from jaa.storage.jobs import set_job_status
 from jaa.storage.listings import store_listings
 from tests.fixtures import solid_jobs as rec
+from tests.fixtures.cv_profile import store_profile
 
 runner = CliRunner()
 
@@ -206,3 +207,83 @@ def test_duplicate_of_a_job_in_progress_is_called_out(
     out = _run(env, "jobs", "duplicates", "list")
     assert "same link" in out
     assert "1 flag(s) involve a job you are already working on or applied to" in out
+
+
+def _store_profile(env: dict[str, str], **unreviewed: str) -> None:
+    conn = open_database(Path(env["JAA_DATA_DIR"]) / "jaa.sqlite3")
+    try:
+        store_profile(conn, unreviewed=dict(unreviewed))
+    finally:
+        conn.close()
+
+
+def _job_id(env: dict[str, str], title: str) -> str:
+    conn = open_database(Path(env["JAA_DATA_DIR"]) / "jaa.sqlite3")
+    try:
+        row = conn.execute("SELECT id FROM jobs WHERE title = ?", (title,)).fetchone()
+    finally:
+        conn.close()
+    return str(row["id"])
+
+
+def test_match_needs_ids_and_a_profile(
+    env: dict[str, str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _serve(monkeypatch, rec.first_fetch())
+    _run(env, "jobs", "fetch", "solid_jobs", "IT")
+    assert "give job IDs or --all" in _run(env, "jobs", "match", code=2)
+    out = _run(env, "jobs", "match", "--all", code=1)
+    assert "no confirmed profile" in out
+    assert "No matched jobs" in _run(env, "jobs", "matches")
+
+
+def test_match_explains_one_job_and_ranks_many(
+    env: dict[str, str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _serve(monkeypatch, rec.first_fetch())
+    _run(env, "jobs", "fetch", "solid_jobs", "IT")
+    _store_profile(env)
+    job_id = _job_id(env, "Senior Widget Engineer")
+
+    shown = _run(env, "jobs", "show", job_id)
+    assert "Listed skills and languages: Python (Advanced), Angielski (Advanced)" in shown
+    assert f"Not matched yet; see how it fits with `jaa jobs match {job_id}`." in shown
+
+    out = _run(env, "jobs", "match", job_id)
+    assert "Match: 100% (advisory) against profile version 1." in out
+    assert "Required: 2 of 2 backed by confirmed facts" in out
+    assert "+ [required] Python (Advanced): Python (fact" in out
+    assert "+ [required] Angielski (Advanced): english (fact" in out
+    assert "Language levels were not compared." in out
+    assert "No requirements heading was recognized" in out
+
+    shown = _run(env, "jobs", "show", job_id)
+    assert "Last match: 100% against profile version 1" in shown
+    assert "outdated" not in shown
+
+    ranked = _run(env, "jobs", "match", "--all")
+    assert "Senior Widget Engineer" in ranked and "Data Engineer" in ranked
+    assert "Scores are advisory" in ranked
+    assert "Senior Widget Engineer" in _run(env, "jobs", "matches")
+
+
+def test_unreviewed_evidence_is_labeled(
+    env: dict[str, str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _serve(monkeypatch, rec.first_fetch())
+    _run(env, "jobs", "fetch", "solid_jobs", "IT")
+    conn = open_database(Path(env["JAA_DATA_DIR"]) / "jaa.sqlite3")
+    try:
+        store_profile(conn, unreviewed={"skills.go": "Go"})
+        conn.execute(
+            "UPDATE jobs SET description = ? WHERE title = ?",
+            ("Requirements:\n- Go\n- Haskell", "Senior Widget Engineer"),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+    out = _run(env, "jobs", "match", _job_id(env, "Senior Widget Engineer"))
+    assert "Backed only by UNREVIEWED facts (not counted):" in out
+    assert "? [required] Go: Go (fact" in out and "unreviewed)" in out
+    assert "- [required] Haskell: no confirmed fact mentions it" in out
+    assert "Required: 2 of 4 backed by confirmed facts" in out
