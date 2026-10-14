@@ -17,7 +17,7 @@ These come from `SPEC.md` and apply to every change:
 - **No working around access controls** (login walls, CAPTCHAs, bot protection, ToS restrictions) in job connectors.
 - **The user submits applications.** Never mark an application `submitted` without explicit user confirmation or a verifiable authorized integration receipt.
 - **Sensitive questions** (work authorization, sponsorship, salary, demographics, criminal/medical, consent, legal attestations) are never answered from guesses.
-- **Never log CV contents, profile values, answers or secrets.** Log IDs and counts, not values.
+- **Never log CV contents, profile values, answers or secrets.** Log IDs and counts, not values. Wrap personal values in `jaa.logging.Sensitive` when they pass through code that might log or print them; the scrubbing formatter is a safety net, not a licence to log values.
 
 ## Stack
 
