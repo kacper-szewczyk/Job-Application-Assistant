@@ -1,0 +1,490 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>jaa Review Desk</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: fixed left rail (sections = the review queues) + one working column; detail views split into
+   content | provenance side panel. Everything that needs the user's decision carries a state chip. */
+:root {
+  --bg: #f3f5f6;
+  --surface: #ffffff;
+  --surface-2: #e9eef0;
+  --line: #d3dce0;
+  --fg: #16232a;
+  --muted: #5a6b73;
+  --accent: #1d5f74;
+  --accent-ink: #ffffff;
+  --accent-soft: #dbe9ee;
+  --ok: #24764a;      --ok-soft: #dcefe3;
+  --warn: #9a5b00;    --warn-soft: #f7e9cf;
+  --bad: #a83a32;     --bad-soft: #f5dfdc;
+  --sens: #7a3d78;    --sens-soft: #f1e1ef;
+  --font-ui: "Schibsted Grotesk", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --r: 6px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f171b; --surface: #162127; --surface-2: #1d2a31; --line: #2b3b43;
+    --fg: #e3eaed; --muted: #93a5ad; --accent: #6cb4cc; --accent-ink: #0b1a20; --accent-soft: #1d3a45;
+    --ok: #6cc795; --ok-soft: #173326; --warn: #e3ad5a; --warn-soft: #3a2c14;
+    --bad: #ec8a80; --bad-soft: #3d1f1c; --sens: #d595d2; --sens-soft: #36203a;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f171b; --surface: #162127; --surface-2: #1d2a31; --line: #2b3b43;
+  --fg: #e3eaed; --muted: #93a5ad; --accent: #6cb4cc; --accent-ink: #0b1a20; --accent-soft: #1d3a45;
+  --ok: #6cc795; --ok-soft: #173326; --warn: #e3ad5a; --warn-soft: #3a2c14;
+  --bad: #ec8a80; --bad-soft: #3d1f1c; --sens: #d595d2; --sens-soft: #36203a;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.5 var(--font-ui); }
+h1, h2, h3 { margin: 0; text-wrap: balance; font-weight: 600; }
+h1 { font-size: 1.6rem; letter-spacing: -0.01em; }
+h2 { font-size: 1.1rem; }
+h3 { font-size: 0.95rem; }
+p { margin: 0; }
+a { color: var(--accent); }
+.mono { font-family: var(--font-mono); font-size: 0.82em; }
+.muted { color: var(--muted); }
+.num { font-variant-numeric: tabular-nums; }
+.eyebrow { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); font-weight: 600; }
+button, select, input, textarea { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.app { display: grid; grid-template-columns: 232px minmax(0, 1fr); min-height: 100%; }
+.rail { background: var(--surface); border-right: 1px solid var(--line); padding: 20px 14px; display: flex; flex-direction: column; gap: 22px; position: sticky; top: 0; height: 100vh; }
+.brand { display: flex; flex-direction: column; gap: 2px; padding-inline: 8px; }
+.brand b { font-size: 1.05rem; letter-spacing: -0.01em; }
+.nav { display: flex; flex-direction: column; gap: 2px; }
+.nav a { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 7px 10px; border-radius: var(--r); color: var(--fg); text-decoration: none; font-weight: 500; }
+.nav a:hover { background: var(--surface-2); }
+.nav a[aria-current="page"] { background: var(--accent-soft); color: var(--accent); }
+.count { font-size: 0.75rem; font-variant-numeric: tabular-nums; padding: 1px 7px; border-radius: 99px; background: var(--surface-2); color: var(--muted); }
+.count.hot { background: var(--warn-soft); color: var(--warn); }
+.local { margin-top: auto; padding: 10px; border: 1px dashed var(--line); border-radius: var(--r); font-size: 0.78rem; color: var(--muted); display: flex; flex-direction: column; gap: 4px; }
+.local .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--ok); margin-right: 6px; }
+
+main { padding-block: 28px 64px; padding-inline: clamp(16px, 3vw, 40px); display: flex; flex-direction: column; gap: 22px; min-width: 0; }
+.head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: end; gap: 12px; }
+.head .sub { color: var(--muted); max-width: 62ch; margin-top: 4px; }
+.banner { font-size: 0.82rem; padding: 8px 12px; border-radius: var(--r); background: var(--surface-2); color: var(--muted); }
+
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); }
+.panel > header { padding: 12px 16px; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+.panel > .body { padding: 14px 16px; display: flex; flex-direction: column; gap: 12px; }
+
+.chip { display: inline-flex; align-items: center; gap: 5px; font-size: 0.74rem; font-weight: 600; padding: 2px 8px; border-radius: 99px; white-space: nowrap; background: var(--surface-2); color: var(--muted); }
+.chip.unreviewed, .chip.ready_for_review, .chip.ask { background: var(--warn-soft); color: var(--warn); }
+.chip.confirmed, .chip.submitted, .chip.interviewing, .chip.ok { background: var(--ok-soft); color: var(--ok); }
+.chip.rejected, .chip.conflict, .chip.bad { background: var(--bad-soft); color: var(--bad); }
+.chip.sensitive { background: var(--sens-soft); color: var(--sens); }
+.chip.saved, .chip.preparing, .chip.discovered { background: var(--accent-soft); color: var(--accent); }
+
+.btn { border: 1px solid var(--line); background: var(--surface); padding: 6px 12px; border-radius: var(--r); cursor: pointer; font-weight: 500; font-size: 0.88rem; }
+.btn:hover { border-color: var(--accent); }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.btn.danger { color: var(--bad); }
+.btn[disabled] { opacity: 0.45; cursor: not-allowed; }
+.row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+
+/* dashboard */
+.queues { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+@media (min-width: 1200px) { .queues { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+@media (max-width: 520px) { .queues { grid-template-columns: 1fr; } }
+.queue { padding: 14px 16px; display: flex; flex-direction: column; gap: 6px; text-decoration: none; color: var(--fg); border-left: 3px solid var(--line); }
+.queue.attn { border-left-color: var(--warn); }
+.queue.sens { border-left-color: var(--sens); }
+.queue .big { font-size: 1.9rem; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.pipeline { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 0; }
+.stage { padding: 12px 14px; border-right: 1px solid var(--line); display: flex; flex-direction: column; gap: 2px; }
+.stage:last-child { border-right: 0; }
+.stage .n { font-size: 1.4rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+.two { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+
+/* lists & tables */
+.tablewrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+th { text-align: left; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); font-weight: 600; padding: 8px 12px; border-bottom: 1px solid var(--line); }
+td { padding: 10px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+tr:last-child td { border-bottom: 0; }
+tr.click { cursor: pointer; }
+tr.click:hover td, tr.sel td { background: var(--surface-2); }
+.events { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.events li { display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: 10px; font-size: 0.88rem; }
+
+/* fact review */
+.review { display: grid; grid-template-columns: minmax(0, 1fr) minmax(280px, 380px); gap: 16px; align-items: start; }
+.filters { display: flex; gap: 6px; flex-wrap: wrap; }
+.filters button { border: 1px solid var(--line); background: var(--surface); border-radius: 99px; padding: 3px 11px; font-size: 0.82rem; cursor: pointer; }
+.filters button[aria-pressed="true"] { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+.fact-key { font-family: var(--font-mono); font-size: 0.78rem; color: var(--muted); }
+.prov { position: sticky; top: 20px; }
+.source { font-family: var(--font-mono); font-size: 0.8rem; background: var(--surface-2); border-radius: var(--r); padding: 10px 12px; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.55; }
+.source mark { background: var(--warn-soft); color: var(--fg); border-radius: 2px; padding: 0 2px; }
+.compare { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.compare > div { border: 1px solid var(--line); border-radius: var(--r); padding: 8px 10px; display: flex; flex-direction: column; gap: 4px; }
+.kv { display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: 4px 10px; font-size: 0.86rem; }
+.kv dt { color: var(--muted); }
+.kv dd { margin: 0; overflow-wrap: anywhere; }
+
+/* job detail */
+.tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--line); overflow-x: auto; }
+.tabs button { border: 0; background: none; padding: 9px 14px; cursor: pointer; font-weight: 500; color: var(--muted); border-bottom: 2px solid transparent; white-space: nowrap; }
+.tabs button[aria-selected="true"] { color: var(--fg); border-bottom-color: var(--accent); }
+.score { display: flex; align-items: center; gap: 10px; }
+.bar { flex: 1; height: 6px; background: var(--surface-2); border-radius: 99px; overflow: hidden; min-width: 60px; }
+.bar > span { display: block; height: 100%; background: var(--accent); }
+.req { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 0.9rem; }
+.req:last-child { border-bottom: 0; }
+.mk { font-weight: 700; text-align: center; }
+.mk.y { color: var(--ok); } .mk.n { color: var(--bad); } .mk.p { color: var(--warn); }
+.diff { font-size: 0.9rem; display: flex; flex-direction: column; gap: 10px; }
+.diff .line { border-radius: var(--r); padding: 8px 10px; border: 1px solid var(--line); display: flex; flex-direction: column; gap: 4px; }
+del { background: var(--bad-soft); color: var(--bad); text-decoration: line-through; padding: 0 2px; }
+ins { background: var(--ok-soft); color: var(--ok); text-decoration: none; padding: 0 2px; }
+.page { background: #fdfdfb; color: #1b1b1b; border: 1px solid var(--line); aspect-ratio: 1 / 1.414; max-width: 100%; padding: 8% 9%; font: 9.5px/1.45 Georgia, "Times New Roman", serif; display: flex; flex-direction: column; gap: 6px; overflow: hidden; box-shadow: 0 1px 3px rgb(0 0 0 / 0.12); }
+.page h4 { margin: 0; font-size: 15px; font-weight: 600; }
+.page .rule { border-top: 0.6px solid #333; margin-top: 4px; padding-top: 3px; font-size: 8px; letter-spacing: 0.12em; text-transform: uppercase; }
+.page .hl { background: #fff1c2; }
+.q { border: 1px solid var(--line); border-radius: var(--r); padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; }
+.q.sens { border-color: var(--sens); }
+.q textarea, .q input[type="text"], .q select { width: 100%; border: 1px solid var(--line); background: var(--bg); border-radius: var(--r); padding: 7px 9px; }
+.q textarea { min-height: 64px; resize: vertical; }
+.check { display: flex; gap: 8px; align-items: flex-start; font-size: 0.9rem; }
+.steps { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px; counter-reset: s; }
+.steps li { display: grid; grid-template-columns: 26px minmax(0, 1fr); gap: 10px; align-items: start; }
+.steps li::before { counter-increment: s; content: counter(s); width: 24px; height: 24px; border-radius: 50%; background: var(--accent-soft); color: var(--accent); display: grid; place-items: center; font-size: 0.8rem; font-weight: 700; }
+.toast { position: fixed; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); left: 50%; transform: translateX(-50%); background: var(--fg); color: var(--bg); padding: 9px 16px; border-radius: var(--r); font-size: 0.88rem; z-index: 10; }
+
+@media (max-width: 900px) {
+  .app { grid-template-columns: 1fr; }
+  .rail { position: static; height: auto; flex-direction: row; flex-wrap: wrap; align-items: center; padding: 12px 16px; gap: 10px; border-right: 0; border-bottom: 1px solid var(--line); }
+  .nav { flex-direction: row; flex-wrap: wrap; }
+  .local { display: none; }
+  .two, .review { grid-template-columns: 1fr; }
+  .prov { position: static; }
+  .compare { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="rail">
+    <div class="brand"><b>jaa</b><span class="eyebrow">Review desk</span></div>
+    <nav class="nav" id="nav"></nav>
+    <div class="local">
+      <span><span class="dot"></span>Local only · 127.0.0.1:8765</span>
+      <span class="mono">~/Library/Application Support/jaa</span>
+      <span>Design prototype · synthetic data</span>
+    </div>
+  </aside>
+  <main id="view"></main>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script>
+// ---- Synthetic data (shapes follow jaa.core.models; nothing here is real) ----
+const facts = [
+  { id: 101, key: "identity.name", label: "Name", value: "Alex Example", state: "confirmed", src: "cv-2026.pdf", line: 1, conf: 0.98, snippet: "<mark>Alex Example</mark>\nBackend Engineer · Wrocław" },
+  { id: 102, key: "experience.northwind-analytics.title", label: "Title at Northwind Analytics", value: "Senior Backend Engineer", state: "unreviewed", src: "cv-2026.pdf", line: 14, conf: 0.91, snippet: "EXPERIENCE\n<mark>Senior Backend Engineer</mark> — Northwind Analytics\nMar 2022 – present" },
+  { id: 103, key: "experience.northwind-analytics.dates", label: "Dates at Northwind Analytics", value: "2022-03 – present", state: "unreviewed", src: "cv-2026.pdf", line: 15, conf: 0.84, snippet: "Senior Backend Engineer — Northwind Analytics\n<mark>Mar 2022 – present</mark>" },
+  { id: 104, key: "experience.northwind-analytics.title", label: "Title at Northwind Analytics", value: "Staff Engineer", state: "conflict", conflictWith: "Senior Backend Engineer", src: "linkedin Positions.csv", line: 3, conf: 0.95, snippet: "Company Name,Title,Started On\nNorthwind Analytics,<mark>Staff Engineer</mark>,Mar 2022" },
+  { id: 105, key: "skills.python", label: "Skill", value: "Python", state: "confirmed", src: "cv-2026.pdf", line: 31, conf: 0.97, snippet: "SKILLS\n<mark>Python</mark>, PostgreSQL, Kafka, Terraform" },
+  { id: 106, key: "skills.kafka", label: "Skill", value: "Kafka", state: "unreviewed", src: "cv-2026.pdf", line: 31, conf: 0.93, snippet: "SKILLS\nPython, PostgreSQL, <mark>Kafka</mark>, Terraform" },
+  { id: 107, key: "education.contoso-university.degree", label: "Degree", value: "MSc Computer Science", state: "unreviewed", src: "cv.tex", line: 52, conf: 0.88, snippet: "\\cventry{2016--2018}{<mark>MSc Computer Science</mark>}{Contoso University}" },
+  { id: 108, key: "certifications.aws-saa", label: "Certification", value: "AWS Solutions Architect – Associate", state: "rejected", src: "cv.tex", line: 60, conf: 0.62, snippet: "% \\item <mark>AWS Solutions Architect – Associate</mark> (expired)" },
+];
+const jobs = [
+  { id: 7, employer: "Fabrikam Logistics", title: "Senior Platform Engineer", location: "Remote (EU)", source: "greenhouse", status: "ready_for_review", score: 0.82, seen: "2026-10-12", url: "https://boards.example/fabrikam/7" },
+  { id: 9, employer: "Tailspin Health", title: "Backend Engineer, Data", location: "Wrocław · hybrid", source: "greenhouse", status: "preparing", score: 0.74, seen: "2026-10-13", url: "https://boards.example/tailspin/9" },
+  { id: 11, employer: "Litware", title: "Staff Software Engineer", location: "Berlin · on-site", source: "lever", status: "saved", score: 0.61, seen: "2026-10-13", url: "https://jobs.example/litware/11", dup: "Also listed on greenhouse (job 12)" },
+  { id: 4, employer: "Adventure Works", title: "Python Engineer", location: "Remote (PL)", source: "greenhouse", status: "submitted", score: 0.77, seen: "2026-10-02", url: "https://boards.example/aw/4", submitted: "2026-10-06" },
+  { id: 2, employer: "Wide World Importers", title: "Backend Engineer", location: "Kraków", source: "lever", status: "interviewing", score: 0.69, seen: "2026-09-24", url: "https://jobs.example/wwi/2", submitted: "2026-09-26" },
+  { id: 15, employer: "Proseware", title: "Data Platform Engineer", location: "Remote (EU)", source: "greenhouse", status: "discovered", score: 0.58, seen: "2026-10-14", url: "https://boards.example/proseware/15" },
+];
+const events = [
+  { at: "2026-10-14 09:12", text: "Imported linkedin Positions.csv — 1 conflict with a confirmed fact" },
+  { at: "2026-10-13 18:40", text: "Tailored CV drafted for Fabrikam Logistics (4 edits)" },
+  { at: "2026-10-12 08:05", text: "Source greenhouse: 23 listings seen, 3 new" },
+  { at: "2026-10-06 21:30", text: "You marked Adventure Works as submitted" },
+];
+const questions = [
+  { id: "q1", text: "Why do you want to work at Fabrikam Logistics?", kind: "free", status: "ask", note: "No reusable answer. Draft one yourself, or ask Claude for a draft from confirmed facts." },
+  { id: "q2", text: "Years of professional Python experience", kind: "reuse", status: "ok", value: "8", from: "skills.python + experience.* dates (confirmed)" },
+  { id: "q3", text: "Are you legally authorized to work in the EU?", kind: "sensitive", status: "ask", note: "Work authorization. Answer it yourself for this application." },
+  { id: "q4", text: "Will you now or in the future require visa sponsorship?", kind: "sensitive", status: "ask", note: "Sponsorship. Answer it yourself for this application." },
+  { id: "q5", text: "Expected annual salary (EUR)", kind: "sensitive", status: "ask", note: "Salary. Your preference range is 85–100k EUR; the form needs one number." },
+];
+const sources = [
+  { name: "greenhouse", access: "Public job board API", limit: "1 req/s", state: "active", last: "2026-10-12 08:05 · 23 seen" },
+  { name: "lever", access: "Public postings API", limit: "1 req/s", state: "paused", last: "2026-10-09 07:58 · 11 seen" },
+];
+const imports = [
+  { at: "2026-10-14 09:12", type: "linkedin_archive", file: "Positions.csv", status: "partial", facts: 12, conflicts: 1, retention: "deleted after import" },
+  { at: "2026-10-11 20:03", type: "latex", file: "cv.tex", status: "succeeded", facts: 31, conflicts: 0, retention: "kept · template candidate" },
+  { at: "2026-10-11 19:55", type: "pdf", file: "cv-2026.pdf", status: "succeeded", facts: 38, conflicts: 0, retention: "kept" },
+];
+const STATUS_LABEL = { discovered: "Discovered", saved: "Saved", preparing: "Preparing", ready_for_review: "Ready for review", submitted: "Submitted", interviewing: "Interviewing", rejected: "Rejected", withdrawn: "Withdrawn", closed: "Closed" };
+const ui = { factFilter: "needs", factSel: 104, jobTab: "match", answered: {}, confirmSubmit: false };
+
+// ---- helpers ----
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const chip = (cls, text) => `<span class="chip ${cls}">${esc(text)}</span>`;
+const needsReview = () => facts.filter((f) => f.state === "unreviewed" || f.state === "conflict");
+function toast(msg) { const t = $("#toast"); t.textContent = msg; t.hidden = false; clearTimeout(toast.h); toast.h = setTimeout(() => (t.hidden = true), 2200); }
+const sensitiveOpen = () => questions.filter((q) => q.kind === "sensitive" && !ui.answered[q.id]).length;
+
+function nav(route) {
+  const items = [
+    ["dashboard", "Overview", ""],
+    ["profile", "Profile review", needsReview().length],
+    ["jobs", "Jobs", jobs.filter((j) => ["saved", "preparing", "ready_for_review"].includes(j.status)).length],
+    ["tracker", "Applications", jobs.filter((j) => j.submitted).length],
+    ["imports", "Imports & sources", ""],
+  ];
+  $("#nav").innerHTML = items.map(([id, label, n]) => {
+    const cur = route === id || (route === "job" && id === "jobs");
+    const hot = id === "profile" && n > 0;
+    return `<a href="#${id}" ${cur ? 'aria-current="page"' : ""}><span>${label}</span>${n !== "" ? `<span class="count ${hot ? "hot" : ""}">${n}</span>` : ""}</a>`;
+  }).join("");
+}
+
+// ---- views ----
+function dashboard() {
+  const nr = needsReview().length, conflicts = facts.filter((f) => f.state === "conflict").length;
+  const ready = jobs.filter((j) => j.status === "ready_for_review");
+  const order = ["discovered", "saved", "preparing", "ready_for_review", "submitted", "interviewing"];
+  return `
+  <div class="head"><div><h1>Overview</h1><p class="sub">What is waiting for your decision. Nothing leaves this machine, and nothing is submitted without you.</p></div></div>
+  <div class="queues">
+    <a class="panel queue attn" href="#profile"><span class="eyebrow">Facts to review</span><span class="big">${nr}</span><span class="muted">${conflicts} conflict${conflicts === 1 ? "" : "s"} with confirmed facts</span></a>
+    <a class="panel queue sens" href="#job"><span class="eyebrow">Questions only you can answer</span><span class="big">${sensitiveOpen()}</span><span class="muted">Work authorization, sponsorship, salary</span></a>
+    <a class="panel queue attn" href="#job"><span class="eyebrow">Ready for your review</span><span class="big">${ready.length}</span><span class="muted">${ready.map((j) => esc(j.employer)).join(", ") || "None"}</span></a>
+    <a class="panel queue" href="#tracker"><span class="eyebrow">Awaiting reply</span><span class="big">${jobs.filter((j) => j.status === "submitted").length}</span><span class="muted">Submitted, no outcome recorded yet</span></a>
+  </div>
+  <section class="panel"><header><h2>Pipeline</h2><span class="muted num">${jobs.length} jobs tracked</span></header>
+    <div class="pipeline">${order.map((s) => `<div class="stage"><span class="eyebrow">${STATUS_LABEL[s]}</span><span class="n">${jobs.filter((j) => j.status === s).length}</span></div>`).join("")}</div>
+  </section>
+  <div class="two">
+    <section class="panel"><header><h2>Recent activity</h2></header><div class="body"><ul class="events">${events.map((e) => `<li><span class="mono muted">${e.at.slice(5)}</span><span>${esc(e.text)}</span></li>`).join("")}</ul></div></section>
+    <section class="panel"><header><h2>Profile</h2>${chip("ok", "v4 · 2026-10-11")}</header><div class="body">
+      <dl class="kv"><dt>Confirmed</dt><dd class="num">${facts.filter((f) => f.state === "confirmed").length} facts</dd><dt>Unreviewed</dt><dd class="num">${nr} facts</dd><dt>Sources</dt><dd>cv-2026.pdf, cv.tex, LinkedIn archive</dd><dt>Baseline CV</dt><dd>Not built yet (T08)</dd></dl>
+    </div></section>
+  </div>`;
+}
+
+function profile() {
+  const filters = [["needs", "Needs review"], ["confirmed", "Confirmed"], ["rejected", "Rejected"], ["all", "All"]];
+  const list = facts.filter((f) => ui.factFilter === "all" ? true : ui.factFilter === "needs" ? ["unreviewed", "conflict"].includes(f.state) : f.state === ui.factFilter);
+  const sel = facts.find((f) => f.id === ui.factSel) || list[0];
+  const stateChip = (f) => f.state === "conflict" ? chip("conflict", "Conflict") : chip(f.state, f.state[0].toUpperCase() + f.state.slice(1));
+  return `
+  <div class="head"><div><h1>Profile review</h1><p class="sub">Imported facts are candidates. Only facts you confirm are used in CVs and answers. A re-import never overwrites a confirmed fact; it shows up here as a conflict.</p></div>
+    <div class="row"><button class="btn" data-act="confirm-all-hi">Confirm all ≥ 0.9 confidence</button></div></div>
+  <div class="filters" role="group" aria-label="Filter facts">${filters.map(([k, l]) => `<button aria-pressed="${ui.factFilter === k}" data-filter="${k}">${l}</button>`).join("")}</div>
+  <div class="review">
+    <section class="panel"><div class="tablewrap"><table>
+      <thead><tr><th>Fact</th><th>Value</th><th>Source</th><th>State</th></tr></thead>
+      <tbody>${list.map((f) => `<tr class="click ${sel && f.id === sel.id ? "sel" : ""}" data-fact="${f.id}" tabindex="0"><td><div>${esc(f.label)}</div><div class="fact-key">${esc(f.key)}</div></td><td>${esc(f.value)}</td><td class="mono muted">${esc(f.src)}:${f.line}</td><td>${stateChip(f)}</td></tr>`).join("") || `<tr><td colspan="4" class="muted">Nothing here. Import a CV or LinkedIn archive to add facts.</td></tr>`}</tbody>
+    </table></div></section>
+    ${sel ? factPanel(sel) : ""}
+  </div>`;
+}
+
+function factPanel(f) {
+  const conflict = f.state === "conflict";
+  return `<aside class="panel prov"><header><h3>${esc(f.label)}</h3>${conflict ? chip("conflict", "Conflict") : chip(f.state, f.state)}</header><div class="body">
+    ${conflict ? `<div class="compare"><div><span class="eyebrow">Confirmed now</span><b>${esc(f.conflictWith)}</b><span class="muted mono">cv-2026.pdf:14</span></div><div><span class="eyebrow">New import</span><b>${esc(f.value)}</b><span class="muted mono">${esc(f.src)}:${f.line}</span></div></div>` : `<div><span class="eyebrow">Extracted value</span><div><b>${esc(f.value)}</b></div></div>`}
+    <div><span class="eyebrow">Where it came from</span><div class="source">${f.snippet}</div></div>
+    <dl class="kv"><dt>Field key</dt><dd class="mono">${esc(f.key)}</dd><dt>Parser confidence</dt><dd class="num">${f.conf.toFixed(2)}</dd><dt>Import</dt><dd class="mono">${esc(f.src)} · line ${f.line}</dd></dl>
+    <div class="row">
+      ${conflict ? `<button class="btn primary" data-act="keep">Keep confirmed</button><button class="btn" data-act="replace">Replace with new</button>` :
+        f.state === "unreviewed" ? `<button class="btn primary" data-act="confirm">Confirm</button><button class="btn" data-act="correct">Correct…</button><button class="btn danger" data-act="reject">Reject</button>` :
+        `<button class="btn" data-act="correct">Correct…</button><span class="muted">History is kept; a correction adds a new fact.</span>`}
+    </div>
+    <p class="muted" style="font-size:.8rem">CLI equivalent: <span class="mono">jaa profile review</span></p>
+  </div></aside>`;
+}
+
+function jobsView() {
+  return `
+  <div class="head"><div><h1>Jobs</h1><p class="sub">Listings from enabled sources, ranked against your confirmed profile and preferences. Open a job to see the match evidence, tailor a CV and prepare answers.</p></div>
+    <div class="row"><button class="btn">Search sources now</button></div></div>
+  <section class="panel"><div class="tablewrap"><table>
+    <thead><tr><th>Role</th><th>Location</th><th style="width:160px">Match</th><th>Source</th><th>Status</th></tr></thead>
+    <tbody>${[...jobs].sort((a, b) => b.score - a.score).map((j) => `<tr class="click" data-job="${j.id}" tabindex="0">
+      <td><b>${esc(j.title)}</b><div class="muted">${esc(j.employer)}</div>${j.dup ? `<div>${chip("ask", "Possible duplicate")} <span class="muted" style="font-size:.8rem">${esc(j.dup)}</span></div>` : ""}</td>
+      <td>${esc(j.location)}</td>
+      <td><div class="score"><span class="num">${Math.round(j.score * 100)}</span><div class="bar"><span style="width:${j.score * 100}%"></span></div></div></td>
+      <td class="mono muted">${esc(j.source)}<div style="font-size:.75rem">seen ${j.seen}</div></td>
+      <td>${chip(j.status, STATUS_LABEL[j.status])}</td></tr>`).join("")}</tbody>
+  </table></div></section>`;
+}
+
+function jobDetail() {
+  const j = jobs[0];
+  const tabs = [["match", "Match"], ["cv", "Tailored CV"], ["questions", `Questions (${questions.filter((q) => q.status === "ask" && !ui.answered[q.id]).length} open)`], ["handoff", "Apply"]];
+  const body = { match: matchTab, cv: cvTab, questions: questionsTab, handoff: handoffTab }[ui.jobTab]();
+  return `
+  <div class="head"><div><a href="#jobs" class="muted" style="font-size:.85rem">← Jobs</a><h1>${esc(j.title)}</h1><p class="sub">${esc(j.employer)} · ${esc(j.location)} · <a href="${j.url}" target="_blank" rel="noopener">Official listing ↗</a></p></div>
+    <div class="row">${chip(j.status, STATUS_LABEL[j.status])}</div></div>
+  <div class="tabs" role="tablist">${tabs.map(([k, l]) => `<button role="tab" aria-selected="${ui.jobTab === k}" data-tab="${k}">${l}</button>`).join("")}</div>
+  ${body}`;
+}
+
+function matchTab() {
+  const reqs = [
+    ["y", "5+ years building backend services in Python", "skills.python · experience.northwind-analytics (2022–present) · experience.contoso (2018–2022)"],
+    ["y", "Event streaming (Kafka or Kinesis)", "skills.kafka — unreviewed, confirm it before it counts"],
+    ["p", "Kubernetes in production", "Only mentioned in a project description; no confirmed skill fact"],
+    ["n", "German, professional working proficiency", "No language fact in your profile"],
+  ];
+  return `<div class="two">
+    <section class="panel"><header><h2>Requirements vs. your evidence</h2><span class="muted num">82 / 100</span></header><div class="body">
+      ${reqs.map(([m, r, e]) => `<div class="req"><span class="mk ${m}">${m === "y" ? "✓" : m === "n" ? "✕" : "~"}</span><div><div>${esc(r)}</div><div class="muted" style="font-size:.82rem">${esc(e)}</div></div></div>`).join("")}
+    </div></section>
+    <section class="panel"><header><h2>Fit with your preferences</h2></header><div class="body">
+      <dl class="kv"><dt>Remote</dt><dd>Matches “remote or hybrid”</dd><dt>Seniority</dt><dd>Senior · matches</dd><dt>Salary</dt><dd>Listing says 80–95k EUR · overlaps your range</dd><dt>Sponsorship</dt><dd class="muted">Not stated in the listing</dd></dl>
+      <p class="muted" style="font-size:.82rem">Scores explain; they don't decide. Gaps are never filled with invented experience.</p>
+    </div></section>
+  </div>`;
+}
+
+function cvTab() {
+  return `<div class="two">
+    <section class="panel"><header><h2>Changes from baseline CV</h2><span class="muted">4 edits · every line maps to a confirmed fact</span></header><div class="body diff">
+      <div class="line"><span class="eyebrow">Summary · reordered</span><span>Backend engineer with 8 years of Python, <del>APIs and data pipelines</del> <ins>event-driven platforms on Kafka and PostgreSQL</ins>.</span><span class="mono muted">evidence: skills.kafka, skills.postgresql</span></div>
+      <div class="line"><span class="eyebrow">Northwind Analytics · bullet moved up</span><span><ins>Led migration of order events to Kafka, cutting reprocessing time by 40%.</ins></span><span class="mono muted">evidence: experience.northwind-analytics.achievements[2]</span></div>
+      <div class="line"><span class="eyebrow">Skills · reordered</span><span>Python, <ins>Kafka</ins>, PostgreSQL, Terraform</span><span class="mono muted">no new skills added</span></div>
+      <div class="line"><span class="eyebrow">Removed for length</span><span><del>Organised internal Python meetup (2019)</del></span><span class="mono muted">still in your profile</span></div>
+      <div class="row"><button class="btn primary">Approve and build PDF</button><button class="btn">Edit in Claude Code</button><button class="btn">Regenerate</button></div>
+    </div></section>
+    <section class="panel"><header><h2>Preview</h2><span class="muted mono">template modern-1 · profile v4</span></header><div class="body">
+      <div class="page"><h4>Alex Example</h4><span>Backend Engineer · Wrocław · alex@example.invalid</span>
+        <div class="rule">Summary</div><span>Backend engineer with 8 years of Python, <span class="hl">event-driven platforms on Kafka and PostgreSQL</span>.</span>
+        <div class="rule">Experience</div><b>Senior Backend Engineer — Northwind Analytics</b><span>Mar 2022 – present</span><span class="hl">• Led migration of order events to Kafka, cutting reprocessing time by 40%.</span><span>• Owned the billing service API used by 30 internal teams.</span>
+        <b>Backend Engineer — Contoso Ltd</b><span>Sep 2018 – Feb 2022</span><span>• Built ingestion pipelines in Python and PostgreSQL.</span>
+        <div class="rule">Skills</div><span>Python, <span class="hl">Kafka</span>, PostgreSQL, Terraform</span>
+      </div>
+      <p class="muted" style="font-size:.8rem">Highlighted text differs from the baseline. The real view embeds the compiled PDF.</p>
+    </div></section>
+  </div>`;
+}
+
+function questionsTab() {
+  return `<section class="panel"><header><h2>Application questions</h2><span class="muted">Filled only from confirmed, reusable answers. Everything else waits for you.</span></header><div class="body">
+    ${questions.map((q) => {
+      const done = ui.answered[q.id];
+      const tag = q.kind === "sensitive" ? chip("sensitive", "Sensitive · you answer") : q.status === "ok" ? chip("ok", "Reused") : chip("ask", "Needs your answer");
+      let input = "";
+      if (q.status === "ok") input = `<input type="text" id="${q.id}" value="${esc(q.value)}"><span class="mono muted" style="font-size:.78rem">from ${esc(q.from)}</span>`;
+      else if (q.id === "q3" || q.id === "q4") input = `<select id="${q.id}"><option value="">Choose…</option><option>Yes</option><option>No</option><option>Prefer to answer on the form</option></select>`;
+      else input = q.kind === "sensitive" ? `<input type="text" id="${q.id}" placeholder="Type your answer">` : `<textarea id="${q.id}" placeholder="Your answer"></textarea>`;
+      return `<div class="q ${q.kind === "sensitive" ? "sens" : ""}"><div class="row" style="justify-content:space-between"><b>${esc(q.text)}</b>${done ? chip("ok", "Answered") : tag}</div>
+        ${q.note ? `<span class="muted" style="font-size:.85rem">${esc(q.note)}</span>` : ""}${input}
+        ${q.kind === "sensitive" ? `<label class="check"><input type="checkbox" id="${q.id}-reuse"> Save this answer for future applications (asks again each time unless you tick this)</label>` : ""}
+        ${q.status === "ask" ? `<div class="row"><button class="btn primary" data-answer="${q.id}">Save answer</button></div>` : ""}</div>`;
+    }).join("")}
+  </div></section>`;
+}
+
+function handoffTab() {
+  const j = jobs[0], open = questions.filter((q) => q.status === "ask" && !ui.answered[q.id]).length;
+  return `<div class="two">
+    <section class="panel"><header><h2>Apply on the employer's site</h2></header><div class="body">
+      <ol class="steps">
+        <li><div><b>Open the official application page</b><div class="muted"><a href="${j.url}" target="_blank" rel="noopener">${esc(j.url)} ↗</a></div></div></li>
+        <li><div><b>Attach your files</b><div class="mono muted">fabrikam-senior-platform/cv.pdf · sha256 3f9a…c21</div><div class="row" style="margin-top:6px"><button class="btn">Show in Finder</button></div></div></li>
+        <li><div><b>Paste your answers</b><div class="muted">${open ? `${open} question${open === 1 ? "" : "s"} still need your answer.` : "All answers are ready."} <a href="#job" data-tab="questions">Review answers</a></div></div></li>
+        <li><div><b>Submit on their site, then record it here</b><div class="muted">jaa never submits for you.</div></div></li>
+      </ol>
+    </div></section>
+    <section class="panel"><header><h2>Record the outcome</h2>${chip(j.status, STATUS_LABEL[j.status])}</header><div class="body">
+      <label class="check"><input type="checkbox" id="confirm-submit" ${ui.confirmSubmit ? "checked" : ""}> I submitted this application myself on the employer's site.</label>
+      <label class="muted" for="receipt" style="font-size:.85rem">Confirmation reference (optional)</label>
+      <input type="text" id="receipt" placeholder="e.g. FAB-2026-4471" style="border:1px solid var(--line);background:var(--bg);border-radius:var(--r);padding:7px 9px">
+      <div class="row"><button class="btn primary" data-act="submitted" ${ui.confirmSubmit ? "" : "disabled"}>Mark as submitted</button><button class="btn" data-act="withdraw">Not applying</button></div>
+      <p class="muted" style="font-size:.8rem">The status change is stored with a timestamp and kept in the job's history.</p>
+    </div></section>
+  </div>`;
+}
+
+function tracker() {
+  const apps = jobs.filter((j) => j.submitted);
+  return `<div class="head"><div><h1>Applications</h1><p class="sub">Every application you've recorded as submitted, with its outcome. Status changes are append-only.</p></div><div class="row"><button class="btn">Export JSON</button></div></div>
+  <section class="panel"><div class="tablewrap"><table><thead><tr><th>Role</th><th>Submitted</th><th>Confirmed by</th><th>Status</th><th>Next</th></tr></thead><tbody>
+    ${apps.map((j) => `<tr><td><b>${esc(j.title)}</b><div class="muted">${esc(j.employer)}</div></td><td class="num">${j.submitted}</td><td>You</td><td>${chip(j.status, STATUS_LABEL[j.status])}</td><td><select aria-label="Record outcome for ${esc(j.employer)}"><option>Record outcome…</option><option>Interviewing</option><option>Rejected</option><option>Withdrawn</option><option>Closed</option></select></td></tr>`).join("")}
+  </tbody></table></div></section>
+  <section class="panel"><header><h2>History · Wide World Importers</h2></header><div class="body"><ul class="events">
+    <li><span class="mono muted">10-03 14:20</span><span>Submitted → Interviewing · by you · “Phone screen booked”</span></li>
+    <li><span class="mono muted">09-26 19:02</span><span>Ready for review → Submitted · by you</span></li>
+    <li><span class="mono muted">09-25 22:10</span><span>Preparing → Ready for review · system</span></li>
+    <li><span class="mono muted">09-24 08:01</span><span>Discovered → Saved · by you</span></li>
+  </ul></div></section>`;
+}
+
+function importsView() {
+  return `<div class="head"><div><h1>Imports & sources</h1><p class="sub">Where your profile facts and job listings come from. LinkedIn data comes only from your own data archive.</p></div>
+    <div class="row"><button class="btn primary">Import a CV…</button><button class="btn">Import LinkedIn archive…</button></div></div>
+  <section class="panel"><header><h2>Import runs</h2></header><div class="tablewrap"><table><thead><tr><th>When</th><th>Source</th><th>Result</th><th class="num">Facts</th><th>Source file</th></tr></thead><tbody>
+    ${imports.map((i) => `<tr><td class="mono">${i.at}</td><td><span class="mono">${esc(i.file)}</span><div class="muted" style="font-size:.8rem">${i.type}</div></td><td>${chip(i.status === "succeeded" ? "ok" : "ask", i.status)}${i.conflicts ? ` ${chip("conflict", i.conflicts + " conflict")}` : ""}</td><td class="num">${i.facts}</td><td class="muted">${esc(i.retention)}</td></tr>`).join("")}
+  </tbody></table></div></section>
+  <section class="panel"><header><h2>Job sources</h2></header><div class="tablewrap"><table><thead><tr><th>Source</th><th>Access</th><th>Rate limit</th><th>Last run</th><th>State</th><th></th></tr></thead><tbody>
+    ${sources.map((s) => `<tr><td class="mono">${s.name}</td><td>${s.access}</td><td class="num">${s.limit}</td><td class="mono muted">${s.last}</td><td>${chip(s.state === "active" ? "ok" : "ask", s.state)}</td><td><button class="btn" data-src="${s.name}">${s.state === "active" ? "Pause" : "Resume"}</button></td></tr>`).join("")}
+  </tbody></table></div></section>`;
+}
+
+// ---- router & events ----
+const VIEWS = { dashboard, profile, jobs: jobsView, job: jobDetail, tracker, imports: importsView };
+function render() {
+  const route = (location.hash.slice(1) || "dashboard");
+  const r = VIEWS[route] ? route : "dashboard";
+  nav(r);
+  $("#view").innerHTML = VIEWS[r]();
+}
+window.addEventListener("hashchange", () => { render(); window.scrollTo(0, 0); });
+
+document.addEventListener("click", (e) => {
+  const t = e.target.closest("[data-filter],[data-fact],[data-act],[data-job],[data-tab],[data-answer],[data-src]");
+  if (!t) return;
+  const sel = facts.find((f) => f.id === ui.factSel);
+  if (t.dataset.filter) { ui.factFilter = t.dataset.filter; render(); }
+  else if (t.dataset.fact) { ui.factSel = +t.dataset.fact; render(); }
+  else if (t.dataset.job) { location.hash = "job"; }
+  else if (t.dataset.tab) { e.preventDefault(); ui.jobTab = t.dataset.tab; render(); }
+  else if (t.dataset.src) { const s = sources.find((x) => x.name === t.dataset.src); s.state = s.state === "active" ? "paused" : "active"; toast(`${s.name} ${s.state === "active" ? "resumed" : "paused"}`); render(); }
+  else if (t.dataset.answer) {
+    const q = questions.find((x) => x.id === t.dataset.answer), el = document.getElementById(q.id);
+    if (!el.value.trim()) { toast("Write an answer first. Sensitive questions are never filled for you."); el.focus(); return; }
+    ui.answered[q.id] = true; toast("Answer saved for this application"); render();
+  } else {
+    const a = t.dataset.act;
+    const next = () => { const n = needsReview().find((f) => f.id !== ui.factSel); ui.factSel = n ? n.id : ui.factSel; };
+    if (a === "confirm" && sel) { sel.state = "confirmed"; toast("Fact confirmed"); next(); }
+    if (a === "reject" && sel) { sel.state = "rejected"; toast("Fact rejected"); next(); }
+    if (a === "keep" && sel) { sel.state = "rejected"; toast("Kept the confirmed value"); next(); }
+    if (a === "replace" && sel) { sel.state = "confirmed"; toast("Replaced; the old value stays in history"); next(); }
+    if (a === "correct") toast("Opens an inline editor; the correction becomes a new fact");
+    if (a === "confirm-all-hi") { let n = 0; facts.forEach((f) => { if (f.state === "unreviewed" && f.conf >= 0.9) { f.state = "confirmed"; n++; } }); toast(`${n} fact${n === 1 ? "" : "s"} confirmed`); next(); }
+    if (a === "submitted") { jobs[0].status = "submitted"; jobs[0].submitted = "2026-10-14"; events.unshift({ at: "2026-10-14 10:00", text: "You marked Fabrikam Logistics as submitted" }); ui.confirmSubmit = false; toast("Marked as submitted"); }
+    if (a === "withdraw") { jobs[0].status = "withdrawn"; toast("Marked as withdrawn"); }
+    render();
+  }
+});
+document.addEventListener("change", (e) => { if (e.target.id === "confirm-submit") { ui.confirmSubmit = e.target.checked; render(); } });
+document.addEventListener("keydown", (e) => { if (e.key === "Enter" && e.target.matches("tr.click")) e.target.click(); });
+render();
+</script>
+</body>
+</html>
