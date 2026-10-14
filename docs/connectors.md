@@ -24,7 +24,7 @@ Every connector declares a `SourcePolicy`. `jaa sources show <key>` prints it.
 
 ## Listing output
 
-`Connector.fetch(client, target)` returns a `FetchResult` with `JobListing`s and `SourceIssue`s for one target (a board token, feed path, … — connector-specific).
+`Connector.fetch(client, target)` returns a `FetchResult` with `JobListing`s and `SourceIssue`s for one target (a board token, feed path, … — connector-specific). `Connector.target_key(target)` returns the canonical form of a target, which is how it is stored and compared (removal is judged per target), and raises `ConnectorTargetError` for targets the connector cannot fetch, before any request.
 
 | `JobListing` field | Type | Notes |
 |---|---|---|
@@ -40,7 +40,7 @@ Every connector declares a `SourcePolicy`. `jaa sources show <key>` prints it.
 
 ## Shared HTTP client, rate limiting and errors
 
-Connectors receive a `SourceClient` bound to their policy and make every request through `client.get(url)` or `client.get_json(url)`. The network is behind a `Transport` protocol, so tests replay recorded responses (`tests/fixtures/fake_connector.py`).
+Connectors receive a `SourceClient` bound to their policy and make every request through `client.get(url)` or `client.get_json(url)`. The network is behind a `Transport` protocol. The real one is `jaa.connectors.urllib_transport.UrllibTransport` (stdlib, no cookies, redirects followed only within the same scheme, host and port), and tests replay recorded responses (`tests/fixtures/fake_connector.py`).
 
 The client:
 
@@ -62,10 +62,28 @@ The client:
 
 A source is paused when its policy says so (`paused_reason`, unreviewed terms, required credentials — only a code change can resume these) or when the latest row in `source_status_events` is `paused`. Users pause and resume with `jaa sources pause|resume`. When a fetch raises `SourceAccessDeniedError`, the caller records a `system` pause with the error as the reason, so nothing is fetched again until the user has looked at it and resumes the source.
 
+## Storing listings
+
+`jaa.storage.listings.fetch_and_store` runs a connector for one target and stores the result (ADR 0013):
+
+- New listings become `jobs` rows with status `discovered`. Known ones get a new `last_seen_at`, and their fields are updated when the listing's content hash changed.
+- After a complete fetch, jobs of that source and target that were not listed get `removed_at`, cleared again if they come back. `jobs.status` is never changed by a fetch.
+- Every fetch that reached the source adds a `source_fetch_runs` row with its outcome and counts. A `denied` fetch also pauses the source.
+
+`jaa jobs fetch <source> <target>…` does this from the CLI.
+
+## Sources
+
+| Key | Source | Access | Targets |
+|---|---|---|---|
+| `solid_jobs` | [SOLID.Jobs](https://solid.jobs/api-ofert-pracy), Poland | Public offers API for integrators and aggregators, no key, `campaign=jaa`; 30 requests/min (the source allows 300) | Divisions: `IT`, `Engineering`, `Marketing`, `Sales`, `HR`, `Logistics`, `Finances`, `Other` |
+
+Checked and not used (#21): justjoin.it and bulldogjob.pl disallow their API and feeds in `robots.txt`; nofluffjobs.com blocks automated clients and documents no API. Offers from those boards can be added by hand from pasted text (#46).
+
 ## Adding a connector
 
 1. Check the source's documentation and terms (see T20, #21): public, documented, permits programmatic reading of listings, needs no credentials.
 2. Write the policy with `terms_url`, `terms_reviewed_on`, the narrowest `allowed_hosts` and `permitted_fields`, and rate limits at or below what the source documents.
-3. Implement `fetch` with `client.get_json`/`client.get` only. Put unreadable items in `FetchResult.issues`; raise `SourceDataError` when the whole response is unusable.
+3. Implement `target_key` and `fetch`, with `client.get_json`/`client.get` only. Put unreadable items in `FetchResult.issues`; raise `SourceDataError` when the whole response is unusable.
 4. Record real responses as synthetic fixtures (no personal data) and test against them with a replaying transport. Tests never touch the network.
 5. Register it in `jaa.connectors.registry`.

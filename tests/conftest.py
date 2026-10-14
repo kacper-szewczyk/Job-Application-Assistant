@@ -219,6 +219,20 @@ def populate(conn: sqlite3.Connection) -> Sample:
             occurred_at=T0,
         ),
     )
+    repo.source_fetch_runs.insert(
+        conn,
+        m.SourceFetchRun(
+            source="example_board",
+            target="example",
+            started_at=T0,
+            finished_at=T0,
+            outcome=m.FetchRunOutcome.OK,
+            requests=1,
+            listings=1,
+            new=1,
+            issues=[{"code": "duplicate_listing", "severity": "warning", "source_job_id": "123"}],
+        ),
+    )
     conn.commit()
     return Sample(run, fact, email, version, answer, job, application, artifact)
 

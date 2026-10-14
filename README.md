@@ -111,12 +111,15 @@ The CV uses only confirmed facts. Before a build, jaa lists unreviewed facts and
 
 ```bash
 uv run jaa sources list                  # available sources and whether each is active
-uv run jaa sources show <key>            # access method, allowed hosts, terms, rate limits
+uv run jaa sources show <key>            # access method, allowed hosts, terms, rate limits, recent fetches
 uv run jaa sources pause <key> --reason "terms changed"
 uv run jaa sources resume <key>
+
+uv run jaa jobs fetch solid_jobs IT      # every SOLID.Jobs IT offer; also Engineering, HR, …
+uv run jaa jobs list                     # stored jobs, newest first (--include-removed, --source)
 ```
 
-Connectors only use documented public APIs and feeds, within the rate limits in their source policy. If a source refuses access (login wall, bot check, HTTP 401/403), jaa pauses it instead of retrying. See [docs/connectors.md](docs/connectors.md) and [ADR 0011](docs/decisions/0011-connector-contract.md). The first source arrives with T10.
+The first source is [SOLID.Jobs](https://solid.jobs/api-ofert-pracy), through its public API for aggregators. Fetching again reports new, changed and removed offers; a removed offer keeps your status for it. Connectors only use documented public APIs and feeds, within the rate limits in their source policy. If a source refuses access (login wall, bot check, HTTP 401/403), jaa pauses it instead of retrying. justjoin.it, bulldogjob.pl and nofluffjobs.com offer no permitted API, so jaa does not read them. See [docs/connectors.md](docs/connectors.md), [ADR 0011](docs/decisions/0011-connector-contract.md) and [ADR 0013](docs/decisions/0013-solid-jobs-and-listing-storage.md).
 
 ### Configuration
 

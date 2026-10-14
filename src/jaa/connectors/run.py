@@ -163,6 +163,7 @@ def run_connector(
     policy = connector.policy
     if state.status is SourceStatus.PAUSED:
         raise SourcePausedError(f"{policy.key} is paused: {state.reason or 'no reason given'}")
+    target = connector.target_key(target)
     client = SourceClient(policy, transport, clock=clock, sleep=sleep)
     result = connector.fetch(client, target)
     listings, issues = validate_listings(connector, result.listings)

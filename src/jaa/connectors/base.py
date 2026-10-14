@@ -217,6 +217,13 @@ class Connector(Protocol):
     @property
     def policy(self) -> SourcePolicy: ...
 
+    def target_key(self, target: str) -> str:
+        """The canonical form of `target` (e.g. "it" → "IT"), used to store and compare it.
+
+        Raises `ConnectorTargetError` for a target the connector cannot fetch, before any request.
+        """
+        ...
+
     def fetch(self, client: "SourceClient", target: str) -> FetchResult: ...
 
 

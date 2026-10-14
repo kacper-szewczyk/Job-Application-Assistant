@@ -58,7 +58,11 @@ class TransportError(Exception):
 
 
 class Transport(Protocol):
-    """Performs one GET. Implementations stop reading after `max_bytes` and raise TransportError."""
+    """Performs one GET and returns any HTTP status as a response.
+
+    Implementations read at most `max_bytes + 1` bytes of the body, so the client can tell an
+    oversized body from a full one, and raise `TransportError` when no response arrives.
+    """
 
     def send(self, request: HttpRequest, *, timeout: float, max_bytes: int) -> HttpResponse: ...
 
