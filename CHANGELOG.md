@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.9.0](https://github.com/kacper-szewczyk/Job-Application-Assistant/compare/jaa-v0.8.0...jaa-v0.9.0) (2026-10-14)
+
+
+### Features
+
+* **jobs:** canonical URLs, duplicate flags, search filters and saved searches ([#49](https://github.com/kacper-szewczyk/Job-Application-Assistant/issues/49)) ([db23df9](https://github.com/kacper-szewczyk/Job-Application-Assistant/commit/db23df9d3ca566e134e052e733fa5afb8df10711)), closes [#12](https://github.com/kacper-szewczyk/Job-Application-Assistant/issues/12)
+
 ## [0.8.0](https://github.com/kacper-szewczyk/Job-Application-Assistant/compare/jaa-v0.7.0...jaa-v0.8.0) (2026-10-14)
 
 
