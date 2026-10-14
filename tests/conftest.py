@@ -192,6 +192,20 @@ def populate(conn: sqlite3.Connection) -> Sample:
             created_at=T0,
         ),
     )
+    repo.template_candidates.insert(
+        conn,
+        m.TemplateCandidate(
+            import_run_id=run.id,
+            main_file="cv.tex",
+            files={
+                "cv.tex": "\\documentclass{article}\n\\begin{document}Synthetic\\end{document}\n"
+            },
+            document_class="article",
+            packages=["geometry"],
+            content_sha256="e" * 64,
+            registered_at=T0,
+        ),
+    )
     conn.commit()
     return Sample(run, fact, email, version, answer, job, application, artifact)
 

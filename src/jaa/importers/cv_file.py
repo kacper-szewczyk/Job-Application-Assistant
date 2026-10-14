@@ -1,9 +1,11 @@
-"""Prepare the import of a PDF or DOCX CV: detect the format, extract, parse, build the run.
+"""Prepare the import of a PDF, DOCX or LaTeX CV: detect the format, extract, parse, build the run.
 
 The result is data only. Callers store it with `jaa.storage.profile.add_imported_facts`, which
-records the `ImportRun` (also for failed imports) and adds the candidates as `unreviewed`.
+records the `ImportRun` (also for failed imports) and adds the candidates as `unreviewed`. A
+LaTeX import also carries a `TemplateCandidate` that callers may register (T08).
 """
 
+import json
 import logging
 from dataclasses import dataclass
 from datetime import datetime
@@ -19,6 +21,7 @@ from jaa.core.models import (
     ImportStatus,
     JsonValue,
     RetentionChoice,
+    TemplateCandidate,
 )
 from jaa.importers.base import (
     ExtractedText,
@@ -29,6 +32,14 @@ from jaa.importers.base import (
 )
 from jaa.importers.cv import parse_cv
 from jaa.importers.docx import extract_docx, is_docx
+from jaa.importers.latex import (
+    LatexProject,
+    LatexResult,
+    extract_latex,
+    is_latex,
+    is_latex_fragment,
+    read_latex_project,
+)
 from jaa.importers.pdf import extract_pdf, is_pdf
 
 log = logging.getLogger(__name__)
@@ -41,19 +52,53 @@ class PreparedImport:
     run: ImportRun
     candidates: tuple[FactCandidate, ...]
     issues: tuple[ImportIssue, ...]
+    # LaTeX sources only: the files, ready to be kept as a template candidate if the user asks.
+    template: TemplateCandidate | None = None
 
 
 def detect_type(data: bytes) -> ImportSourceType:
-    """Detect PDF or DOCX from the content, not the file extension."""
+    """Detect PDF, DOCX or LaTeX from the content, not the file extension."""
     if is_pdf(data):
         return ImportSourceType.PDF
     if is_docx(data):
         return ImportSourceType.DOCX
+    if is_latex(data):
+        return ImportSourceType.LATEX
     if data.startswith(_OLE_MAGIC):
         raise ImportSourceError(
             "this looks like a legacy Word .doc file; save it as .docx or PDF and import that"
         )
-    raise ImportSourceError("unsupported file type; import a PDF or DOCX CV")
+    if is_latex_fragment(data):
+        raise ImportSourceError(
+            "this looks like part of a LaTeX CV (it has no \\documentclass); import the main "
+            ".tex file; the files it includes are read with it"
+        )
+    raise ImportSourceError("unsupported file type; import a PDF, DOCX or LaTeX (.tex) CV")
+
+
+def _template(project: LatexProject, result: LatexResult, at: datetime) -> TemplateCandidate:
+    files = dict[str, JsonValue](project.files)
+    canonical = json.dumps(files, sort_keys=True, ensure_ascii=False).encode()
+    return TemplateCandidate(
+        main_file=project.main,
+        files=files,
+        document_class=result.document_class,
+        packages=list[JsonValue](result.packages),
+        content_sha256=sha256(canonical),
+        registered_at=at,
+    )
+
+
+def _extract(
+    source_type: ImportSourceType, path: Path, data: bytes, at: datetime
+) -> tuple[ExtractedText, TemplateCandidate | None]:
+    if source_type is ImportSourceType.PDF:
+        return extract_pdf(data), None
+    if source_type is ImportSourceType.DOCX:
+        return extract_docx(data), None
+    project = read_latex_project(path, data)
+    result = extract_latex(project)
+    return result.extracted, _template(project, result, at)
 
 
 def _status(candidates: tuple[FactCandidate, ...], issues: tuple[ImportIssue, ...]) -> ImportStatus:
@@ -74,12 +119,11 @@ def prepare_cv_import(path: Path, *, at: datetime | None = None) -> PreparedImpo
     at = at or utcnow()
 
     candidates: tuple[FactCandidate, ...] = ()
+    template: TemplateCandidate | None = None
     issues: tuple[ImportIssue, ...]
     stats: dict[str, JsonValue] = {}
     try:
-        extracted: ExtractedText = (
-            extract_pdf(data) if source_type is ImportSourceType.PDF else extract_docx(data)
-        )
+        extracted, template = _extract(source_type, resolved, data, at)
     except ImportSourceError as exc:
         issues = (ImportIssue(code="unreadable", severity=IssueSeverity.ERROR, message=str(exc)),)
     else:
@@ -98,6 +142,9 @@ def prepare_cv_import(path: Path, *, at: datetime | None = None) -> PreparedImpo
             **extracted.stats,
             "lines": len(extracted.lines),
             "sections": dict[str, JsonValue](parsed.sections),
+            "headings": [
+                {"title": title, "section": section.value} for title, section in parsed.headings
+            ],
         }
 
     run = ImportRun(
@@ -118,4 +165,4 @@ def prepare_cv_import(path: Path, *, at: datetime | None = None) -> PreparedImpo
         len(candidates),
         len(issues),
     )
-    return PreparedImport(run=run, candidates=candidates, issues=issues)
+    return PreparedImport(run=run, candidates=candidates, issues=issues, template=template)

@@ -254,3 +254,22 @@ class DocumentArtifact:
     content_sha256: str
     manifest: JsonObject = field(default_factory=dict[str, JsonValue])
     created_at: datetime
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class TemplateCandidate:
+    """An imported LaTeX CV kept as a possible starting template for generated CVs (T08).
+
+    It is a snapshot: the files as they were when imported. The structured profile stays
+    canonical (SPEC §6); a template only decides how confirmed facts are laid out.
+    """
+
+    id: int | None = None
+    import_run_id: int | None = None
+    main_file: str
+    # {POSIX path relative to the main file's folder: LaTeX source}. Holds the CV's own text.
+    files: JsonObject = field(repr=False)
+    document_class: str | None = None
+    packages: JsonArray = field(default_factory=list[JsonValue])
+    content_sha256: str
+    registered_at: datetime

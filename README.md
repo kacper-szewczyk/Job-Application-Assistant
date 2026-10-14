@@ -54,11 +54,13 @@ uv run jaa export ~/jaa-export.json      # JSON export, see docs/export-format.m
 
 ```bash
 uv run jaa import cv ~/Documents/cv.pdf   # PDF or DOCX; facts go to the review queue
+uv run jaa import cv ~/cv/main.tex --as-template  # LaTeX; also keep the source as a template
 uv run jaa import runs                    # past imports, status and issue counts
 uv run jaa import show 3                  # everything that was not imported, and why
+uv run jaa import templates               # LaTeX CVs kept as template candidates
 ```
 
-Extraction is heuristic: every fact keeps its page/paragraph and a source excerpt, and anything that could not be interpreted is listed as an issue instead of being dropped. Re-importing never changes confirmed facts. See [ADR 0008](docs/decisions/0008-cv-file-import.md).
+Extraction is heuristic: every fact keeps its page/paragraph (or `.tex` file and line) and a source excerpt, and anything that could not be interpreted is listed as an issue instead of being dropped. Re-importing never changes confirmed facts. LaTeX imports follow `\input`/`\include` files in the CV's folder and understand moderncv, awesome-cv and simple `\newcommand`s; unknown commands are reported. See [ADR 0008](docs/decisions/0008-cv-file-import.md) and [ADR 0009](docs/decisions/0009-latex-cv-import.md).
 
 ### Reviewing your profile
 
