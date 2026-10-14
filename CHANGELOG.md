@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.0](https://github.com/kacper-szewczyk/Job-Application-Assistant/compare/jaa-v0.9.0...jaa-v0.10.0) (2026-10-14)
+
+
+### Features
+
+* **matching:** extract job requirements and explain matches against the profile ([#51](https://github.com/kacper-szewczyk/Job-Application-Assistant/issues/51)) ([70f2dcb](https://github.com/kacper-szewczyk/Job-Application-Assistant/commit/70f2dcbffafb5205327fe7d8b5b1d15426004579)), closes [#13](https://github.com/kacper-szewczyk/Job-Application-Assistant/issues/13)
+
 ## [0.9.0](https://github.com/kacper-szewczyk/Job-Application-Assistant/compare/jaa-v0.8.0...jaa-v0.9.0) (2026-10-14)
 
 
