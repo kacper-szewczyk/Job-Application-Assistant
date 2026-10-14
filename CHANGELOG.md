@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.0](https://github.com/kacper-szewczyk/Job-Application-Assistant/compare/jaa-v0.3.0...jaa-v0.4.0) (2026-10-14)
+
+
+### Features
+
+* **importers:** import LaTeX CVs and keep them as template candidates ([#34](https://github.com/kacper-szewczyk/Job-Application-Assistant/issues/34)) ([e628d10](https://github.com/kacper-szewczyk/Job-Application-Assistant/commit/e628d106c1eedcad1b3241dfcc34a49c9165cbf7)), closes [#7](https://github.com/kacper-szewczyk/Job-Application-Assistant/issues/7)
+
 ## [0.3.0](https://github.com/kacper-szewczyk/Job-Application-Assistant/compare/jaa-v0.2.0...jaa-v0.3.0) (2026-10-14)
 
 
