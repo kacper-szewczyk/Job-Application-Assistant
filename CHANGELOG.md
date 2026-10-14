@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.0](https://github.com/kacper-szewczyk/Job-Application-Assistant/compare/jaa-v0.7.0...jaa-v0.8.0) (2026-10-14)
+
+
+### Features
+
+* **connectors:** fetch SOLID.Jobs offers and track new, changed and removed jobs ([#47](https://github.com/kacper-szewczyk/Job-Application-Assistant/issues/47)) ([623d1d8](https://github.com/kacper-szewczyk/Job-Application-Assistant/commit/623d1d8c5698e45794057fe2be0bf724c36e1bc1)), closes [#11](https://github.com/kacper-szewczyk/Job-Application-Assistant/issues/11)
+
 ## [0.7.0](https://github.com/kacper-szewczyk/Job-Application-Assistant/compare/jaa-v0.6.1...jaa-v0.7.0) (2026-10-14)
 
 
