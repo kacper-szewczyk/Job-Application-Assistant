@@ -78,6 +78,11 @@ class SubmissionConfirmation(StrEnum):
     INTEGRATION_RECEIPT = "integration_receipt"
 
 
+class SourceStatus(StrEnum):
+    ACTIVE = "active"
+    PAUSED = "paused"
+
+
 class ArtifactKind(StrEnum):
     CV_PDF = "cv_pdf"
     CV_SOURCE = "cv_source"
@@ -218,6 +223,21 @@ class JobStatusEvent:
     actor: StatusActor
     occurred_at: datetime
     note: str | None = field(default=None, repr=False)
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class SourceStatusEvent:
+    """A job source paused or resumed, by the user or after the source refused access (ADR 0011).
+
+    The latest event for a source is its stored status; no event means active.
+    """
+
+    id: int | None = None
+    source: str
+    status: SourceStatus
+    actor: StatusActor
+    reason: str | None = None
+    occurred_at: datetime
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

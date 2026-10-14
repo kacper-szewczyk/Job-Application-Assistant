@@ -43,3 +43,26 @@ class ImportSourceError(JaaError):
 
 class UnsafeArchiveError(ImportSourceError):
     """An archive is refused because a member could escape it or exhaust resources."""
+
+
+class ConnectorError(JaaError):
+    """A job source connector could not fetch or understand listings."""
+
+
+class SourcePausedError(ConnectorError):
+    """The source is paused, by its policy or by the user, so nothing may be fetched."""
+
+
+class SourceAccessDeniedError(ConnectorError):
+    """The source refused access (login wall, bot check, 401/403). Never retried or worked around.
+
+    Callers pause the source when they see this (ADR 0011).
+    """
+
+
+class SourceUnavailableError(ConnectorError):
+    """The source kept failing (network errors, 5xx, rate limiting) after the allowed retries."""
+
+
+class SourceDataError(ConnectorError):
+    """The source answered, but not with data the connector can use, or broke the policy limits."""
