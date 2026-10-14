@@ -1,11 +1,12 @@
-"""`jaa import …`: import CV files as reviewable facts and inspect past import runs.
+"""`jaa import …`: import CVs, LinkedIn archives and text as reviewable facts; inspect runs.
 
 Extracted values are never printed here; the user reviews them with `jaa profile facts`.
 Issue messages may quote a short piece of the CV so the user can find what was not imported.
 """
 
 import sqlite3
-from collections.abc import Generator
+import sys
+from collections.abc import Generator, Sequence
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Annotated
@@ -16,11 +17,15 @@ from rich.table import Table
 from rich.text import Text
 
 from jaa.cli.common import console, err_console, open_existing, settings_from
+from jaa.core.clock import utcnow
 from jaa.core.errors import ImportSourceError, JaaError
-from jaa.core.models import ImportRun, ImportStatus, JsonValue
+from jaa.core.models import FactCandidate, ImportRun, ImportStatus, JsonValue, RetentionChoice
 from jaa.core.review import find_conflicts
+from jaa.importers.base import read_source
 from jaa.importers.cv_file import prepare_cv_import
-from jaa.storage.profile import add_imported_facts
+from jaa.importers.linkedin import INSTRUCTIONS, delete_sources, prepare_linkedin_import
+from jaa.importers.text import prepare_text_import
+from jaa.storage.profile import ImportResult, add_imported_facts
 from jaa.storage.repository import import_runs, profile_facts
 from jaa.storage.templates import list_template_candidates, register_template_candidate
 
@@ -145,6 +150,169 @@ def import_cv(
         raise typer.Exit(code=1)
 
 
+def _store(
+    conn: sqlite3.Connection, run: ImportRun, candidates: Sequence[FactCandidate]
+) -> tuple[ImportResult, list[ImportRun], int]:
+    """Store the run and facts; return the result, earlier runs of the source and conflicts."""
+    earlier = import_runs.list(conn, source_sha256=run.source_sha256) if run.source_sha256 else []
+    result = add_imported_facts(conn, run, candidates)
+    added_keys = {f.field_key for f in result.added}
+    conflicts = [c for c in find_conflicts(profile_facts.list(conn)) if c.field_key in added_keys]
+    return result, earlier, len(conflicts)
+
+
+def _report(result: ImportResult, earlier: list[ImportRun], conflicts: int) -> None:
+    run = result.run
+    console.print(
+        Text(
+            f"Import #{run.id}: {run.source_type} {run.source_path or '(pasted text)'} — "
+            f"{run.status}",
+            style="bold",
+        )
+    )
+    if earlier:
+        ids = ", ".join(f"#{r.id}" for r in earlier)
+        console.print(f"This source was imported before ({ids}); known values were skipped.")
+    console.print(
+        f"{len(result.added)} new fact{'s' if len(result.added) != 1 else ''} to review, "
+        f"{result.duplicates} already known."
+    )
+    _print_skipped(run.summary)
+    if run.errors:
+        console.print(f"\n[bold]Issues ({len(run.errors)})[/bold]")
+        _print_issues(run.errors)
+    if result.added:
+        console.print("\nReview them with `jaa profile facts --state unreviewed`.")
+    if conflicts:
+        console.print(
+            f"{conflicts} field{'s' if conflicts != 1 else ''} now "
+            f"{'have' if conflicts != 1 else 'has'} competing values; "
+            "see `jaa profile conflicts`."
+        )
+
+
+_MAX_SKIPPED_SHOWN = 10
+
+
+def _print_skipped(summary: dict[str, JsonValue]) -> None:
+    skipped = summary.get("skipped_files")
+    if not isinstance(skipped, list) or not skipped:
+        return
+    names = [str(n) for n in skipped]
+    shown = ", ".join(names[:_MAX_SKIPPED_SHOWN])
+    more = f" and {len(names) - _MAX_SKIPPED_SHOWN} more" if len(names) > _MAX_SKIPPED_SHOWN else ""
+    console.print(
+        Text(
+            f"Skipped {len(names)} file{'s' if len(names) != 1 else ''} that are not profile "
+            f"data: {shown}{more}."
+        )
+    )
+
+
+@import_app.command("linkedin")
+def import_linkedin(
+    ctx: typer.Context,
+    paths: Annotated[
+        list[Path] | None,
+        typer.Argument(
+            help="Your LinkedIn data archive (.zip), or CSV files from it. "
+            "Omit to see how to download the archive.",
+            show_default=False,
+        ),
+    ] = None,
+    delete_source: Annotated[
+        bool | None,
+        typer.Option(
+            "--delete-source/--keep-source",
+            help="Delete the archive (or CSV files) after a successful import, or keep it. "
+            "Asked when not given.",
+            show_default=False,
+        ),
+    ] = None,
+) -> None:
+    """Import your own LinkedIn data archive. Nothing is confirmed until you review it.
+
+    jaa reads only the files you give it: it never signs in to LinkedIn or opens profile URLs.
+    """
+    if not paths:
+        console.print(INSTRUCTIONS)
+        return
+    if delete_source is None:
+        names = ", ".join(p.name for p in paths)
+        delete_source = typer.confirm(
+            f"Delete {names} after a successful import? The extracted facts are kept in jaa "
+            "either way",
+            default=False,
+        )
+    retention = RetentionChoice.DELETE_AFTER_IMPORT if delete_source else RetentionChoice.KEEP
+    with _database(ctx) as conn:
+        try:
+            prepared = prepare_linkedin_import(paths, retention=retention)
+        except ImportSourceError as exc:
+            err_console.print(f"[red]Cannot import:[/red] {escape(str(exc))}")
+            raise typer.Exit(code=2) from exc
+        result, earlier, conflicts = _store(conn, prepared.run, prepared.candidates)
+        run = result.run
+        deletion_error: str | None = None
+        if (
+            retention is RetentionChoice.DELETE_AFTER_IMPORT
+            and run.status is not ImportStatus.FAILED
+        ):
+            try:
+                delete_sources(prepared.sources)
+            except ImportSourceError as exc:
+                deletion_error = str(exc)
+            else:
+                with conn:
+                    run = import_runs.update(conn, run.id or 0, source_deleted_at=utcnow())
+
+    _report(result, earlier, conflicts)
+    if run.source_deleted_at is not None:
+        console.print("Deleted the imported file(s) as requested.")
+    elif retention is RetentionChoice.DELETE_AFTER_IMPORT:
+        reason = deletion_error or "the import failed, so you can try again"
+        console.print(Text(f"Kept the imported file(s): {reason}.", style="yellow"))
+    else:
+        console.print("Kept the imported file(s) where they are.")
+    if run.status is ImportStatus.FAILED:
+        raise typer.Exit(code=1)
+
+
+@import_app.command("text")
+def import_text(
+    ctx: typer.Context,
+    path: Annotated[
+        Path | None,
+        typer.Argument(help="A UTF-8 text file. Omit to paste text instead.", show_default=False),
+    ] = None,
+) -> None:
+    """Import pasted profile sections (e.g. copied from LinkedIn) or a plain-text CV.
+
+    Use the usual headings (Experience, Education, Skills, …) so the sections are recognized.
+    """
+    with _database(ctx) as conn:
+        try:
+            if path is None:
+                if sys.stdin.isatty():
+                    err_console.print("Paste the text, then press Ctrl-D on an empty line.")
+                text = sys.stdin.read()
+                source = None
+            else:
+                source, data = read_source(path)
+                try:
+                    text = data.decode("utf-8-sig")
+                except UnicodeDecodeError as exc:
+                    raise ImportSourceError(f"not UTF-8 text: {source}") from exc
+            prepared = prepare_text_import(text, source_path=source)
+        except ImportSourceError as exc:
+            err_console.print(f"[red]Cannot import:[/red] {escape(str(exc))}")
+            raise typer.Exit(code=2) from exc
+        result, earlier, conflicts = _store(conn, prepared.run, prepared.candidates)
+    _report(result, earlier, conflicts)
+    if result.run.status is ImportStatus.FAILED:
+        raise typer.Exit(code=1)
+
+
 def _fact_counts(conn: sqlite3.Connection) -> dict[int, int]:
     rows = conn.execute(
         "SELECT import_run_id AS run, COUNT(*) AS n FROM profile_facts "
@@ -189,6 +357,7 @@ def show_run(
     )
     console.print(f"Imported:  {run.imported_at:%Y-%m-%d %H:%M} UTC")
     console.print(f"Status:    {run.status}")
+    console.print(f"Retention: {run.retention.value.replace('_', ' ')}")
     console.print(f"Facts:     {facts} stored from this import")
     if run.source_deleted_at:
         console.print(f"Source deleted: {run.source_deleted_at:%Y-%m-%d %H:%M} UTC")
@@ -198,6 +367,7 @@ def show_run(
     if isinstance(sections, dict) and sections:
         found = ", ".join(f"{name} {count}" for name, count in sections.items())
         console.print(Text(f"Found:     {found}"))
+    _print_skipped(run.summary)
     if run.errors:
         console.print(f"\n[bold]Issues ({len(run.errors)})[/bold]")
         _print_issues(run.errors)
