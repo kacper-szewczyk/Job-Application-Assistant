@@ -6,7 +6,14 @@ import pytest
 from jaa.connectors import registry
 from jaa.connectors.base import IssueSeverity, JobListing, SourceIssue, SourceState
 from jaa.connectors.run import FetchOutcome, run_connector
-from jaa.connectors.solid_jobs import POLICY, division, location_text, page_url, parse_job
+from jaa.connectors.solid_jobs import (
+    POLICY,
+    division,
+    location_text,
+    offer_url,
+    page_url,
+    parse_job,
+)
 from jaa.core.errors import ConnectorTargetError, SourceAccessDeniedError, SourceDataError
 from jaa.core.models import SourceStatus
 from tests.fixtures import solid_jobs as rec
@@ -67,6 +74,7 @@ def test_listing_fields() -> None:
     listings = {x.source_job_id: x for x in _run(rec.first_fetch()).listings}
     a, b, c = listings[rec.KEY_A], listings[rec.KEY_B], listings[rec.KEY_C]
     assert a.url == "https://solid.jobs/o/syntha01/jaa"
+    assert a.canonical_url == "https://solid.jobs/o/syntha01"
     assert (a.title, a.company) == ("Senior Widget Engineer", "Example Widgets Sp. z o.o.")
     assert a.location == "Warszawa (hybrid)"
     assert a.description == (
@@ -143,3 +151,15 @@ def test_an_html_page_counts_as_access_denied() -> None:
     )
     with pytest.raises(SourceAccessDeniedError):
         _run(transport)
+
+
+def test_offer_url_drops_only_our_campaign_segment() -> None:
+    assert offer_url("https://solid.jobs/o/abc/jaa") == "https://solid.jobs/o/abc"
+    assert offer_url("https://solid.jobs/o/abc/jaa?x=1") == "https://solid.jobs/o/abc?x=1"
+    for kept in (
+        "https://solid.jobs/o/jaa",
+        "https://solid.jobs/o/abc",
+        "https://solid.jobs/o/abc/other",
+        "https://solid.jobs/offer/abc/jaa",
+    ):
+        assert offer_url(kept) == kept

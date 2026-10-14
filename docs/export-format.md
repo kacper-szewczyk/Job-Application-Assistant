@@ -27,9 +27,9 @@ Both files contain your personal data. They are created with owner-only permissi
   - timestamps: ISO-8601 text with UTC offset
   - enums: their string value (see `jaa.core.models`)
   - booleans: `0` / `1`
-  - JSON columns (`summary`, `errors`, `value_normalized`, `value`, `requirements`, `evidence`, `gaps`, `manifest`, `files`, `packages`, `issues`): JSON **text**, not nested JSON
+  - JSON columns (`summary`, `errors`, `value_normalized`, `value`, `requirements`, `evidence`, `gaps`, `manifest`, `files`, `packages`, `issues`, `query`): JSON **text**, not nested JSON
 
-Tables, in order: `profile_versions`, `profile`, `import_runs`, `profile_facts`, `profile_version_facts`, `profile_fact_events`, `preferences`, `preference_events`, `answers`, `answer_sources`, `jobs`, `job_status_events`, `job_matches`, `applications`, `application_answers`, `document_artifacts`, `template_candidates`, `source_status_events`, `source_fetch_runs`. `schema_migrations` is not exported; the target database is migrated before import.
+Tables, in order: `profile_versions`, `profile`, `import_runs`, `profile_facts`, `profile_version_facts`, `profile_fact_events`, `preferences`, `preference_events`, `answers`, `answer_sources`, `jobs`, `job_status_events`, `job_duplicates`, `job_duplicate_reviews`, `job_matches`, `applications`, `application_answers`, `document_artifacts`, `template_candidates`, `source_status_events`, `source_fetch_runs`, `saved_searches`. `schema_migrations` is not exported; the target database is migrated before import.
 
 Rows with `is_sensitive = 1` (profile facts, preferences and their history, answers) hold contact, eligibility, compensation or other sensitive data. `template_candidates.files` holds the full LaTeX source of imported CVs, including contact details.
 

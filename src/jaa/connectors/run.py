@@ -51,15 +51,28 @@ def _problem(listing: JobListing) -> str | None:
         return "source_job_id is too long"
     if len(listing.title) > MAX_TEXT_LENGTH or len(listing.company) > MAX_TEXT_LENGTH:
         return "title or company is too long"
-    parts = urlsplit(listing.url)
-    if parts.scheme not in ("https", "http") or not parts.hostname:
-        return "url is not an http(s) URL"
-    if parts.username is not None or parts.password is not None:
-        return "url carries credentials"
+    if (url_problem := _url_problem(listing.url)) is not None:
+        return url_problem
     for stamp in (listing.posted_at, listing.updated_at):
         if stamp is not None and stamp.tzinfo is None:
             return "dates must be timezone-aware"
     return None
+
+
+def _url_problem(url: str) -> str | None:
+    parts = urlsplit(url)
+    if parts.scheme not in ("https", "http") or not parts.hostname:
+        return "url is not an http(s) URL"
+    if parts.username is not None or parts.password is not None:
+        return "url carries credentials"
+    return None
+
+
+def _canonical(url: str | None) -> str | None:
+    """The connector's canonical URL if usable; storage falls back to `url` otherwise."""
+    if url is None or _url_problem(url.strip()) is not None:
+        return None
+    return url.strip()
 
 
 def _text(value: str | None, limit: int) -> str | None:
@@ -85,6 +98,7 @@ def _clean(listing: JobListing, permitted: frozenset[ListingField]) -> tuple[Job
     cleaned = JobListing(
         source_job_id=listing.source_job_id.strip(),
         url=listing.url.strip(),
+        canonical_url=_canonical(listing.canonical_url),
         title=" ".join(listing.title.split()),
         company=" ".join(listing.company.split()),
         location=_text(location, MAX_TEXT_LENGTH),

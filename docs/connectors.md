@@ -29,7 +29,8 @@ Every connector declares a `SourcePolicy`. `jaa sources show <key>` prints it.
 | `JobListing` field | Type | Notes |
 |---|---|---|
 | `source_job_id` | str | Required, unique per source, ≤ 200 chars. |
-| `url` | str | Required, public http(s) page of the listing, without credentials. T11 canonicalizes it. |
+| `url` | str | Required, public http(s) page of the listing, without credentials. Stored as the job's `source_url`, the link the user opens. |
+| `canonical_url` | str \| None | Optional identity of the page when the connector knows a cleaner one than `url` (e.g. without a campaign segment). Dropped if it is not a usable http(s) URL. Normalized and used to find the same job on other sources (ADR 0014). |
 | `title`, `company` | str | Required, ≤ 500 chars; whitespace is collapsed. |
 | `location` | str \| None | Whitespace collapsed, ≤ 500 chars. |
 | `description` | str \| None | As published, ≤ 200,000 chars. |
@@ -69,6 +70,7 @@ A source is paused when its policy says so (`paused_reason`, unreviewed terms, r
 - New listings become `jobs` rows with status `discovered`. Known ones get a new `last_seen_at`, and their fields are updated when the listing's content hash changed.
 - After a complete fetch, jobs of that source and target that were not listed get `removed_at`, cleared again if they come back. `jobs.status` is never changed by a fetch.
 - Every fetch that reached the source adds a `source_fetch_runs` row with its outcome and counts. A `denied` fetch also pauses the source.
+- New jobs, and jobs whose canonical URL or employer, title and location changed, are checked for duplicates. A possible duplicate gets a `job_duplicates` flag; jobs are never merged (ADR 0014).
 
 `jaa jobs fetch <source> <target>…` does this from the CLI.
 

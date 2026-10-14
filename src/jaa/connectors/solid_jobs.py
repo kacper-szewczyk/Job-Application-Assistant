@@ -13,7 +13,7 @@ from collections.abc import Iterator
 from dataclasses import dataclass
 from datetime import date, datetime
 from typing import Final, cast
-from urllib.parse import urlencode
+from urllib.parse import urlencode, urlsplit, urlunsplit
 
 from jaa.connectors.base import (
     AccessMethod,
@@ -140,6 +140,7 @@ def parse_job(raw: JsonValue) -> JobListing | SourceIssue:
     return JobListing(
         source_job_id=job_id,
         url=url,
+        canonical_url=offer_url(url),
         title=title,
         company=company,
         location=location_text(raw),
@@ -147,6 +148,15 @@ def parse_job(raw: JsonValue) -> JobListing | SourceIssue:
         posted_at=_datetime(raw.get("validFrom")),
         updated_at=_datetime(raw.get("updatedAt")),
     )
+
+
+def offer_url(url: str) -> str:
+    """The offer link without our campaign segment: `/o/<code>/jaa` is `/o/<code>`."""
+    parts = urlsplit(url)
+    segments = parts.path.split("/")
+    if len(segments) == 4 and segments[:2] == ["", "o"] and segments[3] == CAMPAIGN:
+        return urlunsplit(parts._replace(path="/".join(segments[:3])))
+    return url
 
 
 def _int(envelope: JsonObject, key: str) -> int:

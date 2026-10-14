@@ -231,6 +231,51 @@ class Job:
     content_sha256: str | None = None
     source_updated_at: datetime | None = None
     removed_at: datetime | None = None
+    # T11 (ADR 0014): the link exactly as the source gave it (`canonical_url` is the normalized
+    # form used for dedupe), and the folded "employer | title | location" fallback key.
+    source_url: str | None = None
+    dedupe_key: str | None = None
+
+
+class DuplicateReason(StrEnum):
+    CANONICAL_URL = "canonical_url"
+    EMPLOYER_TITLE_LOCATION = "employer_title_location"
+
+
+class DuplicateVerdict(StrEnum):
+    SAME_JOB = "same_job"
+    DIFFERENT_JOBS = "different_jobs"
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class JobDuplicate:
+    """Two jobs that may be the same job (`job_id < other_job_id`). Never merged automatically."""
+
+    id: int | None = None
+    job_id: int
+    other_job_id: int
+    reason: DuplicateReason
+    detected_at: datetime
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class JobDuplicateReview:
+    id: int | None = None
+    duplicate_id: int
+    verdict: DuplicateVerdict
+    reviewed_at: datetime
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class SavedSearch:
+    id: int | None = None
+    name: str
+    # A `jaa.core.search.JobQuery` as JSON.
+    query: JsonObject = field(default_factory=dict[str, JsonValue])
+    created_at: datetime
+    updated_at: datetime
+    last_refreshed_at: datetime | None = None
+    last_result_count: int | None = None
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

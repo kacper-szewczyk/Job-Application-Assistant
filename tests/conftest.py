@@ -157,6 +157,48 @@ def populate(conn: sqlite3.Connection) -> Sample:
             status_changed_at=T0,
         ),
     )
+    other_job = add_job(
+        conn,
+        m.Job(
+            source="example_board",
+            source_job_id="w-1",
+            canonical_url="https://boards.example.test/jobs/123",
+            source_url="https://boards.example.test/jobs/123?utm_source=x",
+            employer="Example Co",
+            title="Widget Engineer",
+            first_seen_at=T0,
+            last_seen_at=T0,
+            status_changed_at=T0,
+        ),
+    )
+    duplicate = repo.job_duplicates.insert(
+        conn,
+        m.JobDuplicate(
+            job_id=ident(job.id),
+            other_job_id=ident(other_job.id),
+            reason=m.DuplicateReason.CANONICAL_URL,
+            detected_at=T0,
+        ),
+    )
+    repo.job_duplicate_reviews.insert(
+        conn,
+        m.JobDuplicateReview(
+            duplicate_id=ident(duplicate.id),
+            verdict=m.DuplicateVerdict.SAME_JOB,
+            reviewed_at=T0,
+        ),
+    )
+    repo.saved_searches.insert(
+        conn,
+        m.SavedSearch(
+            name="python remote",
+            query={"text": "python", "location": "remote"},
+            created_at=T0,
+            updated_at=T0,
+            last_refreshed_at=T0,
+            last_result_count=1,
+        ),
+    )
     repo.job_matches.insert(
         conn,
         m.JobMatch(

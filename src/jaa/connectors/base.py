@@ -165,11 +165,14 @@ class ApplicationQuestion:
 class JobListing:
     """One job as a connector reports it, before normalization and dedupe (T11).
 
-    Datetimes must be timezone-aware. `url` is the listing's public page; T11 canonicalizes it.
+    Datetimes must be timezone-aware. `url` is the listing's public page as the source links it.
+    `canonical_url` is set when the connector knows a cleaner identity for that page (e.g. without
+    a campaign segment); storage normalizes it, or `url` when it is None (ADR 0014).
     """
 
     source_job_id: str
     url: str
+    canonical_url: str | None = None
     title: str
     company: str
     location: str | None = None

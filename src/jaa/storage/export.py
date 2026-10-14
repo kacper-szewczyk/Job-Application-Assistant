@@ -31,6 +31,8 @@ EXPORT_TABLES: Final = (
     "answer_sources",
     "jobs",
     "job_status_events",
+    "job_duplicates",
+    "job_duplicate_reviews",
     "job_matches",
     "applications",
     "application_answers",
@@ -38,6 +40,7 @@ EXPORT_TABLES: Final = (
     "template_candidates",
     "source_status_events",
     "source_fetch_runs",
+    "saved_searches",
 )
 
 type Row = dict[str, object]

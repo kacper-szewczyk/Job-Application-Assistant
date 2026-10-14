@@ -93,3 +93,7 @@ class LatexCompileError(DocumentError):
     def __init__(self, message: str, problems: tuple[str, ...] = ()) -> None:
         super().__init__(message)
         self.problems = problems
+
+
+class SearchError(JaaError):
+    """A job search or saved search is invalid or unknown."""
