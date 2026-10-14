@@ -66,3 +66,26 @@ class SourceUnavailableError(ConnectorError):
 
 class SourceDataError(ConnectorError):
     """The source answered, but not with data the connector can use, or broke the policy limits."""
+
+
+class DocumentError(JaaError):
+    """A document (CV PDF) cannot be rendered or built."""
+
+
+class TemplateError(DocumentError):
+    """A CV template is unknown, malformed, or does not provide what the renderer needs."""
+
+
+class LatexEngineNotFoundError(DocumentError):
+    """No supported LaTeX engine is installed or configured."""
+
+
+class LatexCompileError(DocumentError):
+    """The LaTeX engine failed. `problems` holds user-facing explanations, one per problem.
+
+    They may quote the CV source, so they are shown to the user, never logged.
+    """
+
+    def __init__(self, message: str, problems: tuple[str, ...] = ()) -> None:
+        super().__init__(message)
+        self.problems = problems

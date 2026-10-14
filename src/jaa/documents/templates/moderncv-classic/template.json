@@ -1,0 +1,9 @@
+{
+  "id": "moderncv-classic",
+  "version": 1,
+  "name": "moderncv classic (blue)",
+  "family": "moderncv",
+  "description": "Single-column chronological CV: name and contact header, summary quote, dated experience entries with bullet points. moderncv 'classic' style, blue, 10pt, A4, sans-serif.",
+  "requires": ["moderncv >= 2.3"],
+  "license": "Template file: MIT (this repository). It uses the moderncv class (LPPL 1.3c), which is installed with the TeX distribution and not shipped with jaa."
+}
