@@ -76,7 +76,9 @@ Layering rule: `cli/` and `mcp/` depend on `core/` services; `core/` never impor
 - Small modules with explicit public functions; prefer pure functions for parsing, normalization, dedupe and matching.
 - Use `pathlib.Path`, timezone-aware UTC `datetime`s, and explicit enums for states (`FactState`, `JobStatus`, …).
 - Raise domain-specific exceptions from `jaa.core.errors`; CLI/MCP layers translate them into user-facing messages.
-- Every state change that matters to the user (fact confirmation, job/application status) is recorded with a timestamp and is append-only/versioned.
+- Every state change that matters to the user (fact confirmation, job/application status) is recorded with a timestamp and is append-only/versioned. Change job status only through `jaa.storage.jobs.set_job_status` (ADR 0005).
+- **Schema changes go in a new migration** (`src/jaa/storage/migrations/NNNN_name.sql`); never edit an applied migration (checksums are verified). Keep enum CHECK lists in sync with `jaa.core.models` (tested), and update `EXPORT_TABLES` and `docs/export-format.md` when adding tables.
+- Persist domain dataclasses through `jaa.storage.repository` tables; fields with personal content use `field(repr=False)`.
 - Validate and resolve every user-supplied path; extract archives with path-traversal and size checks.
 - Comments explain *why*, not *what*. Docstrings on public functions and MCP tools.
 - Keep dependencies minimal; justify new ones in the PR description.
