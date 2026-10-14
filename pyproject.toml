@@ -55,3 +55,6 @@ typeCheckingMode = "strict"
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = ["--strict-markers", "--import-mode=importlib"]
+markers = [
+    "latex: compiles real PDFs; skipped without a LaTeX engine unless JAA_REQUIRE_LATEX=1",
+]

@@ -1,3 +1,4 @@
+import os
 import sqlite3
 from collections.abc import Iterator
 from dataclasses import dataclass
@@ -7,6 +8,8 @@ from pathlib import Path
 import pytest
 
 from jaa.core import models as m
+from jaa.core.errors import LatexEngineNotFoundError
+from jaa.documents.engine import Engine, find_engine
 from jaa.storage import repository as repo
 from jaa.storage.db import open_database
 from jaa.storage.jobs import add_job
@@ -223,3 +226,14 @@ def populate(conn: sqlite3.Connection) -> Sample:
 @pytest.fixture
 def sample(conn: sqlite3.Connection) -> Sample:
     return populate(conn)
+
+
+@pytest.fixture(scope="session")
+def latex_engine() -> Engine:
+    """A real LaTeX engine. CI sets JAA_REQUIRE_LATEX=1 so a missing engine fails, not skips."""
+    try:
+        return find_engine()
+    except LatexEngineNotFoundError:
+        if os.environ.get("JAA_REQUIRE_LATEX") == "1":
+            raise
+        pytest.skip("no LaTeX engine installed")

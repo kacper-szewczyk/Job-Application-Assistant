@@ -30,6 +30,11 @@ class Settings:
     def database_path(self) -> Path:
         return self.data_dir / DATABASE_FILENAME
 
+    @property
+    def documents_dir(self) -> Path:
+        """Default output folder for generated CVs (ADR 0003)."""
+        return self.data_dir / "documents"
+
 
 def resolve_data_dir(env: Mapping[str, str]) -> tuple[Path, str]:
     """Return the data directory and where it came from ("env" or "default")."""
