@@ -79,8 +79,12 @@ class ExtractedText:
     stats: JsonObject = field(default_factory=dict[str, JsonValue])
 
 
-def read_source(path: Path) -> tuple[Path, bytes]:
-    """Resolve and read a user-supplied file, checking that it is a regular file of sane size."""
+def resolve_source(path: Path, *, max_bytes: int | None = None) -> Path:
+    """Resolve a user-supplied path, checking that it is a non-empty regular file of sane size.
+
+    `max_bytes` defaults to `MAX_SOURCE_BYTES`, the cap for a CV file.
+    """
+    max_bytes = MAX_SOURCE_BYTES if max_bytes is None else max_bytes
     try:
         resolved = path.expanduser().resolve(strict=True)
     except (FileNotFoundError, RuntimeError) as exc:
@@ -90,10 +94,14 @@ def read_source(path: Path) -> tuple[Path, bytes]:
     size = resolved.stat().st_size
     if size == 0:
         raise ImportSourceError(f"file is empty: {resolved}")
-    if size > MAX_SOURCE_BYTES:
-        raise ImportSourceError(
-            f"file is larger than {MAX_SOURCE_BYTES // (1024 * 1024)} MB: {resolved}"
-        )
+    if size > max_bytes:
+        raise ImportSourceError(f"file is larger than {max_bytes // (1024 * 1024)} MB: {resolved}")
+    return resolved
+
+
+def read_source(path: Path) -> tuple[Path, bytes]:
+    """Resolve and read a user-supplied file (see `resolve_source`)."""
+    resolved = resolve_source(path)
     return resolved, resolved.read_bytes()
 
 

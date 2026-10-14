@@ -39,3 +39,7 @@ class PreferenceError(JaaError):
 
 class ImportSourceError(JaaError):
     """An import source cannot be used: missing, too large, unsupported or unreadable."""
+
+
+class UnsafeArchiveError(ImportSourceError):
+    """An archive is refused because a member could escape it or exhaust resources."""
