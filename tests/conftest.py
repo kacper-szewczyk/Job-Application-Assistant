@@ -91,6 +91,16 @@ def populate(conn: sqlite3.Connection) -> Sample:
     conn.execute(
         "INSERT INTO profile_version_facts VALUES (?, ?)", (ident(version.id), ident(email.id))
     )
+    repo.profile_fact_events.insert(
+        conn,
+        m.ProfileFactEvent(
+            fact_id=ident(email.id),
+            from_state=None,
+            to_state=m.FactState.CONFIRMED,
+            occurred_at=T0,
+            profile_version_id=version.id,
+        ),
+    )
     repo.profiles.insert(
         conn, m.Profile(active_version_id=version.id, created_at=T0, updated_at=T0)
     )

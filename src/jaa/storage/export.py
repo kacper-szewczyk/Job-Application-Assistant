@@ -24,6 +24,7 @@ EXPORT_TABLES: Final = (
     "import_runs",
     "profile_facts",
     "profile_version_facts",
+    "profile_fact_events",
     "preferences",
     "answers",
     "answer_sources",

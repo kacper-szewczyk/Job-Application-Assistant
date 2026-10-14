@@ -23,3 +23,11 @@ class ExportFormatError(StorageError):
 
 class NotFoundError(StorageError):
     """A requested record does not exist."""
+
+
+class ReviewError(JaaError):
+    """A profile review action is not allowed, e.g. an invalid state transition."""
+
+
+class FactConflictError(ReviewError):
+    """Confirming a fact would replace another confirmed value for the same field key."""
