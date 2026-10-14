@@ -58,8 +58,18 @@ def _run(env: dict[str, str], *args: str, code: int = 0) -> str:
     return result.output
 
 
-def test_list_without_connectors(env: dict[str, str]) -> None:
+def test_list_without_connectors(env: dict[str, str], monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(registry, "available_connectors", dict[str, Connector])
     assert "No job sources are available yet." in _run(env, "sources", "list")
+
+
+def test_shipped_sources_are_listed(env: dict[str, str]) -> None:
+    out = _run(env, "sources", "list")
+    assert "solid_jobs" in out
+    assert "SOLID.Jobs" in out
+    shown = _run(env, "sources", "show", "solid_jobs")
+    assert "https://solid.jobs/api-ofert-pracy" in shown
+    assert "2026-10-14" in shown
 
 
 @pytest.mark.usefixtures("boards")

@@ -64,6 +64,10 @@ class SourceUnavailableError(ConnectorError):
     """The source kept failing (network errors, 5xx, rate limiting) after the allowed retries."""
 
 
+class ConnectorTargetError(ConnectorError):
+    """The target (board, division, feed) is not one the connector can fetch. Nothing was sent."""
+
+
 class SourceDataError(ConnectorError):
     """The source answered, but not with data the connector can use, or broke the policy limits."""
 

@@ -83,6 +83,18 @@ class SourceStatus(StrEnum):
     PAUSED = "paused"
 
 
+class FetchRunOutcome(StrEnum):
+    """How one connector fetch ended (ADR 0013)."""
+
+    OK = "ok"
+    # The source refused access; the source was paused.
+    DENIED = "denied"
+    # Network errors, 5xx or rate limiting outlasted the retries.
+    UNAVAILABLE = "unavailable"
+    # The source answered with data the connector could not use, or broke policy limits.
+    FAILED = "failed"
+
+
 class ArtifactKind(StrEnum):
     CV_PDF = "cv_pdf"
     CV_SOURCE = "cv_source"
@@ -212,6 +224,13 @@ class Job:
     requirements: JsonObject = field(default_factory=dict[str, JsonValue])
     status: JobStatus = JobStatus.DISCOVERED
     status_changed_at: datetime
+    # Connector bookkeeping (ADR 0013): the target the listing was last seen in, a hash of the
+    # listing's content to detect changes, the source's own update time, and when a complete
+    # fetch of its target stopped listing it (None while it is listed).
+    source_target: str | None = None
+    content_sha256: str | None = None
+    source_updated_at: datetime | None = None
+    removed_at: datetime | None = None
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -223,6 +242,31 @@ class JobStatusEvent:
     actor: StatusActor
     occurred_at: datetime
     note: str | None = field(default=None, repr=False)
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class SourceFetchRun:
+    """One fetch of one connector target, with what changed. Append-only (ADR 0013).
+
+    `issues` holds `SourceIssue`s as JSON (codes, severities, messages and source job ids, never
+    personal data); `error` is the message of the error that ended an unsuccessful run.
+    """
+
+    id: int | None = None
+    source: str
+    target: str
+    started_at: datetime
+    finished_at: datetime
+    outcome: FetchRunOutcome
+    requests: int = 0
+    listings: int = 0
+    new: int = 0
+    changed: int = 0
+    unchanged: int = 0
+    reappeared: int = 0
+    removed: int = 0
+    issues: JsonArray = field(default_factory=list[JsonValue])
+    error: str | None = None
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

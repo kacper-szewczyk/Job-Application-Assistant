@@ -61,6 +61,9 @@ class FakeBoard:
 
     policy: SourcePolicy = field(default_factory=make_policy)
 
+    def target_key(self, target: str) -> str:
+        return target
+
     def fetch(self, client: SourceClient, target: str) -> FetchResult:
         data = client.get_json(board_url(target))
         if not isinstance(data, dict) or not isinstance(data.get("jobs"), list):

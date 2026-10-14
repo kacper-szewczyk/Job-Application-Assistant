@@ -30,6 +30,7 @@ EXPECTED_TABLES = {
     "document_artifacts",
     "template_candidates",
     "source_status_events",
+    "source_fetch_runs",
 }
 
 
@@ -101,6 +102,7 @@ ENUM_COLUMNS: list[tuple[str, str, type[StrEnum]]] = [
     ("document_artifacts", "kind", m.ArtifactKind),
     ("source_status_events", "status", m.SourceStatus),
     ("source_status_events", "actor", m.StatusActor),
+    ("source_fetch_runs", "outcome", m.FetchRunOutcome),
 ]
 
 

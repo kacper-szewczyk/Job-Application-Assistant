@@ -50,12 +50,12 @@ def test_init_creates_database_and_info_reports_schema(tmp_path: Path) -> None:
     assert result.exit_code == 0, result.output
     db = data_dir / "jaa.sqlite3"
     assert stat.S_IMODE(db.stat().st_mode) == 0o600
-    assert "schema version 5" in result.output
+    assert "schema version 6" in result.output
 
     # Running init again is safe.
     assert runner.invoke(app, ["init"], env=_env(data_dir)).exit_code == 0
     info = runner.invoke(app, ["info"], env=_env(data_dir))
-    assert "schema version 5" in info.output
+    assert "schema version 6" in info.output
 
 
 def test_export_and_backup_commands(tmp_path: Path) -> None:

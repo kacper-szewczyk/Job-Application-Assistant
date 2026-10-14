@@ -8,6 +8,7 @@ from jaa import __version__
 from jaa.cli.common import console, err_console, open_existing, settings_from
 from jaa.cli.cv import cv_app
 from jaa.cli.imports import import_app
+from jaa.cli.jobs import jobs_app
 from jaa.cli.preferences import onboard, preferences_app
 from jaa.cli.profile import profile_app
 from jaa.cli.sources import sources_app
@@ -29,6 +30,7 @@ app.add_typer(profile_app, name="profile")
 app.add_typer(preferences_app, name="preferences")
 app.add_typer(import_app, name="import")
 app.add_typer(sources_app, name="sources")
+app.add_typer(jobs_app, name="jobs")
 app.add_typer(cv_app, name="cv")
 app.command()(onboard)
 

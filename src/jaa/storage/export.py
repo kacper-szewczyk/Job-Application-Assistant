@@ -37,6 +37,7 @@ EXPORT_TABLES: Final = (
     "document_artifacts",
     "template_candidates",
     "source_status_events",
+    "source_fetch_runs",
 )
 
 type Row = dict[str, object]

@@ -1,8 +1,9 @@
-"""The connectors that ship with jaa, by policy key. The first real one arrives with T10 (#11)."""
+"""The connectors that ship with jaa, by policy key."""
 
 from jaa.connectors.base import Connector
+from jaa.connectors.solid_jobs import SolidJobs
 
-_CONNECTORS: tuple[Connector, ...] = ()
+_CONNECTORS: tuple[Connector, ...] = (SolidJobs(),)
 
 
 def available_connectors() -> dict[str, Connector]:

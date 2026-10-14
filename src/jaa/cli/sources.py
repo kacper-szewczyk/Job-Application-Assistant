@@ -3,7 +3,7 @@
 import sqlite3
 from collections.abc import Generator
 from contextlib import contextmanager
-from typing import Annotated
+from typing import Annotated, Final
 
 import typer
 from rich.markup import escape
@@ -15,6 +15,7 @@ from jaa.connectors import registry
 from jaa.connectors.base import Connector, SourceState, effective_state, policy_summary
 from jaa.core.errors import JaaError, NotFoundError
 from jaa.core.models import SourceStatus, StatusActor
+from jaa.storage import listings
 from jaa.storage import sources as service
 
 sources_app = typer.Typer(
@@ -22,6 +23,8 @@ sources_app = typer.Typer(
     no_args_is_help=True,
     pretty_exceptions_show_locals=False,
 )
+
+RECENT_RUNS: Final = 5
 
 KeyArgument = Annotated[str, typer.Argument(help="Source key, see `jaa sources list`.")]
 
@@ -93,6 +96,16 @@ def show(ctx: typer.Context, key: KeyArgument) -> None:
                 f"  {event.occurred_at:%Y-%m-%d %H:%M} {event.status.value} by {event.actor.value}"
             )
             console.print(Text(line + (f": {event.reason}" if event.reason else "")))
+        runs = listings.fetch_history(conn, key)[-RECENT_RUNS:]
+        if runs:
+            console.print("Recent fetches:")
+        for run in runs:
+            line = f"  {run.finished_at:%Y-%m-%d %H:%M} {run.target}: {run.outcome.value}"
+            if run.error:
+                line += f" ({run.error})"
+            else:
+                line += f", {run.listings} listing(s), {run.new} new, {run.removed} removed"
+            console.print(Text(line))
 
 
 @sources_app.command()

@@ -1,0 +1,97 @@
+{
+  "pageIndex": 0,
+  "pageSize": 2,
+  "totalCount": 4,
+  "totalPages": 2,
+  "jobs": [
+    {
+      "jobOfferKey": "00000000-0000-4000-8000-00000000000a",
+      "title": "Senior Widget Engineer",
+      "division": "IT",
+      "category": "Developer",
+      "subCategory": "Python",
+      "company": "Example Widgets Sp. z o.o.",
+      "companyLogoUrl": "https://cdn.solid.jobs/companies/logos/synthetic",
+      "salary": {
+        "from": 15000.0,
+        "to": 21000.0,
+        "currency": "PLN",
+        "period": "Month",
+        "employmentType": "B2B"
+      },
+      "contractTime": "full_time",
+      "locations": [
+        "Warszawa"
+      ],
+      "benefits": [
+        "Pakiet medyczny"
+      ],
+      "isRemote": false,
+      "isHybrid": true,
+      "url": "https://solid.jobs/o/syntha01/jaa",
+      "experienceLevel": "Regular",
+      "skills": [
+        {
+          "level": "Advanced",
+          "name": "Python"
+        }
+      ],
+      "languages": [
+        {
+          "level": "Advanced",
+          "name": "Angielski"
+        }
+      ],
+      "description": "<div class=\"well job-description\"><p><strong>Czym będziesz się zajmować?</strong><br><br><span style=\"color: red\">Budowa&nbsp;syntetycznych widgetów.</span></p><ul><li>Python</li><li>Event streaming</li></ul><script>alert(1)</script></div>",
+      "validFrom": "2026-10-01T09:00:00.1590906+02:00",
+      "validTo": "2026-11-14T10:00:00.1234567+01:00",
+      "updatedAt": "2026-10-02T09:30:00.3362287+02:00"
+    },
+    {
+      "jobOfferKey": "00000000-0000-4000-8000-00000000000b",
+      "title": "Data Engineer",
+      "division": "IT",
+      "category": "Developer",
+      "subCategory": "Python",
+      "company": "Fikcyjna Firma S.A.",
+      "companyLogoUrl": "https://cdn.solid.jobs/companies/logos/synthetic",
+      "salary": {
+        "from": 15000.0,
+        "to": 21000.0,
+        "currency": "PLN",
+        "period": "Month",
+        "employmentType": "B2B"
+      },
+      "contractTime": "full_time",
+      "locations": [],
+      "benefits": [
+        "Pakiet medyczny"
+      ],
+      "isRemote": true,
+      "isHybrid": false,
+      "url": "https://solid.jobs/o/synthb02/jaa",
+      "experienceLevel": "Regular",
+      "skills": [
+        {
+          "level": "Advanced",
+          "name": "Python"
+        }
+      ],
+      "languages": [
+        {
+          "level": "Advanced",
+          "name": "Angielski"
+        }
+      ],
+      "description": "<p>Fully remote &amp; synthetic.</p>",
+      "validFrom": "2026-10-03T12:00:00+02:00",
+      "validTo": "2026-11-14T10:00:00.1234567+01:00",
+      "updatedAt": "2026-10-03T12:00:00+02:00"
+    },
+    {
+      "title": "No key offer",
+      "company": "Broken Co",
+      "url": "https://solid.jobs/o/broken/jaa"
+    }
+  ]
+}

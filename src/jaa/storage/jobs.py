@@ -10,23 +10,28 @@ from jaa.core.models import Job, JobStatus, JobStatusEvent, StatusActor
 from jaa.storage.repository import job_status_events, jobs
 
 
+def insert_job(conn: sqlite3.Connection, job: Job, actor: StatusActor = StatusActor.SYSTEM) -> Job:
+    """Insert a job and its initial status event inside the caller's transaction."""
+    stored = jobs.insert(conn, job)
+    if stored.id is None:
+        raise StorageError("jobs: insert did not assign an id")
+    job_status_events.insert(
+        conn,
+        JobStatusEvent(
+            job_id=stored.id,
+            from_status=None,
+            to_status=stored.status,
+            actor=actor,
+            occurred_at=stored.status_changed_at,
+        ),
+    )
+    return stored
+
+
 def add_job(conn: sqlite3.Connection, job: Job, actor: StatusActor = StatusActor.SYSTEM) -> Job:
     """Insert a job and its initial status event in one transaction."""
     with conn:
-        stored = jobs.insert(conn, job)
-        if stored.id is None:
-            raise StorageError("jobs: insert did not assign an id")
-        job_status_events.insert(
-            conn,
-            JobStatusEvent(
-                job_id=stored.id,
-                from_status=None,
-                to_status=stored.status,
-                actor=actor,
-                occurred_at=stored.status_changed_at,
-            ),
-        )
-    return stored
+        return insert_job(conn, job, actor)
 
 
 def set_job_status(

@@ -1,0 +1,145 @@
+{
+  "pageIndex": 0,
+  "pageSize": 2,
+  "totalCount": 3,
+  "totalPages": 1,
+  "jobs": [
+    {
+      "jobOfferKey": "00000000-0000-4000-8000-00000000000a",
+      "title": "Senior Widget Engineer (Python)",
+      "division": "IT",
+      "category": "Developer",
+      "subCategory": "Python",
+      "company": "Example Widgets Sp. z o.o.",
+      "companyLogoUrl": "https://cdn.solid.jobs/companies/logos/synthetic",
+      "salary": {
+        "from": 15000.0,
+        "to": 21000.0,
+        "currency": "PLN",
+        "period": "Month",
+        "employmentType": "B2B"
+      },
+      "contractTime": "full_time",
+      "locations": [
+        "Warszawa"
+      ],
+      "benefits": [
+        "Pakiet medyczny"
+      ],
+      "isRemote": false,
+      "isHybrid": true,
+      "url": "https://solid.jobs/o/syntha01/jaa",
+      "experienceLevel": "Regular",
+      "skills": [
+        {
+          "level": "Advanced",
+          "name": "Python"
+        }
+      ],
+      "languages": [
+        {
+          "level": "Advanced",
+          "name": "Angielski"
+        }
+      ],
+      "description": "<div class=\"well job-description\"><p><strong>Czym będziesz się zajmować?</strong><br><br><span style=\"color: red\">Budowa&nbsp;syntetycznych widgetów.</span></p><ul><li>Python</li><li>Event streaming</li></ul><script>alert(1)</script></div>",
+      "validFrom": "2026-10-01T09:00:00.1590906+02:00",
+      "validTo": "2026-11-14T10:00:00.1234567+01:00",
+      "updatedAt": "2026-10-12T10:00:00+02:00"
+    },
+    {
+      "jobOfferKey": "00000000-0000-4000-8000-00000000000c",
+      "title": "QA Specialist",
+      "division": "IT",
+      "category": "Developer",
+      "subCategory": "Python",
+      "company": "Przykład Sp. j.",
+      "companyLogoUrl": "https://cdn.solid.jobs/companies/logos/synthetic",
+      "salary": {
+        "from": 15000.0,
+        "to": 21000.0,
+        "currency": "PLN",
+        "period": "Month",
+        "employmentType": "B2B"
+      },
+      "contractTime": "full_time",
+      "locations": [
+        "Kraków",
+        "Wrocław"
+      ],
+      "benefits": [
+        "Pakiet medyczny"
+      ],
+      "isRemote": false,
+      "isHybrid": false,
+      "url": "https://solid.jobs/o/synthc03/jaa",
+      "experienceLevel": "Regular",
+      "skills": [
+        {
+          "level": "Advanced",
+          "name": "Python"
+        }
+      ],
+      "languages": [
+        {
+          "level": "Advanced",
+          "name": "Angielski"
+        }
+      ],
+      "description": "<p>Testing synthetic widgets.</p>",
+      "validFrom": "2026-10-05T08:00:00+02:00",
+      "validTo": "2026-11-14T10:00:00.1234567+01:00",
+      "updatedAt": "not a date",
+      "secondarySalary": {
+        "from": 12000.0,
+        "to": 17000.0,
+        "currency": "PLN",
+        "period": "Month",
+        "employmentType": "UoP"
+      }
+    },
+    {
+      "jobOfferKey": "00000000-0000-4000-8000-00000000000d",
+      "title": "Platform Engineer",
+      "division": "IT",
+      "category": "Developer",
+      "subCategory": "Python",
+      "company": "Example Widgets Sp. z o.o.",
+      "companyLogoUrl": "https://cdn.solid.jobs/companies/logos/synthetic",
+      "salary": {
+        "from": 15000.0,
+        "to": 21000.0,
+        "currency": "PLN",
+        "period": "Month",
+        "employmentType": "B2B"
+      },
+      "contractTime": "full_time",
+      "locations": [
+        "Gdańsk"
+      ],
+      "benefits": [
+        "Pakiet medyczny"
+      ],
+      "isRemote": true,
+      "isHybrid": false,
+      "url": "https://solid.jobs/o/synthd04/jaa",
+      "experienceLevel": "Regular",
+      "skills": [
+        {
+          "level": "Advanced",
+          "name": "Python"
+        }
+      ],
+      "languages": [
+        {
+          "level": "Advanced",
+          "name": "Angielski"
+        }
+      ],
+      "description": "<p>Platform work.</p>",
+      "validFrom": "2026-10-10T08:00:00+02:00",
+      "validTo": "2026-11-14T10:00:00.1234567+01:00",
+      "updatedAt": "2026-10-10T08:00:00+02:00"
+    }
+  ]
+}
