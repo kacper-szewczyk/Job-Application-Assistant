@@ -4,12 +4,51 @@ on:
   push:
     branches: [main]
 
+# One release run at a time, so two quick merges cannot race to merge or tag.
+concurrency:
+  group: release-please
+  cancel-in-progress: false
+
 permissions:
   contents: write
   pull-requests: write
 
 jobs:
   release-please:
+    runs-on: ubuntu-latest
+    outputs:
+      pr: ${{ steps.release.outputs.pr }}
+    steps:
+      - id: release
+        uses: googleapis/release-please-action@v4
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+  # The release PR is opened with GITHUB_TOKEN, which never triggers CI, so check it here.
+  check-release-pr:
+    needs: release-please
+    if: needs.release-please.outputs.pr != ''
+    permissions:
+      contents: read
+    uses: ./.github/workflows/ci.yml
+    with:
+      ref: ${{ fromJSON(needs.release-please.outputs.pr).headBranchName }}
+
+  merge-release-pr:
+    needs: [release-please, check-release-pr]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Squash-merge the release PR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR: ${{ fromJSON(needs.release-please.outputs.pr).number }}
+        run: gh pr merge "$PR" --squash --repo "$GITHUB_REPOSITORY"
+
+  # A merge made with GITHUB_TOKEN does not trigger a new push run, so tag and publish the
+  # release from this run.
+  publish-release:
+    needs: merge-release-pr
     runs-on: ubuntu-latest
     steps:
       - uses: googleapis/release-please-action@v4

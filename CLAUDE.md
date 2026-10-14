@@ -97,5 +97,5 @@ Layering rule: `cli/` and `mcp/` depend on `core/` services; `core/` never impor
 - **Conventional Commits** for commit messages and PR titles: `feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:`, `ci:`, `build:`; `!` or `BREAKING CHANGE:` for breaking changes. Optional scope = module, e.g. `feat(importers): parse DOCX CVs`.
 - PRs reference the issue (`Closes #12`) and are **squash-merged**; the PR title becomes the commit on `main`, so it must be a valid Conventional Commit.
 - CI (GitHub Actions) runs ruff, pyright and pytest on every PR.
-- Releases are automated with **release-please**: it reads Conventional Commits on `main`, maintains a release PR with the version bump and `CHANGELOG.md`, and creates the tagged GitHub release with release notes when merged. Do not edit `CHANGELOG.md` or version numbers by hand.
+- Releases are automated with **release-please**: it reads Conventional Commits on `main`, maintains a release PR with the version bump and `CHANGELOG.md`, and creates the tagged GitHub release with release notes when merged. The release PR is merged automatically once its checks pass (ADR 0004 amendment). Do not edit `CHANGELOG.md` or version numbers by hand.
 - Significant technical or product decisions get an ADR in `docs/decisions/`.
