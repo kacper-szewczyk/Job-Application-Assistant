@@ -1,6 +1,6 @@
 # Local review UI — design proposal (T18, #19)
 
-Status: **design exploration**. Nothing here changes ADR 0002 yet; if we adopt it, an ADR amending 0002 comes with the first implementation PR.
+Status: **accepted as the T18 design** (2026-10-14). The product stays CLI-first (ADR 0002) until T18 is picked up; the ADR recording the UI stack comes with the first implementation PR.
 
 Open [`prototype.html`](prototype.html) in a browser. It is a single static file with synthetic data (no server, no network beyond Google Fonts). Clicks update in-memory state only.
 
@@ -38,7 +38,7 @@ Smallest thing that meets T18, consistent with the stack in CLAUDE.md:
 
 - `jaa ui` starts a server bound to `127.0.0.1` on a random port, prints a URL with a one-time token, and opens the browser. Refuses non-loopback binds.
 - Server-rendered HTML (Jinja2 templates) with a small amount of htmx for in-place updates; no JS build step, no Node toolchain. Handlers live in `src/jaa/ui/` and call the same `core/` and `storage/` services as the CLI (same layering rule as `cli/` and `mcp/`).
-- Candidate dependencies (each needs a justification in the PR): `starlette` + `uvicorn` (or stdlib `http.server` if we want zero deps, at the cost of more hand-written routing), `jinja2`. htmx vendored as a static file.
+- Dependencies: `starlette` + `uvicorn`, `jinja2`; htmx vendored as a static file.
 - Mutations are POSTs with CSRF token; every status/fact change goes through the existing services so events stay append-only.
 - Tests: render each page against a temp data dir, assert no personal values appear in logs, and assert the server refuses non-loopback hosts.
 
@@ -46,8 +46,8 @@ Smallest thing that meets T18, consistent with the stack in CLAUDE.md:
 
 Overview, Profile review, Imports & sources and the sources table can be built now (T03, T05–T07, T09 exist). Tailored CV needs T08/T14, Questions needs T13/T14, Apply/Applications need T15. Those screens can ship behind "not available yet" states.
 
-## Open questions for the user
+## Decisions (2026-10-14)
 
-1. Adopt a local web UI now (amend ADR 0002), or keep it as the T18 design and stay CLI-first until then?
-2. Server stack: Starlette + Jinja2 + htmx, or stdlib-only?
-3. Should the UI also start/launch Claude Code actions ("Edit in Claude Code"), or stay a review surface only?
+1. **Timing:** keep this as the T18 design and stay CLI-first until then. ADR 0002 is unchanged.
+2. **Stack:** Starlette + uvicorn, Jinja2, and vendored htmx. Each dependency is justified in the T18 PR.
+3. **Claude Code handoff:** the UI is a review surface that can also hand off to Claude Code (e.g. "Edit in Claude Code" on a tailored CV). The handoff passes IDs only (job, fact, artifact), never personal values, and the UI does not perform the edit itself. Results come back through the same core services and show up for review.
