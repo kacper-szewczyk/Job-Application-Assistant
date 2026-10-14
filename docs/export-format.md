@@ -10,7 +10,7 @@ Both files contain your personal data. They are created with owner-only permissi
 {
   "format": "jaa-export",
   "format_version": 1,
-  "schema_version": 1,
+  "schema_version": 2,
   "app_version": "0.1.0",
   "exported_at": "2026-10-14T09:00:00+00:00",
   "tables": {
@@ -29,7 +29,7 @@ Both files contain your personal data. They are created with owner-only permissi
   - booleans: `0` / `1`
   - JSON columns (`summary`, `errors`, `value_normalized`, `value`, `requirements`, `evidence`, `gaps`, `manifest`): JSON **text**, not nested JSON
 
-Tables, in order: `profile_versions`, `profile`, `import_runs`, `profile_facts`, `profile_version_facts`, `preferences`, `answers`, `answer_sources`, `jobs`, `job_status_events`, `job_matches`, `applications`, `application_answers`, `document_artifacts`. `schema_migrations` is not exported; the target database is migrated before import.
+Tables, in order: `profile_versions`, `profile`, `import_runs`, `profile_facts`, `profile_version_facts`, `profile_fact_events`, `preferences`, `answers`, `answer_sources`, `jobs`, `job_status_events`, `job_matches`, `applications`, `application_answers`, `document_artifacts`. `schema_migrations` is not exported; the target database is migrated before import.
 
 Rows with `is_sensitive = 1` (profile facts, preferences, answers) hold contact, eligibility, compensation or other sensitive data.
 

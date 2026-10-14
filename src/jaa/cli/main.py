@@ -1,22 +1,19 @@
 import logging
-import sqlite3
 from pathlib import Path
 from typing import Annotated
 
 import typer
-from rich.console import Console
 
 from jaa import __version__
-from jaa.config import Settings, ensure_data_dir, load_settings
+from jaa.cli.common import console, err_console, open_existing, settings_from
+from jaa.cli.profile import profile_app
+from jaa.config import ensure_data_dir, load_settings
 from jaa.core.errors import JaaError
 from jaa.logging import setup_logging
 from jaa.storage.db import connect, open_database, schema_version
 from jaa.storage.export import backup_database, export_json
 
 log = logging.getLogger(__name__)
-# soft_wrap keeps long paths on one line so they stay copyable.
-console = Console(soft_wrap=True)
-err_console = Console(stderr=True)
 
 app = typer.Typer(
     name="jaa",
@@ -24,13 +21,7 @@ app = typer.Typer(
     no_args_is_help=True,
     pretty_exceptions_show_locals=False,  # locals may hold CV contents or answers
 )
-
-
-def _settings(ctx: typer.Context) -> Settings:
-    settings = ctx.obj
-    if not isinstance(settings, Settings):
-        raise RuntimeError("CLI context was not initialised by the main callback")
-    return settings
+app.add_typer(profile_app, name="profile")
 
 
 def _version_callback(value: bool) -> None:
@@ -60,7 +51,7 @@ def main(
 @app.command()
 def info(ctx: typer.Context) -> None:
     """Show version, data directory and database location."""
-    settings = _settings(ctx)
+    settings = settings_from(ctx)
     state = "exists" if settings.data_dir.is_dir() else "not created yet, run `jaa init`"
     console.print(f"jaa {__version__}")
     console.print(f"Data directory: {settings.data_dir} ({settings.data_dir_source}, {state})")
@@ -78,7 +69,7 @@ def info(ctx: typer.Context) -> None:
 @app.command()
 def init(ctx: typer.Context) -> None:
     """Create the data directory and database, and apply pending migrations."""
-    settings = _settings(ctx)
+    settings = settings_from(ctx)
     try:
         path = ensure_data_dir(settings)
         conn = open_database(settings.database_path)
@@ -97,13 +88,6 @@ def init(ctx: typer.Context) -> None:
 OverwriteOption = Annotated[bool, typer.Option("--force", help="Overwrite an existing file.")]
 
 
-def _open_existing(settings: Settings) -> sqlite3.Connection:
-    if not settings.database_path.is_file():
-        err_console.print("[red]No database yet.[/red] Run `jaa init` first.")
-        raise typer.Exit(code=1)
-    return open_database(settings.database_path)
-
-
 @app.command()
 def backup(
     ctx: typer.Context,
@@ -111,7 +95,7 @@ def backup(
     force: OverwriteOption = False,
 ) -> None:
     """Write a consistent copy of the database (owner-only permissions)."""
-    conn = _open_existing(_settings(ctx))
+    conn = open_existing(settings_from(ctx))
     try:
         path = backup_database(conn, dest.expanduser().resolve(), overwrite=force)
     except JaaError as exc:
@@ -130,7 +114,7 @@ def export(
     force: OverwriteOption = False,
 ) -> None:
     """Export all records as JSON (see docs/export-format.md)."""
-    conn = _open_existing(_settings(ctx))
+    conn = open_existing(settings_from(ctx))
     try:
         path = export_json(conn, dest.expanduser().resolve(), overwrite=force)
     except JaaError as exc:

@@ -50,6 +50,20 @@ uv run jaa backup ~/jaa-backup.sqlite3   # consistent SQLite copy
 uv run jaa export ~/jaa-export.json      # JSON export, see docs/export-format.md
 ```
 
+### Reviewing your profile
+
+Imported facts start as `unreviewed` and are only used once you confirm them.
+
+```bash
+uv run jaa profile facts --state unreviewed   # review queue (sensitive values hidden; --reveal)
+uv run jaa profile show 12                    # value, confidence, source excerpt, history
+uv run jaa profile confirm 12 13              # confirm; creates a new profile version
+uv run jaa profile reject 14
+uv run jaa profile edit 15 "Senior Engineer"  # correction; the original stays in history
+uv run jaa profile conflicts                  # re-imported values next to confirmed ones
+uv run jaa profile versions
+```
+
 ### Configuration
 
 | Variable | Default | Purpose |

@@ -123,6 +123,30 @@ class ProfileFact:
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
+class FactCandidate:
+    """A fact proposed by an importer. It has no state: storing it always yields `unreviewed`."""
+
+    field_key: str
+    value_raw: str = field(repr=False)
+    value_normalized: JsonValue = field(repr=False)
+    confidence: float | None = None
+    # None means "use the default for the field key" (jaa.core.sensitivity).
+    is_sensitive: bool | None = None
+    source_location: str | None = None
+    source_excerpt: str | None = field(default=None, repr=False)
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class ProfileFactEvent:
+    id: int | None = None
+    fact_id: int
+    from_state: FactState | None
+    to_state: FactState
+    occurred_at: datetime
+    profile_version_id: int | None = None
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
 class ProfileVersion:
     id: int | None = None
     created_at: datetime
