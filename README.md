@@ -120,14 +120,19 @@ uv run jaa jobs list -q python --location krakow   # search; also --company, --s
 uv run jaa jobs list -q python --save python-krk   # …and save the search
 uv run jaa jobs searches run python-krk  # rerun it; jobs found since the last run are marked new
 uv run jaa jobs searches list            # saved searches and when each was last refreshed
-uv run jaa jobs show <id>                # one job, its source link(s) and possible duplicates
+uv run jaa jobs show <id>                # one job, its requirements, source link(s) and possible duplicates
 uv run jaa jobs duplicates list          # jobs that may be the same job, e.g. on two boards
 uv run jaa jobs duplicates mark <flag> same|different
+uv run jaa jobs match <id>               # how a job fits your confirmed profile: evidence, gaps, uncertainty
+uv run jaa jobs match --all              # match every listed job and rank them
+uv run jaa jobs matches                  # latest ranking; outdated matches are marked
 ```
 
 The first source is [SOLID.Jobs](https://solid.jobs/api-ofert-pracy), through its public API for aggregators. Fetching again reports new, changed and removed offers; a removed offer keeps your status for it. Connectors only use documented public APIs and feeds, within the rate limits in their source policy. If a source refuses access (login wall, bot check, HTTP 401/403), jaa pauses it instead of retrying. justjoin.it, bulldogjob.pl and nofluffjobs.com offer no permitted API, so jaa does not read them.
 
 Search matches whole words and ignores case, Polish diacritics and punctuation, so `-q lodz` finds Łódź. A job seen again is stored once. Jobs with the same link (ignoring tracking parameters), or with the same employer, title and location, are flagged as possible duplicates and never merged: you decide with `jaa jobs duplicates mark`, and a job marked the same as another shows both source links. A flag on a job you are already applying to is called out. See [docs/connectors.md](docs/connectors.md), [ADR 0011](docs/decisions/0011-connector-contract.md) and [ADR 0013](docs/decisions/0013-solid-jobs-and-listing-storage.md) and [ADR 0014](docs/decisions/0014-dedupe-and-search.md).
+
+Matching reads a job's requirements from the skills and languages the source lists and from the requirements and nice-to-have sections of its description (English and Polish headings). Each requirement is backed by your confirmed facts, shown as backed only by unreviewed facts (which do not count until you confirm them), or listed as a gap. Seniority, work arrangement, location, salary and target roles are compared with your preferences when both sides are known. Every match records the profile version it used, explains its score and says what it could not judge. Scores are advisory. See [ADR 0015](docs/decisions/0015-requirements-and-match-explanations.md).
 
 ### Configuration
 

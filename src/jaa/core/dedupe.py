@@ -69,11 +69,16 @@ def canonical_url(url: str) -> str:
     return urlunsplit((scheme, netloc, path, urlencode(query), ""))
 
 
-def fold(text: str) -> str:
-    """Lowercase ASCII words separated by single spaces: no diacritics or punctuation."""
+def plain(text: str) -> str:
+    """Casefolded text without diacritics (`Łódź` is `lodz`); punctuation is kept."""
     decomposed = unicodedata.normalize("NFKD", text.casefold().translate(_LETTERS))
     stripped = "".join(c for c in decomposed if not unicodedata.combining(c))
-    return _NON_WORD.sub(" ", stripped.translate(_LETTERS)).strip()
+    return stripped.translate(_LETTERS)
+
+
+def fold(text: str) -> str:
+    """Lowercase ASCII words separated by single spaces: no diacritics or punctuation."""
+    return _NON_WORD.sub(" ", plain(text)).strip()
 
 
 def company_key(company: str) -> str:

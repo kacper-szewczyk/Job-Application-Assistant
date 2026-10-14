@@ -22,6 +22,7 @@ from jaa.connectors.base import (
 )
 from jaa.connectors.http import SourceClient, Transport
 from jaa.core.errors import SourcePausedError
+from jaa.core.job_details import JobDetails
 from jaa.core.models import SourceStatus
 
 log = logging.getLogger(__name__)
@@ -106,6 +107,7 @@ def _clean(listing: JobListing, permitted: frozenset[ListingField]) -> tuple[Job
         posted_at=posted_at.astimezone(UTC) if posted_at else None,
         updated_at=updated_at.astimezone(UTC) if updated_at else None,
         questions=allowed(ListingField.QUESTIONS, listing.questions, ()),
+        details=allowed(ListingField.DETAILS, listing.details, JobDetails()),
     )
     return cleaned, dropped
 

@@ -29,6 +29,7 @@ from jaa.connectors.base import (
 from jaa.connectors.html_text import html_to_text
 from jaa.connectors.http import SourceClient
 from jaa.core.errors import ConnectorTargetError, SourceDataError
+from jaa.core.job_details import JobDetails, ListedSkill, SalaryRange, WorkArrangement
 from jaa.core.models import JsonObject, JsonValue
 
 BASE_URL: Final = "https://solid.jobs/public-api/offers/"
@@ -65,8 +66,9 @@ POLICY: Final = SourcePolicy(
         "(https://solid.jobs/api-ofert-pracy); site terms at https://solid.jobs/about/terms. "
         f"No key; requests carry campaign={CAMPAIGN}. Targets are divisions: "
         f"{', '.join(DIVISIONS)}. Responses are cached by the source for an hour, so fetching "
-        "more often does not show anything new. Salary, skills and experience level are in the "
-        "API but not kept yet. Read-only: no application submission."
+        "more often does not show anything new. Skills, languages, experience level, work "
+        "arrangement and salary ranges are kept as job details for matching (ADR 0015). "
+        "Read-only: no application submission."
     ),
 )
 
@@ -147,6 +149,68 @@ def parse_job(raw: JsonValue) -> JobListing | SourceIssue:
         description=html_to_text(description) or None if isinstance(description, str) else None,
         posted_at=_datetime(raw.get("validFrom")),
         updated_at=_datetime(raw.get("updatedAt")),
+        details=details(raw),
+    )
+
+
+# More than this is a broken feed, not a real listing.
+MAX_LISTED_ITEMS: Final = 50
+_PERIODS: Final = {"year": "year", "month": "month", "day": "day", "hour": "hour"}
+
+
+def _listed(value: JsonValue) -> tuple[ListedSkill, ...]:
+    if not isinstance(value, list):
+        return ()
+    found: list[ListedSkill] = []
+    for item in cast(list[JsonValue], value)[:MAX_LISTED_ITEMS]:
+        if isinstance(item, dict) and (name := _text(item.get("name"))):
+            found.append(ListedSkill(name=name[:100], level=_text(item.get("level"))))
+    return tuple(found)
+
+
+def _salary(value: JsonValue) -> SalaryRange | None:
+    """`{"from": 15000.0, "to": 21000.0, "currency": "PLN", "period": "Month", …}`."""
+    if not isinstance(value, dict):
+        return None
+    currency = _text(value.get("currency"))
+    period = _PERIODS.get((_text(value.get("period")) or "").lower())
+    amounts = [value.get("from"), value.get("to")]
+    low, high = (
+        round(a) if isinstance(a, int | float) and not isinstance(a, bool) and a > 0 else None
+        for a in amounts
+    )
+    if currency is None or period is None or (low is None and high is None):
+        return None
+    return SalaryRange(
+        min=low,
+        max=high,
+        currency=currency.upper(),
+        period=period,
+        contract=_text(value.get("employmentType")),
+    )
+
+
+def details(job: JsonObject) -> JobDetails:
+    """Skills, languages, experience level, work arrangement and salary, as listed."""
+    raw_salary = job.get("salary")
+    salaries = cast(list[JsonValue], raw_salary) if isinstance(raw_salary, list) else [raw_salary]
+    places = job.get("locations")
+    arrangement = (
+        WorkArrangement.REMOTE
+        if job.get("isRemote") is True
+        else WorkArrangement.HYBRID
+        if job.get("isHybrid") is True
+        # An office location with neither flag set is an on-site job.
+        else WorkArrangement.ON_SITE
+        if isinstance(places, list) and places
+        else None
+    )
+    return JobDetails(
+        skills=_listed(job.get("skills")),
+        languages=_listed(job.get("languages")),
+        experience_level=_text(job.get("experienceLevel")),
+        work_arrangement=arrangement,
+        salaries=tuple(s for s in map(_salary, salaries[:MAX_LISTED_ITEMS]) if s is not None),
     )
 
 

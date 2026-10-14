@@ -36,6 +36,7 @@ Every connector declares a `SourcePolicy`. `jaa sources show <key>` prints it.
 | `description` | str \| None | As published, ≤ 200,000 chars. |
 | `posted_at`, `updated_at` | datetime \| None | Must be timezone-aware; converted to UTC. |
 | `questions` | tuple of `ApplicationQuestion` | `key`, `label`, `kind` (`text`, `long_text`, `single_select`, `multi_select`, `boolean`, `file`, `other`), `required`, `options`. The employer's questions, not answers. |
+| `details` | `JobDetails` (`jaa.core.job_details`) | Structured `skills` and `languages` (name, level), `experience_level`, `work_arrangement` (`remote`, `hybrid`, `on_site`) and `salaries` (min, max, currency, period, contract) as the source lists them. Stored in `jobs.requirements` with the questions and used for matching (ADR 0015). |
 
 `run_connector` validates every listing: invalid ones become `invalid_listing` errors, repeated `source_job_id`s become `duplicate_listing` warnings (the first is kept), and fields outside `permitted_fields` are cleared with one `field_not_permitted` warning per field. Issues carry codes and IDs, never personal data.
 
