@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.0](https://github.com/kacper-szewczyk/Job-Application-Assistant/compare/jaa-v0.4.0...jaa-v0.5.0) (2026-10-14)
+
+
+### Features
+
+* **importers:** import LinkedIn data archives and pasted text ([#36](https://github.com/kacper-szewczyk/Job-Application-Assistant/issues/36)) ([c6908ff](https://github.com/kacper-szewczyk/Job-Application-Assistant/commit/c6908ff83205bd8f32d04207848d9415b427c3ef))
+
 ## [0.4.0](https://github.com/kacper-szewczyk/Job-Application-Assistant/compare/jaa-v0.3.0...jaa-v0.4.0) (2026-10-14)
 
 
