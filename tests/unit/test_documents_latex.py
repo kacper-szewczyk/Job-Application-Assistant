@@ -75,11 +75,11 @@ def test_render_english_and_polish() -> None:
     english = render(template, content, CvLanguage.EN)
     assert not re.search(r"^%%jaa:", english, re.MULTILINE)
     assert r"\usepackage[english]{babel}" in english
-    assert r"\name{Avery}{Żółkiewska-Synthetic}" in english
+    assert r"\name{Avery}{Żółkiewska-\allowbreak{}Synthetic}" in english
     assert r"\section{Experience}" in english
     assert (
-        r"\cventry{01.2021--\allowbreak{}Present}{Senior Widget Engineer}{\textsc{Example Co}}{Wrocław}{}{}"
-        in english
+        r"\cventry{01.2021--\allowbreak{}Present}{Senior Widget Engineer}"
+        r"{\textsc{Example Co}}{Wrocław}{}{}" in english
     )
     assert r"\cvlistitem{Mentored four engineers \textbackslash{}input\{/etc/hostname\}" in english
     assert (

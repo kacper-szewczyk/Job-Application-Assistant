@@ -27,7 +27,29 @@ jobs:
         with:
           enable-cache: true
       - run: uv sync --locked
+      # CV PDF tests compile real LaTeX (ADR 0012). Pinned release, checked against its sha256.
+      - name: Install Tectonic
+        env:
+          TECTONIC_VERSION: "0.17.0"
+          TECTONIC_SHA256: 8533d07f9ccbd7a65824b9e0459041bca34af1eb33daba48f59215593753a3b7
+        run: |
+          archive="tectonic-${TECTONIC_VERSION}-x86_64-unknown-linux-musl.tar.gz"
+          curl -fsSL -o "$archive" \
+            "https://github.com/tectonic-typesetting/tectonic/releases/download/tectonic%40${TECTONIC_VERSION}/${archive}"
+          echo "${TECTONIC_SHA256}  ${archive}" | sha256sum --check
+          mkdir -p "$HOME/.local/bin"
+          tar -xzf "$archive" -C "$HOME/.local/bin" tectonic
+          rm "$archive"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      # Tectonic downloads the TeX packages a template needs on first use; keep them between runs.
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/Tectonic
+          key: tectonic-0.17.0-${{ hashFiles('src/jaa/documents/templates/**') }}
+          restore-keys: tectonic-0.17.0-
       - run: uv run ruff format --check .
       - run: uv run ruff check .
       - run: uv run pyright
       - run: uv run pytest
+        env:
+          JAA_REQUIRE_LATEX: "1"

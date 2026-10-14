@@ -1,5 +1,6 @@
 import json
 from pathlib import Path
+from typing import cast
 
 import pytest
 from typer.testing import CliRunner
@@ -51,37 +52,36 @@ def test_templates_and_preview(env: dict[str, str]) -> None:
 
 
 def test_no_engine_is_explained(env: dict[str, str]) -> None:
-    out = _run(env, "cv", "build", "--confirmed-only", env_extra(env, PATH="/nonexistent"), code=1)
+    out = _run(env | {"PATH": "/nonexistent"}, "cv", "build", "--confirmed-only", code=1)
     assert "No LaTeX engine found" in out
-
-
-def env_extra(env: dict[str, str], **extra: str) -> str:
-    env.update(extra)
-    return "--confirmed-only"
 
 
 @pytest.mark.latex
 def test_build_offers_unreviewed_facts_and_records_manifest(
     env: dict[str, str], latex_engine: Engine, tmp_path: Path
 ) -> None:
-    # Confirm two of the three unreviewed facts; the third is left out and recorded as such.
+    # Pick two of the three unreviewed facts; those not confirmed are left out and recorded.
     conn = open_database(Path(env["JAA_DATA_DIR"]) / "jaa.sqlite3")
     pending = {f.field_key: f.id for f in profile_facts.list(conn, state=FactState.UNREVIEWED)}
     conn.close()
     answer = f"{pending['headline']} {pending['skills.go']}\n"
     out = _run(env, "cv", "build", "--output", str(tmp_path / "cvs"), input=answer)
     assert "3 unreviewed fact(s) are not in your confirmed profile" in out
+    # The unreviewed headline conflicts with the confirmed one, so review leaves it out too.
+    assert "conflicts with a confirmed value" in out
     assert "CV written:" in out
-    assert "1 unreviewed fact(s) were left out." in out
+    assert "2 unreviewed fact(s) were left out." in out
 
     conn = open_database(Path(env["JAA_DATA_DIR"]) / "jaa.sqlite3")
     try:
         [cv] = documents.list_cvs(conn)
-        assert profile_facts.get(conn, pending["headline"] or 0).state is FactState.CONFIRMED
+        assert profile_facts.get(conn, pending["skills.go"] or 0).state is FactState.CONFIRMED
+        assert profile_facts.get(conn, pending["headline"] or 0).state is FactState.UNREVIEWED
     finally:
         conn.close()
     assert cv.template_version == "moderncv-classic@1"
     assert Path(cv.path).is_file()
-    assert cv.manifest["excluded_unreviewed_fact_ids"] == [pending["skills.rust"]]
+    excluded = cast(list[int], cv.manifest["excluded_unreviewed_fact_ids"])
+    assert set(excluded) == {pending["headline"], pending["skills.rust"]}
     assert json.dumps(cv.manifest)  # manifest is plain JSON
     assert "moderncv-classic@1" in _run(env, "cv", "list")

@@ -137,9 +137,15 @@ def _name_parts(name: str | None) -> tuple[str, str]:
     return (first, family) if first else (family, "")
 
 
+def _name_arg(text: str) -> str:
+    # Hyphenation is off, and the name is set large in a column that narrows when there is a
+    # photo, so let double-barrelled names ("Nowak-Kowalska") wrap after their hyphen.
+    return "{" + escape(text).replace("-", "-\\allowbreak{}") + "}"
+
+
 def _header(content: CvContent, photo_file: str | None) -> str:
     first, family = _name_parts(content.name)
-    lines = [f"\\name{_arg(first)}{_arg(family)}"]
+    lines = [f"\\name{_name_arg(first)}{_name_arg(family)}"]
     if content.headline:
         lines.append(f"\\title{_arg(content.headline)}")
     if content.location:

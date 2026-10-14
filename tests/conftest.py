@@ -8,10 +8,10 @@ from pathlib import Path
 import pytest
 
 from jaa.core import models as m
-from jaa.storage import repository as repo
-from jaa.storage.db import open_database
 from jaa.core.errors import LatexEngineNotFoundError
 from jaa.documents.engine import Engine, find_engine
+from jaa.storage import repository as repo
+from jaa.storage.db import open_database
 from jaa.storage.jobs import add_job
 
 T0 = datetime(2026, 10, 14, 9, 0, tzinfo=UTC)

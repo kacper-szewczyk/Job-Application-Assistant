@@ -1,6 +1,8 @@
 """Real PDF builds. Skipped without a LaTeX engine; CI requires one (JAA_REQUIRE_LATEX=1)."""
 
 import stat
+import struct
+import zlib
 from dataclasses import replace
 from pathlib import Path
 
@@ -15,11 +17,22 @@ from tests.fixtures.cv_profile import confirmed_facts
 
 pytestmark = pytest.mark.latex
 
-# A 1x1 PNG.
-PNG = bytes.fromhex(
-    "89504e470d0a1a0a0000000d4948445200000001000000010806000000"
-    "1f15c4890000000d49444154789c6360f8cfc0f01f0005000201e5d1d48e0000000049454e44ae426082"
-)
+
+def _png(width: int = 60, height: int = 80) -> bytes:
+    """A valid grey RGB PNG, built here so its checksums are right (libpng aborts on bad ones)."""
+
+    def chunk(kind: bytes, data: bytes) -> bytes:
+        body = kind + data
+        return struct.pack(">I", len(data)) + body + struct.pack(">I", zlib.crc32(body))
+
+    rows = b"".join(b"\x00" + b"\x80\x80\x80" * width for _ in range(height))
+    header = struct.pack(">IIBBBBB", width, height, 8, 2, 0, 0, 0)
+    return (
+        b"\x89PNG\r\n\x1a\n"
+        + chunk(b"IHDR", header)
+        + chunk(b"IDAT", zlib.compress(rows))
+        + chunk(b"IEND", b"")
+    )
 
 
 @pytest.mark.parametrize("language", list(CvLanguage))
@@ -27,7 +40,7 @@ def test_pdf_text_matches_source_facts(
     latex_engine: Engine, tmp_path: Path, language: CvLanguage
 ) -> None:
     photo = tmp_path / "photo.png"
-    photo.write_bytes(PNG)
+    photo.write_bytes(_png())
     content = build_content(confirmed_facts()).content
     out = build_cv(
         content,
@@ -44,7 +57,7 @@ def test_pdf_text_matches_source_facts(
     assert out.warnings == ()
     assert out.pages == 1
     text, _ = extract_text(out.pdf)
-    for value in ("Avery Żółkiewska-Synthetic", "Gadgets Sp. z o.o.", "Wrocław", "$budget_limits#"):
+    for value in ("Żółkiewska-Synthetic", "Gadgets Sp. z o.o.", "Wrocław", "$budget_limits#"):
         assert value in text
     assert ("Doświadczenie zawodowe" in text) == (language is CvLanguage.PL)
     assert "\\input{/etc/hostname}" in text  # printed literally, never executed

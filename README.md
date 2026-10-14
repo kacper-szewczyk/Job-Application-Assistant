@@ -38,6 +38,7 @@ Claude Code is the first conversational interface. It drives the assistant throu
 ### Requirements
 
 - [uv](https://docs.astral.sh/uv/) (installs Python 3.12 automatically)
+- For PDF CVs: [Tectonic](https://tectonic-typesetting.github.io/) (`brew install tectonic` on macOS), or a TeX distribution with `xelatex` or `lualatex`
 
 ### Setup
 
@@ -94,6 +95,18 @@ uv run jaa preferences history search.target_roles
 
 Salary and sponsorship answers are treated as sensitive: hidden in listings unless you pass `--reveal`, and never logged. See [ADR 0007](docs/decisions/0007-onboarding-preferences.md).
 
+### Building a CV
+
+```bash
+uv run jaa cv templates                  # shipped LaTeX templates
+uv run jaa cv preview --language pl      # what the CV will contain, no PDF
+uv run jaa cv build                      # English CV PDF from confirmed facts
+uv run jaa cv build -l pl --photo me.jpg --consent-file rodo.txt --open
+uv run jaa cv list                       # built CVs with template and profile version
+```
+
+The CV uses only confirmed facts. Before a build, jaa lists unreviewed facts and lets you confirm some of them (pass `--confirmed-only` to skip this); the rest are left out. A photo and a consent clause (such as the Polish RODO clause) are added only when you supply them. Each PDF is saved with its LaTeX source and a manifest that records the template version, profile version and facts used. jaa also checks that the PDF's text contains every fact, so applicant tracking systems can read it. See [ADR 0012](docs/decisions/0012-cv-pdf-pipeline.md).
+
 ### Job sources
 
 ```bash
@@ -110,6 +123,7 @@ Connectors only use documented public APIs and feeds, within the rate limits in 
 | Variable | Default | Purpose |
 |---|---|---|
 | `JAA_DATA_DIR` | platform data dir, e.g. `~/Library/Application Support/jaa` on macOS | Where the database, imported sources and generated documents live. Must be an absolute path. |
+| `JAA_LATEX_ENGINE` | first of `tectonic`, `xelatex`, `lualatex` on `PATH` | LaTeX engine for CV PDFs: one of those names, or a path to the binary. |
 | `JAA_LOG_LEVEL` | `WARNING` | Log level. Logs are written to stderr and scrubbed of personal data and secrets. |
 
 ## Architecture
