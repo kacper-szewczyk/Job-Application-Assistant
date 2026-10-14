@@ -5,4 +5,4 @@ from importlib.metadata import PackageNotFoundError, version
 try:
     __version__ = version("jaa")
 except PackageNotFoundError:  # running from a source tree without an install
-    __version__ = "0.6.1"
+    __version__ = "0.7.0"
