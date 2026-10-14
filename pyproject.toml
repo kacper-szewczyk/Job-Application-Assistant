@@ -1,6 +1,6 @@
 [project]
 name = "jaa"
-version = "0.5.0"
+version = "0.6.0"
 description = "Local-first Job Application Assistant"
 readme = "README.md"
 authors = [

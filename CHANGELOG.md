@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.0](https://github.com/kacper-szewczyk/Job-Application-Assistant/compare/jaa-v0.5.0...jaa-v0.6.0) (2026-10-14)
+
+
+### Features
+
+* **connectors:** define connector interface and source policy metadata ([#38](https://github.com/kacper-szewczyk/Job-Application-Assistant/issues/38)) ([afcc58a](https://github.com/kacper-szewczyk/Job-Application-Assistant/commit/afcc58a1fd14884480947cb5c0a84421b310a598)), closes [#10](https://github.com/kacper-szewczyk/Job-Application-Assistant/issues/10)
+
 ## [0.5.0](https://github.com/kacper-szewczyk/Job-Application-Assistant/compare/jaa-v0.4.0...jaa-v0.5.0) (2026-10-14)
 
 
