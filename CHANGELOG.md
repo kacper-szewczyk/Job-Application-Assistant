@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.0](https://github.com/kacper-szewczyk/Job-Application-Assistant/compare/jaa-v0.6.1...jaa-v0.7.0) (2026-10-14)
+
+
+### Features
+
+* **documents:** build CV PDFs from confirmed facts with LaTeX templates ([#44](https://github.com/kacper-szewczyk/Job-Application-Assistant/issues/44)) ([a023616](https://github.com/kacper-szewczyk/Job-Application-Assistant/commit/a0236168c1469681b33b824a29d3796febedad96))
+
 ## [0.6.1](https://github.com/kacper-szewczyk/Job-Application-Assistant/compare/jaa-v0.6.0...jaa-v0.6.1) (2026-10-14)
 
 
