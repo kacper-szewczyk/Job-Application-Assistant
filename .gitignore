@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+dist/
+build/
+*.egg-info/
+
+# Tooling caches
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Local data: never commit user data, CVs or archives (see CLAUDE.md)
+.env
+*.sqlite3
+/data/
+
+# OS / editors
+.DS_Store
+.idea/
+.vscode/

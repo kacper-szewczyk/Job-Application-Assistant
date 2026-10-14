@@ -4,7 +4,7 @@ A local-first assistant that helps one person run their job search: keep a verif
 
 Claude Code is the first conversational interface. It drives the assistant through a Claude Code skill and an MCP server, while a local core library and SQLite database own all state and deterministic operations. Conversation is never the source of truth.
 
-> **Status:** early development. The product scope is defined in [`SPEC.md`](SPEC.md); implementation is tracked in the [GitHub issues](https://github.com/kacper-szewczyk/Job-Application-Assistant/issues).
+> **Status:** early development. The project skeleton and configuration are in place; product features are being built. The product scope is defined in [`SPEC.md`](SPEC.md), and implementation is tracked in the [GitHub issues](https://github.com/kacper-szewczyk/Job-Application-Assistant/issues).
 
 ## What it does
 
@@ -33,6 +33,28 @@ Claude Code is the first conversational interface. It drives the assistant throu
 5. **Prepare:** save a job, review the tailored CV diff and the question answers, and fill in anything missing.
 6. **Hand off and track:** open the employer's page, submit it yourself, then record the outcome.
 
+## Getting started
+
+### Requirements
+
+- [uv](https://docs.astral.sh/uv/) (installs Python 3.12 automatically)
+
+### Setup
+
+```bash
+uv sync
+uv run jaa --help
+uv run jaa info   # shows the data directory and database path
+uv run jaa init   # creates the data directory (owner-only permissions)
+```
+
+### Configuration
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `JAA_DATA_DIR` | platform data dir, e.g. `~/Library/Application Support/jaa` on macOS | Where the database, imported sources and generated documents live. Must be an absolute path. |
+| `JAA_LOG_LEVEL` | `WARNING` | Log level. Logs are written to stderr and scrubbed of personal data and secrets. |
+
 ## Architecture
 
 ```
@@ -55,8 +77,8 @@ Python 3.12+ managed with [uv](https://docs.astral.sh/uv/), Typer + Rich, pydant
 
 ## Privacy
 
-- All data stays local. By default it lives in the platform data directory (overridable with `JAA_DATA_DIR`; see [ADR 0003](docs/decisions/0003-data-directory.md)).
-- Logs record IDs and counts, never CV contents, profile values, answers or secrets.
+- All data stays local, in the data directory described under [Configuration](#configuration) (see [ADR 0003](docs/decisions/0003-data-directory.md)).
+- Logs record IDs and counts, never CV contents, profile values, answers or secrets. A scrubbing log formatter acts as a safety net.
 - Export, backup and delete controls cover source files, profile facts, answers and application records.
 
 ## Roadmap
@@ -71,6 +93,13 @@ Work is split into tasks T01–T20 (issues #2–#21), grouped as:
 
 The first vertical slice (`mvp-slice` label) delivers a verified profile, one generated PDF and persistent tracking before broad job discovery. Open product decisions are tracked in [#1](https://github.com/kacper-szewczyk/Job-Application-Assistant/issues/1).
 
-## Contributing
+## Development
+
+```bash
+uv run ruff format .
+uv run ruff check --fix .
+uv run pyright
+uv run pytest
+```
 
 Read [`CLAUDE.md`](CLAUDE.md) for the product rules, coding standards and git workflow. In short: one branch per issue, Conventional Commit PR titles, squash merges, and releases plus `CHANGELOG.md` produced by release-please. Fixtures must be synthetic. Never commit real CVs, LinkedIn archives or personal data.
