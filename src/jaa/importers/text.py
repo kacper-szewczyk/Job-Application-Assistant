@@ -64,6 +64,9 @@ def prepare_text_import(
         summary={
             "lines": len(lines),
             "sections": dict[str, JsonValue](parsed.sections),
+            "headings": [
+                {"title": title, "section": section.value} for title, section in parsed.headings
+            ],
             "candidates": len(parsed.candidates),
             "issues": len(issues),
         },

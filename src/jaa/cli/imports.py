@@ -102,51 +102,24 @@ def import_cv(
                 "this file is not LaTeX."
             )
             raise typer.Exit(code=2)
-        earlier = import_runs.list(conn, source_sha256=prepared.run.source_sha256)
-        result = add_imported_facts(conn, prepared.run, prepared.candidates)
-        added_keys = {f.field_key for f in result.added}
-        conflicts = [
-            c for c in find_conflicts(profile_facts.list(conn)) if c.field_key in added_keys
-        ]
+        result, earlier, conflicts = _store(conn, prepared.run, prepared.candidates)
         template = None
         if as_template and prepared.template is not None:
             template = register_template_candidate(
                 conn, prepared.template, import_run_id=result.run.id
             )
 
-    run = result.run
-    console.print(
-        Text(f"Import #{run.id}: {run.source_type} {run.source_path} — {run.status}", style="bold")
-    )
-    if earlier:
-        ids = ", ".join(f"#{r.id}" for r in earlier)
-        console.print(f"This file was imported before ({ids}); known values were skipped.")
-    console.print(
-        f"{len(result.added)} new fact{'s' if len(result.added) != 1 else ''} to review, "
-        f"{result.duplicates} already known."
-    )
-    if (sections := _sections_line(run.summary)) is not None:
-        console.print(sections)
+    notes: list[str] = []
     if template is not None:
         candidate, created = template
         files = len(candidate.files)
-        console.print(
+        notes.append(
             f"{'Kept' if created else 'Already kept'} as template candidate #{candidate.id} "
             f"({candidate.document_class or 'unknown class'}, {files} "
             f"file{'s' if files != 1 else ''}); see `jaa import templates`."
         )
-    if run.errors:
-        console.print(f"\n[bold]Issues ({len(run.errors)})[/bold]")
-        _print_issues(run.errors)
-    if result.added:
-        console.print("\nReview them with `jaa profile facts --state unreviewed`.")
-    if conflicts:
-        console.print(
-            f"{len(conflicts)} field{'s' if len(conflicts) != 1 else ''} now "
-            f"{'have' if len(conflicts) != 1 else 'has'} competing values; "
-            "see `jaa profile conflicts`."
-        )
-    if run.status is ImportStatus.FAILED:
+    _report(result, earlier, conflicts, notes)
+    if result.run.status is ImportStatus.FAILED:
         raise typer.Exit(code=1)
 
 
@@ -161,7 +134,9 @@ def _store(
     return result, earlier, len(conflicts)
 
 
-def _report(result: ImportResult, earlier: list[ImportRun], conflicts: int) -> None:
+def _report(
+    result: ImportResult, earlier: list[ImportRun], conflicts: int, notes: Sequence[str] = ()
+) -> None:
     run = result.run
     console.print(
         Text(
@@ -177,7 +152,11 @@ def _report(result: ImportResult, earlier: list[ImportRun], conflicts: int) -> N
         f"{len(result.added)} new fact{'s' if len(result.added) != 1 else ''} to review, "
         f"{result.duplicates} already known."
     )
+    if (sections := _sections_line(run.summary)) is not None:
+        console.print(sections)
     _print_skipped(run.summary)
+    for note in notes:
+        console.print(note)
     if run.errors:
         console.print(f"\n[bold]Issues ({len(run.errors)})[/bold]")
         _print_issues(run.errors)

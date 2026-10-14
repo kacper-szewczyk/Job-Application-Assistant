@@ -197,6 +197,7 @@ def test_import_text_from_stdin_and_file(
     result = runner.invoke(app, ["import", "text"], env=env, input=pasted)
     assert result.exit_code == 0, result.output
     assert "(pasted text)" in result.output
+    assert "Sections:  Experience" in result.output
     run = import_runs.get(db, 1)
     assert run.source_type is m.ImportSourceType.TEXT
     assert run.source_path is None
