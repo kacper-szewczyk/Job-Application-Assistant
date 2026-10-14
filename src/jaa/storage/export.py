@@ -26,6 +26,7 @@ EXPORT_TABLES: Final = (
     "profile_version_facts",
     "profile_fact_events",
     "preferences",
+    "preference_events",
     "answers",
     "answer_sources",
     "jobs",

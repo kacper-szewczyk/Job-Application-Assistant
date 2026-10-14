@@ -6,6 +6,7 @@ import typer
 
 from jaa import __version__
 from jaa.cli.common import console, err_console, open_existing, settings_from
+from jaa.cli.preferences import onboard, preferences_app
 from jaa.cli.profile import profile_app
 from jaa.config import ensure_data_dir, load_settings
 from jaa.core.errors import JaaError
@@ -22,6 +23,8 @@ app = typer.Typer(
     pretty_exceptions_show_locals=False,  # locals may hold CV contents or answers
 )
 app.add_typer(profile_app, name="profile")
+app.add_typer(preferences_app, name="preferences")
+app.command()(onboard)
 
 
 def _version_callback(value: bool) -> None:

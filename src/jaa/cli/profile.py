@@ -15,7 +15,7 @@ from rich.markup import escape
 from rich.table import Table
 from rich.text import Text
 
-from jaa.cli.common import console, err_console, open_existing, settings_from
+from jaa.cli.common import MASK, console, err_console, open_existing, settings_from
 from jaa.core.errors import FactConflictError, JaaError
 from jaa.core.models import FactOrigin, FactState, JsonValue, ProfileFact
 from jaa.core.review import find_conflicts
@@ -28,7 +28,6 @@ profile_app = typer.Typer(
     pretty_exceptions_show_locals=False,  # locals may hold CV contents
 )
 
-MASK: Final = "•••• (sensitive)"
 MAX_CELL: Final = 60
 
 RevealOption = Annotated[bool, typer.Option("--reveal", help="Show sensitive values.")]
