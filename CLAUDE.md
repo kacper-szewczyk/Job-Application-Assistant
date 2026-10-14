@@ -51,7 +51,7 @@ src/jaa/
   core/                  # domain types and services (profile, facts, jobs, answers, applications)
   storage/               # sqlite connection, repositories, backup/export
     migrations/          # 0001_init.sql, 0002_….sql (shipped with the package)
-  importers/             # pdf.py, docx.py, latex.py, linkedin.py, text.py
+  importers/             # pdf.py, docx.py → SourceLines; cv.py parses lines into candidates; latex.py, linkedin.py, text.py
   connectors/            # base.py (interface + policy metadata), one module per job source
   documents/             # content model, tailoring diff, LaTeX render, PDF build, manifests
     templates/           # LaTeX CV templates (versioned)

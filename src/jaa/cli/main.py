@@ -6,6 +6,7 @@ import typer
 
 from jaa import __version__
 from jaa.cli.common import console, err_console, open_existing, settings_from
+from jaa.cli.imports import import_app
 from jaa.cli.preferences import onboard, preferences_app
 from jaa.cli.profile import profile_app
 from jaa.config import ensure_data_dir, load_settings
@@ -24,6 +25,7 @@ app = typer.Typer(
 )
 app.add_typer(profile_app, name="profile")
 app.add_typer(preferences_app, name="preferences")
+app.add_typer(import_app, name="import")
 app.command()(onboard)
 
 
