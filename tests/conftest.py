@@ -206,6 +206,16 @@ def populate(conn: sqlite3.Connection) -> Sample:
             registered_at=T0,
         ),
     )
+    repo.source_status_events.insert(
+        conn,
+        m.SourceStatusEvent(
+            source="example_board",
+            status=m.SourceStatus.PAUSED,
+            actor=m.StatusActor.USER,
+            reason="checking the terms again",
+            occurred_at=T0,
+        ),
+    )
     conn.commit()
     return Sample(run, fact, email, version, answer, job, application, artifact)
 

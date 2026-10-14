@@ -29,6 +29,7 @@ EXPECTED_TABLES = {
     "application_answers",
     "document_artifacts",
     "template_candidates",
+    "source_status_events",
 }
 
 
@@ -98,6 +99,8 @@ ENUM_COLUMNS: list[tuple[str, str, type[StrEnum]]] = [
     ("job_status_events", "actor", m.StatusActor),
     ("applications", "submission_confirmed_by", m.SubmissionConfirmation),
     ("document_artifacts", "kind", m.ArtifactKind),
+    ("source_status_events", "status", m.SourceStatus),
+    ("source_status_events", "actor", m.StatusActor),
 ]
 
 

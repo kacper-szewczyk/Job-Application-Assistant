@@ -9,6 +9,7 @@ from jaa.cli.common import console, err_console, open_existing, settings_from
 from jaa.cli.imports import import_app
 from jaa.cli.preferences import onboard, preferences_app
 from jaa.cli.profile import profile_app
+from jaa.cli.sources import sources_app
 from jaa.config import ensure_data_dir, load_settings
 from jaa.core.errors import JaaError
 from jaa.logging import setup_logging
@@ -26,6 +27,7 @@ app = typer.Typer(
 app.add_typer(profile_app, name="profile")
 app.add_typer(preferences_app, name="preferences")
 app.add_typer(import_app, name="import")
+app.add_typer(sources_app, name="sources")
 app.command()(onboard)
 
 

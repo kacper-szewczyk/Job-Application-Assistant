@@ -1,0 +1,54 @@
+{
+  "jobs": [
+    {
+      "id": 1001,
+      "url": "https://jobs.example.test/fake/1001",
+      "title": "  Widget   Engineer ",
+      "company": "Example Co",
+      "location": "Remote,  EU",
+      "content": "Build synthetic widgets.",
+      "posted": "2026-10-01T09:00:00+02:00",
+      "updated": "2026-10-10T12:00:00Z",
+      "questions": [
+        {"name": "cover_letter", "label": "Cover letter", "type": "long_text", "required": false},
+        {"name": "work_auth", "label": "Are you authorized to work in the EU?", "type": "boolean", "required": true}
+      ]
+    },
+    {
+      "id": 1002,
+      "url": "https://jobs.example.test/fake/1002",
+      "title": "Gadget Analyst",
+      "company": "Example Co",
+      "location": null,
+      "content": null,
+      "posted": null,
+      "updated": null,
+      "questions": []
+    },
+    {
+      "id": 1003,
+      "url": "javascript:alert(1)",
+      "title": "Broken Listing",
+      "company": "Example Co",
+      "location": null,
+      "content": null,
+      "posted": null,
+      "updated": null,
+      "questions": []
+    },
+    {
+      "id": 1001,
+      "url": "https://jobs.example.test/fake/1001",
+      "title": "Widget Engineer",
+      "company": "Example Co",
+      "location": null,
+      "content": null,
+      "posted": null,
+      "updated": null,
+      "questions": []
+    },
+    {
+      "title": "No id at all"
+    }
+  ]
+}
