@@ -35,3 +35,7 @@ class FactConflictError(ReviewError):
 
 class PreferenceError(JaaError):
     """An unknown preference key, or a value that does not fit the question."""
+
+
+class ImportSourceError(JaaError):
+    """An import source cannot be used: missing, too large, unsupported or unreadable."""

@@ -9,6 +9,7 @@ authors = [
 requires-python = ">=3.12"
 dependencies = [
     "platformdirs>=4.13.0",
+    "pypdf>=6.20.1",
     "typer>=0.27.3",
 ]
 
@@ -39,7 +40,9 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**" = ["S101", "ANN"]
+# CVs use en/em dashes and typographic quotes; the importers and their tests match them.
+"tests/**" = ["S101", "ANN", "RUF001"]
+"src/jaa/importers/**" = ["RUF001"]
 
 [tool.ruff.lint.flake8-tidy-imports]
 ban-relative-imports = "all"
