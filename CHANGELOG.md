@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.1](https://github.com/kacper-szewczyk/Job-Application-Assistant/compare/jaa-v0.6.0...jaa-v0.6.1) (2026-10-14)
+
+
+### Documentation
+
+* **ui:** design the T18 local review UI ([#42](https://github.com/kacper-szewczyk/Job-Application-Assistant/issues/42)) ([5bfe4ee](https://github.com/kacper-szewczyk/Job-Application-Assistant/commit/5bfe4eefc4a9005b85ebc7d0ec4c045ee6da8052))
+
 ## [0.6.0](https://github.com/kacper-szewczyk/Job-Application-Assistant/compare/jaa-v0.5.0...jaa-v0.6.0) (2026-10-14)
 
 
