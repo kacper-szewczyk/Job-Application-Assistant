@@ -17,9 +17,15 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Final
 
-from jaa.connectors.base import Connector, JobListing, SourceIssue, effective_state
+from jaa.connectors.base import (
+    Connector,
+    JobListing,
+    OfferConnector,
+    SourceIssue,
+    effective_state,
+)
 from jaa.connectors.http import Transport
-from jaa.connectors.run import FetchOutcome, run_connector
+from jaa.connectors.run import FetchOutcome, run_connector, run_connector_job
 from jaa.core.clock import utcnow
 from jaa.core.dedupe import canonical_url, dedupe_key
 from jaa.core.errors import (
@@ -130,6 +136,8 @@ def _store(
     target: str,
     listings: Sequence[JobListing],
     at: datetime,
+    *,
+    complete: bool = True,
 ) -> ListingChanges:
     new: list[int] = []
     changed: list[int] = []
@@ -198,7 +206,8 @@ def _store(
         else:
             unchanged.append(job_id)
         jobs.update(conn, job_id, **updates)
-    removed = _mark_removed(conn, source, target, seen, at)
+    # A single offer says nothing about the rest of the board.
+    removed = _mark_removed(conn, source, target, seen, at) if complete else ()
     flagged = flag_duplicates(conn, rekeyed, at)
     return ListingChanges(
         new=tuple(new),
@@ -270,6 +279,77 @@ def _outcome(
     return FetchRunOutcome.FAILED
 
 
+def _record_failure(
+    conn: sqlite3.Connection,
+    source: str,
+    target: str,
+    started: datetime,
+    exc: SourceAccessDeniedError | SourceUnavailableError | SourceDataError,
+) -> FetchReport:
+    kind = _outcome(exc)
+    with conn:
+        run = source_fetch_runs.insert(
+            conn,
+            SourceFetchRun(
+                source=source,
+                target=target,
+                started_at=started,
+                finished_at=utcnow(),
+                outcome=kind,
+                error=str(exc)[:MAX_ERROR_LENGTH],
+            ),
+        )
+    paused = False
+    if kind is FetchRunOutcome.DENIED:
+        paused = (
+            set_source_status(
+                conn, source, SourceStatus.PAUSED, StatusActor.SYSTEM, reason=str(exc)
+            )
+            is not None
+        )
+    log.warning("source=%s fetch %s; paused=%s", source, kind.value, paused)
+    return FetchReport(run=run, changes=ListingChanges(), issues=(), error=exc, paused=paused)
+
+
+def _record_success(
+    conn: sqlite3.Connection, outcome: FetchOutcome, started: datetime, *, complete: bool
+) -> FetchReport:
+    finished = utcnow()
+    with conn:
+        changes = _store(
+            conn, outcome.source, outcome.target, outcome.listings, finished, complete=complete
+        )
+        run = source_fetch_runs.insert(
+            conn,
+            SourceFetchRun(
+                source=outcome.source,
+                target=outcome.target,
+                started_at=started,
+                finished_at=finished,
+                outcome=FetchRunOutcome.OK,
+                requests=outcome.requests_made,
+                listings=len(outcome.listings),
+                new=len(changes.new),
+                changed=len(changes.changed),
+                unchanged=len(changes.unchanged),
+                reappeared=len(changes.reappeared),
+                removed=len(changes.removed),
+                issues=_issues_json(outcome.issues),
+            ),
+        )
+    log.info(
+        "source=%s stored new=%s changed=%s unchanged=%s reappeared=%s removed=%s flagged=%s",
+        outcome.source,
+        len(changes.new),
+        len(changes.changed),
+        len(changes.unchanged),
+        len(changes.reappeared),
+        len(changes.removed),
+        len(changes.flagged),
+    )
+    return FetchReport(run=run, changes=changes, issues=outcome.issues)
+
+
 def fetch_and_store(
     conn: sqlite3.Connection,
     connector: Connector,
@@ -291,66 +371,40 @@ def fetch_and_store(
     target = connector.target_key(target)
     started = utcnow()
     try:
-        outcome: FetchOutcome = run_connector(
+        outcome = run_connector(
             connector, target, state=state, transport=transport, clock=clock, sleep=sleep
         )
     except (SourceAccessDeniedError, SourceUnavailableError, SourceDataError) as exc:
-        kind = _outcome(exc)
-        with conn:
-            run = source_fetch_runs.insert(
-                conn,
-                SourceFetchRun(
-                    source=policy.key,
-                    target=target,
-                    started_at=started,
-                    finished_at=utcnow(),
-                    outcome=kind,
-                    error=str(exc)[:MAX_ERROR_LENGTH],
-                ),
-            )
-        paused = False
-        if kind is FetchRunOutcome.DENIED:
-            paused = (
-                set_source_status(
-                    conn, policy.key, SourceStatus.PAUSED, StatusActor.SYSTEM, reason=str(exc)
-                )
-                is not None
-            )
-        log.warning("source=%s fetch %s; paused=%s", policy.key, kind.value, paused)
-        return FetchReport(run=run, changes=ListingChanges(), issues=(), error=exc, paused=paused)
+        return _record_failure(conn, policy.key, target, started, exc)
+    return _record_success(conn, outcome, started, complete=True)
 
-    finished = utcnow()
-    with conn:
-        changes = _store(conn, policy.key, target, outcome.listings, finished)
-        run = source_fetch_runs.insert(
-            conn,
-            SourceFetchRun(
-                source=policy.key,
-                target=target,
-                started_at=started,
-                finished_at=finished,
-                outcome=FetchRunOutcome.OK,
-                requests=outcome.requests_made,
-                listings=len(outcome.listings),
-                new=len(changes.new),
-                changed=len(changes.changed),
-                unchanged=len(changes.unchanged),
-                reappeared=len(changes.reappeared),
-                removed=len(changes.removed),
-                issues=_issues_json(outcome.issues),
-            ),
+
+def fetch_and_store_job(
+    conn: sqlite3.Connection,
+    connector: OfferConnector,
+    target: str,
+    job_id: str,
+    *,
+    transport: Transport,
+    clock: Callable[[], float] = time.monotonic,
+    sleep: Callable[[float], None] = time.sleep,
+) -> FetchReport:
+    """Fetch one offer of `target` and store it, for a link the user brought (ADR 0025).
+
+    Like `fetch_and_store`, but nothing else of the target is marked removed. An offer the
+    source no longer lists leaves `FetchReport.changes` empty.
+    """
+    policy = connector.policy
+    state = effective_state(policy, latest_status_event(conn, policy.key))
+    target = connector.target_key(target)
+    started = utcnow()
+    try:
+        outcome = run_connector_job(
+            connector, target, job_id, state=state, transport=transport, clock=clock, sleep=sleep
         )
-    log.info(
-        "source=%s stored new=%s changed=%s unchanged=%s reappeared=%s removed=%s flagged=%s",
-        policy.key,
-        len(changes.new),
-        len(changes.changed),
-        len(changes.unchanged),
-        len(changes.reappeared),
-        len(changes.removed),
-        len(changes.flagged),
-    )
-    return FetchReport(run=run, changes=changes, issues=outcome.issues)
+    except (SourceAccessDeniedError, SourceUnavailableError, SourceDataError) as exc:
+        return _record_failure(conn, policy.key, target, started, exc)
+    return _record_success(conn, outcome, started, complete=False)
 
 
 def fetch_history(conn: sqlite3.Connection, source: str) -> list[SourceFetchRun]:

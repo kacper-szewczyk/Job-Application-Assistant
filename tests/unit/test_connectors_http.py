@@ -13,7 +13,12 @@ from jaa.connectors.http import (
     TransportError,
     retry_after_seconds,
 )
-from jaa.core.errors import SourceAccessDeniedError, SourceDataError, SourceUnavailableError
+from jaa.core.errors import (
+    SourceAccessDeniedError,
+    SourceDataError,
+    SourceNotFoundError,
+    SourceUnavailableError,
+)
 from tests.fixtures.fake_connector import (
     HOST,
     FakeClock,
@@ -125,8 +130,66 @@ def test_gives_up_after_max_retries() -> None:
 
 
 def test_unexpected_status_is_a_data_error() -> None:
-    with pytest.raises(SourceDataError, match="404"):
+    with pytest.raises(SourceDataError, match="410"):
+        _client(ReplayTransport({URL: [_status(410)]}), FakeClock()).get(URL)
+
+
+def test_missing_page_is_not_found() -> None:
+    with pytest.raises(SourceNotFoundError, match="404"):
         _client(ReplayTransport({URL: [_status(404)]}), FakeClock()).get(URL)
+
+
+COMPANY_URL = "https://acme.ats.test/jobs.rss"
+
+
+def _company_policy() -> SourcePolicy:
+    return make_policy(allowed_hosts=frozenset[str](), host_suffixes=frozenset({"ats.test"}))
+
+
+def _feed(body: bytes, content_type: str = "application/rss+xml") -> ReplayTransport:
+    return ReplayTransport(
+        {
+            COMPANY_URL: [
+                HttpResponse(
+                    status=200, url=COMPANY_URL, headers={"content-type": content_type}, body=body
+                )
+            ]
+        }
+    )
+
+
+def test_company_hosts_are_requested_and_parsed_as_xml() -> None:
+    client = _client(_feed(b"<rss><channel/></rss>"), FakeClock(), _company_policy())
+    assert client.get_xml(COMPANY_URL).tag == "rss"
+    with pytest.raises(SourceDataError, match="not an allowed https host"):
+        client.get_xml("https://a.b.ats.test/jobs.rss")
+
+
+@pytest.mark.parametrize(
+    ("body", "error"),
+    [
+        (b'<!DOCTYPE rss [<!ENTITY a "b">]><rss>&a;</rss>', SourceDataError),
+        (b"<rss><channel></rss>", SourceDataError),
+        (b"not xml", SourceDataError),
+    ],
+)
+def test_unsafe_or_broken_xml_is_refused(body: bytes, error: type[Exception]) -> None:
+    with pytest.raises(error):
+        _client(_feed(body), FakeClock(), _company_policy()).get_xml(COMPANY_URL)
+
+
+def test_html_instead_of_a_feed_is_access_denied() -> None:
+    client = _client(_feed(b"<html></html>", "text/html"), FakeClock(), _company_policy())
+    with pytest.raises(SourceAccessDeniedError):
+        client.get_xml(COMPANY_URL)
+
+
+def test_redirect_off_a_company_host_fails_that_board_only() -> None:
+    moved = HttpResponse(status=301, url="https://careers.acme.test/jobs.rss")
+    client = _client(ReplayTransport({COMPANY_URL: [moved]}), FakeClock(), _company_policy())
+    with pytest.raises(SourceDataError, match="redirects to") as caught:
+        client.get(COMPANY_URL)
+    assert not isinstance(caught.value, SourceAccessDeniedError)
 
 
 def test_request_budget_per_run() -> None:

@@ -96,6 +96,11 @@ class SourceStatus(StrEnum):
     PAUSED = "paused"
 
 
+class FollowAction(StrEnum):
+    FOLLOW = "follow"
+    UNFOLLOW = "unfollow"
+
+
 class FetchRunOutcome(StrEnum):
     """How one connector fetch ended (ADR 0013)."""
 
@@ -346,6 +351,20 @@ class SourceStatusEvent:
     status: SourceStatus
     actor: StatusActor
     reason: str | None = None
+    occurred_at: datetime
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class SourceFollow:
+    """The user followed or stopped following one source target, e.g. a company's board (#71).
+
+    The latest event for a (source, target) pair decides whether it is followed.
+    """
+
+    id: int | None = None
+    source: str
+    target: str
+    action: FollowAction
     occurred_at: datetime
 
 

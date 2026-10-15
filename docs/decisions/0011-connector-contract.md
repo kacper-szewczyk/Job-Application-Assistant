@@ -21,3 +21,6 @@ T09 sets the contract every job source connector follows (SPEC §6 Job discovery
 - A source that starts blocking us goes quiet until a person looks, instead of being retried.
 - Shipping a connector paused (`paused_reason`) or with `terms_reviewed_on=None` keeps it out of use until its terms are checked.
 - Connectors that need pagination must stay within `max_requests_per_run`. Sources too large for that need a higher budget, set in the policy and justified in review.
+
+## Amendment (2026-10-15): per-company hosts
+ADR 0025 adds `SourcePolicy.host_suffixes` for providers that serve each company from its own subdomain (Teamtailor, Personio): exactly one DNS label under a listed provider domain. A redirect from such a host to a host outside the policy fails that target with `SourceDataError` instead of pausing the source. `SourceClient.get_xml` reads feeds without DOCTYPEs, and a 404 raises `SourceNotFoundError`.

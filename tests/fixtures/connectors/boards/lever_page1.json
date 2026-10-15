@@ -1,0 +1,10 @@
+[
+  {
+    "id": "0b1c2d3e-0000-4000-8000-000000000003",
+    "text": "Office Manager",
+    "categories": {"location": "Gdańsk"},
+    "workplaceType": "on-site",
+    "description": "<p>Run the office.</p>",
+    "hostedUrl": "https://jobs.lever.co/examplewidgets/0b1c2d3e-0000-4000-8000-000000000003"
+  }
+]

@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:tt="https://teamtailor.com/locations">
+  <channel>
+    <title>Example Widgets</title>
+    <link>https://examplewidgets.teamtailor.com/jobs</link>
+    <description>Jobs at Example Widgets</description>
+    <item>
+      <title>Data Analyst</title>
+      <description><![CDATA[<p>Analyse widgets.</p><h2>Requirements</h2><ul><li>SQL</li><li>Excel</li></ul>]]></description>
+      <pubDate>Mon, 12 Oct 2026 08:00:00 +0200</pubDate>
+      <link>https://examplewidgets.teamtailor.com/jobs/6100001-data-analyst</link>
+      <guid isPermaLink="false">0f0e0d0c-0000-4000-8000-000000000001</guid>
+      <remoteStatus>hybrid</remoteStatus>
+      <tt:locations>
+        <tt:location><tt:name>Poznań</tt:name><tt:city>Poznań</tt:city><tt:country>Poland</tt:country></tt:location>
+      </tt:locations>
+      <tt:department>Analytics</tt:department>
+    </item>
+    <item>
+      <title>Widget Tester</title>
+      <description><![CDATA[<p>Test widgets.</p>]]></description>
+      <pubDate>Tue, 13 Oct 2026 10:00:00 +0000</pubDate>
+      <link>https://examplewidgets.teamtailor.com/jobs/6100002-widget-tester</link>
+      <guid isPermaLink="false">0f0e0d0c-0000-4000-8000-000000000002</guid>
+      <remoteStatus>fully</remoteStatus>
+    </item>
+    <item>
+      <description>No title or link</description>
+    </item>
+  </channel>
+</rss>

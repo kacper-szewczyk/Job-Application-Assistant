@@ -50,6 +50,7 @@ EXPORT_TABLES: Final = (
     "template_candidates",
     "source_status_events",
     "source_fetch_runs",
+    "source_follows",
     "saved_searches",
 )
 
