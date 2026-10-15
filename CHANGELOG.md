@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.23.0](https://github.com/kacper-szewczyk/Job-Application-Assistant/compare/jaa-v0.22.0...jaa-v0.23.0) (2026-10-15)
+
+
+### Features
+
+* **connectors:** fetch remote jobs from Remotive and Arbeitnow ([#83](https://github.com/kacper-szewczyk/Job-Application-Assistant/issues/83)) ([01cf3bd](https://github.com/kacper-szewczyk/Job-Application-Assistant/commit/01cf3bdfbb754f6bab2ef52f33ce43298438740d)), closes [#74](https://github.com/kacper-szewczyk/Job-Application-Assistant/issues/74)
+
 ## [0.22.0](https://github.com/kacper-szewczyk/Job-Application-Assistant/compare/jaa-v0.21.0...jaa-v0.22.0) (2026-10-15)
 
 
