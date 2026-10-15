@@ -90,6 +90,7 @@ def populate(conn: sqlite3.Connection) -> Sample:
             confirmed_at=T0,
         ),
     )
+    conn.execute("INSERT INTO import_run_facts VALUES (?, ?)", (ident(run.id), ident(fact.id)))
     version = repo.profile_versions.insert(conn, m.ProfileVersion(created_at=T0, note="initial"))
     conn.execute(
         "INSERT INTO profile_version_facts VALUES (?, ?)", (ident(version.id), ident(email.id))

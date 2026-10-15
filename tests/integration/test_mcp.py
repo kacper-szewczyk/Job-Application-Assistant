@@ -38,12 +38,20 @@ from jaa.storage.db import open_database
 from jaa.storage.jobs import set_job_status
 from jaa.storage.repository import applications, jobs, profile_facts
 from tests.fixtures.cv_profile import PROFILE, store_profile
+from tests.fixtures.linkedin_builders import sample_archive
 
 T1 = datetime(2026, 10, 15, 10, 0, tzinfo=UTC)
 EMAIL = str(PROFILE["contact.email"])
 PASTED = "Experience\nSynthetic Gizmo Maker at Gizmo Labs\n\nSkills\nSynthetic-Fortran\n"
 
-READ_TOOLS = {"review_facts", "search_jobs", "get_job", "get_tailored_cv", "list_applications"}
+READ_TOOLS = {
+    "review_facts",
+    "search_jobs",
+    "get_job",
+    "get_tailored_cv",
+    "list_applications",
+    "suggest_linkedin_updates",
+}
 ADDING_TOOLS = {"import_profile", "draft_tailored_cv", "generate_cv_pdf"}
 CONFIRMED_TOOLS = {"decide_facts", "update_application_status"}
 
@@ -540,6 +548,7 @@ def test_personal_values_are_not_logged(
         )
         _matched(profile)
         call(profile, "draft_tailored_cv", {"job_id": 1})
+        call(profile, "suggest_linkedin_updates", {"job_ids": [1]})
         call(
             profile,
             "update_application_status",
@@ -559,6 +568,41 @@ def test_personal_values_are_not_logged(
         str(PROFILE["identity.name"]),
     ):
         assert value not in logged
+
+
+def test_suggest_linkedin_updates_without_an_import(profile: Settings) -> None:
+    data = call(profile, "suggest_linkedin_updates").data
+    assert data["linkedin_import_id"] is None
+    assert data["suggestions"] == []
+    assert "import_profile" in data["next_step"]
+
+
+def test_suggest_linkedin_updates_cites_confirmed_facts(profile: Settings, tmp_path: Path) -> None:
+    archive = tmp_path / "linkedin.zip"
+    archive.write_bytes(sample_archive())
+    imported = call(profile, "import_profile", {"path": str(archive)}).data
+    conn = _db(profile)
+    try:
+        set_job_status(conn, 1, JobStatus.SAVED, StatusActor.USER)
+        confirmed = {f.id: f for f in profile_facts.list(conn, state=FactState.CONFIRMED)}
+    finally:
+        conn.close()
+
+    data = call(profile, "suggest_linkedin_updates").data
+
+    assert data["linkedin_import_id"] == imported["import_run_id"]
+    assert data["target_job_ids"] == [1]
+    suggestions = {s["address"]: s for s in data["suggestions"]}
+    headline = suggestions["headline"]
+    assert headline["kind"] == "update"
+    assert headline["text"] == PROFILE["headline"]
+    assert headline["current"] == "Backend engineer for widget platforms"
+    for s in data["suggestions"]:
+        if s["kind"] != "check":
+            assert s["fact_ids"] and all(i in confirmed for i in s["fact_ids"])
+    assert [g["requirement"] for g in data["gaps"]] == ["Kubernetes"]
+    assert data["unreviewed_linkedin_facts"] > 0
+    assert not any(s["section"] == "contact" for s in data["suggestions"])
 
 
 def test_jaa_mcp_serve_speaks_mcp_over_stdio(profile: Settings) -> None:

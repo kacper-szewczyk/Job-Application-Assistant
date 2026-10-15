@@ -31,6 +31,7 @@ EXPORT_TABLES: Final = (
     "profile",
     "import_runs",
     "profile_facts",
+    "import_run_facts",
     "profile_version_facts",
     "profile_fact_events",
     "preferences",
