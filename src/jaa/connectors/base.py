@@ -66,15 +66,22 @@ class RateLimit:
     """At most `requests` requests in any `per_seconds` window, and `max_requests_per_run` in total.
 
     The per-run budget stops a pagination bug from turning into an unbounded crawl.
+    `max_requests_per_day` is for sources that ask for only a few calls a day (Remotive): it is
+    checked against the stored fetch runs of the last 24 hours before a run starts (ADR 0028).
     """
 
     requests: int
     per_seconds: float
     max_requests_per_run: int = 100
+    max_requests_per_day: int | None = None
 
     def __post_init__(self) -> None:
         if self.requests < 1 or self.per_seconds <= 0 or self.max_requests_per_run < 1:
             raise ValueError("rate limit values must be positive")
+        if self.max_requests_per_day is not None and (
+            self.max_requests_per_day < self.max_requests_per_run
+        ):
+            raise ValueError("max_requests_per_day must allow at least one full run")
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -225,6 +232,9 @@ class FetchResult:
 
     listings: tuple[JobListing, ...]
     issues: tuple[SourceIssue, ...] = ()
+    # False when the source shows only part of the target (e.g. a feed of its newest jobs), so
+    # a job missing from this fetch may still be open and must not be marked removed (ADR 0028).
+    complete: bool = True
 
 
 class Connector(Protocol):
@@ -311,6 +321,11 @@ def policy_summary(policy: SourcePolicy) -> Mapping[str, str]:
         "Rate limit": (
             f"{limit.requests} per {limit.per_seconds:g}s, "
             f"at most {limit.max_requests_per_run} per run"
+            + (
+                f", {limit.max_requests_per_day} per day"
+                if limit.max_requests_per_day is not None
+                else ""
+            )
         ),
         "Retries": (
             f"{retry.max_retries} (backoff {retry.backoff_seconds:g}s, "

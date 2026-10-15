@@ -41,6 +41,8 @@ class FetchOutcome:
     listings: tuple[JobListing, ...]
     issues: tuple[SourceIssue, ...]
     requests_made: int
+    # Whether the fetch saw the whole target; see `FetchResult.complete`.
+    complete: bool = True
 
 
 def _problem(listing: JobListing) -> str | None:
@@ -198,6 +200,7 @@ def run_connector(
         listings=listings,
         issues=(*result.issues, *issues),
         requests_made=client.requests_made,
+        complete=result.complete,
     )
 
 
@@ -235,4 +238,5 @@ def run_connector_job(
         listings=listings,
         issues=tuple(issues),
         requests_made=client.requests_made,
+        complete=False,
     )

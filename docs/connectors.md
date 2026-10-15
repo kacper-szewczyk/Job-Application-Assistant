@@ -16,7 +16,7 @@ Every connector declares a `SourcePolicy`. `jaa sources show <key>` prints it.
 | `terms_url` | https link to the terms or API documentation that permit this access. |
 | `terms_reviewed_on` | Date someone checked those terms. `None` keeps the source paused. |
 | `permitted_fields` | `JobListing` fields the connector may keep. Must include `source_job_id`, `url`, `title`, `company`. Other fields are dropped and reported (`field_not_permitted`). |
-| `rate_limit` | `requests` per `per_seconds` (sliding window) and `max_requests_per_run` (budget per fetch). |
+| `rate_limit` | `requests` per `per_seconds` (sliding window), `max_requests_per_run` (budget per fetch) and optional `max_requests_per_day` (checked before a run against the stored fetch runs of the last 24 hours, every run counting as at least one request; over it, `SourceQuotaError` and nothing is sent, ADR 0028). |
 | `retry` | `max_retries`, `backoff_seconds`, `max_wait_seconds`, `timeout_seconds` (see Failure behavior). |
 | `max_response_bytes` | Cap on one response body (default 10 MiB). |
 | `requires_credentials` | Must be `False`; a source that needs credentials stays paused. Public listing access never implies permission to submit applications (SPEC §6). |
@@ -25,7 +25,7 @@ Every connector declares a `SourcePolicy`. `jaa sources show <key>` prints it.
 
 ## Listing output
 
-`Connector.fetch(client, target)` returns a `FetchResult` with `JobListing`s and `SourceIssue`s for one target (a board token, feed path, … — connector-specific). `Connector.target_key(target)` returns the canonical form of a target, which is how it is stored and compared (removal is judged per target), and raises `ConnectorTargetError` for targets the connector cannot fetch, before any request.
+`Connector.fetch(client, target)` returns a `FetchResult` with `JobListing`s and `SourceIssue`s for one target, plus `complete`: False when the connector saw only part of the target (a feed of the newest jobs, a page cap), so nothing missing from it is marked removed (a board token, feed path, … — connector-specific). `Connector.target_key(target)` returns the canonical form of a target, which is how it is stored and compared (removal is judged per target), and raises `ConnectorTargetError` for targets the connector cannot fetch, before any request.
 
 | `JobListing` field | Type | Notes |
 |---|---|---|
@@ -62,6 +62,7 @@ The client:
 | Network error, HTTP 429, 500, 502, 503, 504 | retried after `Retry-After`, or `backoff_seconds * 2**attempt` | Up to `max_retries`, then `SourceUnavailableError`. A `Retry-After` longer than `max_wait_seconds` gives up at once. |
 | Other non-2xx status, oversized body, invalid JSON or XML, XML with a DOCTYPE, request budget exhausted, URL outside policy | `SourceDataError` | No. |
 | Source paused (by policy or user) | `SourcePausedError` before any request | — |
+| Daily allowance (`max_requests_per_day`) used up | `SourceQuotaError` before any request, with the time it frees up | — |
 
 ## Pausing
 
@@ -72,7 +73,7 @@ A source is paused when its policy says so (`paused_reason`, unreviewed terms, r
 `jaa.storage.listings.fetch_and_store` runs a connector for one target and stores the result (ADR 0013):
 
 - New listings become `jobs` rows with status `discovered`. Known ones get a new `last_seen_at`, and their fields are updated when the listing's content hash changed.
-- After a complete fetch, jobs of that source and target that were not listed get `removed_at`, cleared again if they come back. `jobs.status` is never changed by a fetch.
+- After a complete fetch (`FetchResult.complete`), jobs of that source and target that were not listed get `removed_at`, cleared again if they come back. `jobs.status` is never changed by a fetch.
 - Every fetch that reached the source adds a `source_fetch_runs` row with its outcome and counts. A `denied` fetch also pauses the source.
 - New jobs, and jobs whose canonical URL or employer, title and location changed, are checked for duplicates. A possible duplicate gets a `job_duplicates` flag; jobs are never merged (ADR 0014).
 
@@ -93,6 +94,11 @@ A source is paused when its policy says so (`paused_reason`, unreviewed terms, r
 | `lever` | [Lever Postings API](https://github.com/lever/postings-api) | Published postings, no key, pages of 100; the site name stands in for the employer; 20 requests/min | Site names: `acme`, or `eu:acme` |
 | `teamtailor` | [Teamtailor RSS feed](https://support.teamtailor.com/en/articles/11171756-rss-feed-how-to-guide) | `jobs.rss` of each career site, pages of 100; only `<company>.teamtailor.com`, not custom domains; 20 requests/min | Sites: `acme` or `acme.teamtailor.com` |
 | `personio` | [Personio positions feed](https://developer.personio.de/docs/retrieving-open-job-positions) | `/xml` of each career page, one request; employer is the subcompany or the subdomain | Pages: `acme`, `acme.jobs.personio.de` or `acme.jobs.personio.com` |
+| `remotive` | [Remotive public API](https://github.com/remotive-com/remote-jobs-api) | One request per run, at most 4 a day across all targets, no retries; jobs appear 24 h late; each job keeps its Remotive link and source (the terms require naming Remotive and linking back, and forbid resubmitting jobs elsewhere) | Category slugs such as `software-dev`, or `all` |
+| `arbeitnow` | [Arbeitnow job board API](https://www.arbeitnow.com/blog/job-board-api), mostly Germany | Free API, terms §11 ask for a link back; only the newest 5 pages (a few hundred jobs each), so a fetch that stops early marks nothing removed; 6 requests/min | `all`, or `remote` (jobs flagged remote) |
+| `weworkremotely` | [We Work Remotely RSS feeds](https://weworkremotely.com/remote-job-rss-feed) | **Paused by policy**: the feed page is behind a bot check, so its terms could not be confirmed. The connector is complete; enabling it needs only a reviewed policy. Feeds never mark jobs removed | `all`, `programming`, `back-end-programming`, `front-end-programming`, `full-stack-programming`, `devops-sysadmin`, `design`, `product`, `customer-support`, `sales-and-marketing`, `management-and-finance`, `other` |
+
+Remotive, Arbeitnow and We Work Remotely link to their own job pages, so the same job on two of them rarely shares a canonical URL; it is flagged through the employer, title and location key instead (ADR 0014). None of them can read one offer by link, so `jaa jobs add` treats their links as unknown sites. RemoteOK (robots.txt disallows everything) and the others in the T20 research stay out.
 
 Ashby, Workable and Recruitee are not added until their own documentation confirms unauthenticated read access; SmartRecruiters requires an API key.
 

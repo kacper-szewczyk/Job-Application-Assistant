@@ -1,0 +1,41 @@
+{
+  "00-warning": "Remotive main domain moved to remotive.com",
+  "0-legal-notice": "Legal warning - please link back to the URL found on Remotive and mention Remotive as a source.",
+  "job-count": 3,
+  "total-job-count": 3,
+  "jobs": [
+    {
+      "id": 2000001,
+      "url": "https://remotive.com/remote-jobs/software-dev/backend-engineer-2000001",
+      "title": "Backend Engineer (Python)",
+      "company_name": "Example Widgets ",
+      "company_logo": "https://remotive.com/job/2000001/logo",
+      "category": "Software Development",
+      "tags": ["python", "django"],
+      "job_type": "full_time",
+      "publication_date": "2026-10-12T09:30:00",
+      "candidate_required_location": "Europe",
+      "salary": "$60k - $80k",
+      "description": "<p>Build APIs for widgets.</p><h3>Requirements</h3><ul><li>3+ years of Python</li><li>PostgreSQL</li></ul>"
+    },
+    {
+      "id": 2000002,
+      "url": "https://remotive.com/remote-jobs/software-dev/frontend-developer-2000002",
+      "title": "Frontend Developer",
+      "company_name": "Sample Gadgets",
+      "category": "Software Development",
+      "job_type": "",
+      "publication_date": "2026-10-11T18:00:00",
+      "candidate_required_location": "",
+      "description": "<p>TypeScript and React.</p>"
+    },
+    {
+      "id": 2000003,
+      "url": "https://remotive.com/remote-jobs/software-dev/data-engineer-2000003",
+      "title": "Data Engineer",
+      "company_name": "",
+      "publication_date": "2026-10-10T08:00:00",
+      "description": "<p>Pipelines.</p>"
+    }
+  ]
+}

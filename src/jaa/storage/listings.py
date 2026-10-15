@@ -4,7 +4,9 @@
 `fetch_and_store` runs a connector end to end: pause check, fetch, store, a `source_fetch_runs`
 row for every run that reached the source, and a `system` pause when the source refuses access
 (ADR 0011). Removal is only judged after a complete fetch of a target, and it never changes
-`jobs.status`, which stays the user's lifecycle (ADR 0005). Logs carry counts only.
+`jobs.status`, which stays the user's lifecycle (ADR 0005). Sources with a daily request
+allowance are refused before a run once the stored runs of the last 24 hours used it up
+(ADR 0028). Logs carry counts only.
 """
 
 import hashlib
@@ -14,7 +16,7 @@ import sqlite3
 import time
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Final
 
 from jaa.connectors.base import (
@@ -22,6 +24,7 @@ from jaa.connectors.base import (
     JobListing,
     OfferConnector,
     SourceIssue,
+    SourcePolicy,
     effective_state,
 )
 from jaa.connectors.http import Transport
@@ -32,6 +35,7 @@ from jaa.core.errors import (
     ConnectorError,
     SourceAccessDeniedError,
     SourceDataError,
+    SourceQuotaError,
     SourceUnavailableError,
 )
 from jaa.core.models import (
@@ -51,6 +55,7 @@ from jaa.storage.sources import latest_status_event, set_source_status
 log = logging.getLogger(__name__)
 
 MAX_ERROR_LENGTH: Final = 500
+DAY: Final = timedelta(days=1)
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -350,6 +355,31 @@ def _record_success(
     return FetchReport(run=run, changes=changes, issues=outcome.issues)
 
 
+def check_daily_quota(
+    conn: sqlite3.Connection, policy: SourcePolicy, *, now: datetime | None = None
+) -> None:
+    """Raise `SourceQuotaError` when one more run could exceed the source's daily allowance.
+
+    Every stored run reached the source, so a run counts as at least one request even when it
+    failed before its requests were counted.
+    """
+    limit = policy.rate_limit
+    if limit.max_requests_per_day is None:
+        return
+    now = now or utcnow()
+    recent = [
+        run for run in source_fetch_runs.list(conn, source=policy.key) if now - run.started_at < DAY
+    ]
+    used = sum(max(run.requests, 1) for run in recent)
+    if used + limit.max_requests_per_run <= limit.max_requests_per_day:
+        return
+    earliest = min(run.started_at for run in recent) + DAY
+    raise SourceQuotaError(
+        f"{policy.key} allows {limit.max_requests_per_day} requests a day and {used} were made "
+        f"in the last 24 hours; try again after {earliest:%Y-%m-%d %H:%M} UTC"
+    )
+
+
 def fetch_and_store(
     conn: sqlite3.Connection,
     connector: Connector,
@@ -361,14 +391,17 @@ def fetch_and_store(
 ) -> FetchReport:
     """Fetch one target, store what changed and record the run.
 
-    Raises `SourcePausedError` (paused source) and `ConnectorTargetError` (unknown target)
-    before any request, recording nothing. Errors from the source itself end the run: it is
-    recorded with its outcome and returned in `FetchReport.error`, and an access denial also
-    pauses the source until the user resumes it.
+    Raises `SourcePausedError` (paused source), `ConnectorTargetError` (unknown target) and
+    `SourceQuotaError` (daily allowance used up) before any request, recording nothing. Removal
+    is judged only when the connector saw the whole target (`FetchResult.complete`). Errors from
+    the source itself end the run: it is recorded with its outcome and returned in
+    `FetchReport.error`, and an access denial also pauses the source until the user resumes it.
     """
     policy = connector.policy
     state = effective_state(policy, latest_status_event(conn, policy.key))
     target = connector.target_key(target)
+    if state.status is SourceStatus.ACTIVE:
+        check_daily_quota(conn, policy)
     started = utcnow()
     try:
         outcome = run_connector(
@@ -376,7 +409,7 @@ def fetch_and_store(
         )
     except (SourceAccessDeniedError, SourceUnavailableError, SourceDataError) as exc:
         return _record_failure(conn, policy.key, target, started, exc)
-    return _record_success(conn, outcome, started, complete=True)
+    return _record_success(conn, outcome, started, complete=outcome.complete)
 
 
 def fetch_and_store_job(
@@ -397,6 +430,8 @@ def fetch_and_store_job(
     policy = connector.policy
     state = effective_state(policy, latest_status_event(conn, policy.key))
     target = connector.target_key(target)
+    if state.status is SourceStatus.ACTIVE:
+        check_daily_quota(conn, policy)
     started = utcnow()
     try:
         outcome = run_connector_job(

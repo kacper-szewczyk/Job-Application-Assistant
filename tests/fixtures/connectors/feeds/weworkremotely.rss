@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:media="http://search.yahoo.com/mrss">
+  <channel>
+    <title>We Work Remotely: Back-End Programming Jobs</title>
+    <link>https://weworkremotely.com/categories/remote-back-end-programming-jobs.rss</link>
+    <description>We Work Remotely: Back-End Programming Jobs</description>
+    <language>en-US</language>
+    <ttl>60</ttl>
+    <item>
+      <title>Example Widgets: Senior Go Engineer</title>
+      <region>Anywhere in the World</region>
+      <country></country>
+      <state></state>
+      <skills></skills>
+      <category>Back-End Programming</category>
+      <type>Full-Time</type>
+      <description>&lt;p&gt;&lt;strong&gt;Headquarters:&lt;/strong&gt; Example City&lt;/p&gt;&lt;p&gt;Write Go services.&lt;/p&gt;</description>
+      <pubDate>Thu, 15 Oct 2026 07:30:00 +0000</pubDate>
+      <expires_at>Sat, 14 Nov 2026 07:30:00 +0000</expires_at>
+      <guid>https://weworkremotely.com/remote-jobs/example-widgets-senior-go-engineer</guid>
+      <link>https://weworkremotely.com/remote-jobs/example-widgets-senior-go-engineer</link>
+    </item>
+    <item>
+      <title>Sample Gadgets: Rails Developer</title>
+      <region>Europe Only</region>
+      <country>Poland</country>
+      <state></state>
+      <category>Back-End Programming</category>
+      <type>Contract</type>
+      <description>&lt;p&gt;Ruby on Rails.&lt;/p&gt;</description>
+      <pubDate>Wed, 14 Oct 2026 12:00:00 +0000</pubDate>
+      <guid>https://weworkremotely.com/remote-jobs/sample-gadgets-rails-developer</guid>
+      <link>https://weworkremotely.com/remote-jobs/sample-gadgets-rails-developer</link>
+    </item>
+    <item>
+      <title>A title without a company</title>
+      <pubDate>Wed, 14 Oct 2026 10:00:00 +0000</pubDate>
+      <link>https://weworkremotely.com/remote-jobs/untitled-company-job</link>
+    </item>
+  </channel>
+</rss>
