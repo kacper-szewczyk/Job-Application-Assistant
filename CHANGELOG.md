@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.16.0](https://github.com/kacper-szewczyk/Job-Application-Assistant/compare/jaa-v0.15.0...jaa-v0.16.0) (2026-10-15)
+
+
+### Features
+
+* **privacy:** add restore, delete commands and archived jobs ([#64](https://github.com/kacper-szewczyk/Job-Application-Assistant/issues/64)) ([2ea6ee9](https://github.com/kacper-szewczyk/Job-Application-Assistant/commit/2ea6ee9e7b9795086689eebf18c44895960ac6fb)), closes [#20](https://github.com/kacper-szewczyk/Job-Application-Assistant/issues/20)
+
 ## [0.15.0](https://github.com/kacper-szewczyk/Job-Application-Assistant/compare/jaa-v0.14.0...jaa-v0.15.0) (2026-10-15)
 
 
