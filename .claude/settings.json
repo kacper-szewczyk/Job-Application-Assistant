@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "deny": [
+      "Bash(jaa onboard:*)",
+      "Bash(uv run jaa onboard:*)",
+      "Bash(jaa preferences set:*)",
+      "Bash(uv run jaa preferences set:*)",
+      "Bash(jaa preferences skip:*)",
+      "Bash(uv run jaa preferences skip:*)",
+      "Bash(jaa profile confirm:*)",
+      "Bash(uv run jaa profile confirm:*)",
+      "Bash(jaa profile reject:*)",
+      "Bash(uv run jaa profile reject:*)",
+      "Bash(jaa profile edit:*)",
+      "Bash(uv run jaa profile edit:*)",
+      "Bash(jaa cv tailor approve:*)",
+      "Bash(uv run jaa cv tailor approve:*)",
+      "Bash(jaa answers review:*)",
+      "Bash(uv run jaa answers review:*)",
+      "Bash(jaa answers set:*)",
+      "Bash(uv run jaa answers set:*)",
+      "Bash(jaa answers reconfirm:*)",
+      "Bash(uv run jaa answers reconfirm:*)",
+      "Bash(jaa answers policy:*)",
+      "Bash(uv run jaa answers policy:*)",
+      "Bash(jaa answers forget:*)",
+      "Bash(uv run jaa answers forget:*)",
+      "Bash(jaa apply start:*)",
+      "Bash(uv run jaa apply start:*)",
+      "Bash(jaa apply status:*)",
+      "Bash(uv run jaa apply status:*)",
+      "Bash(jaa apply submitted:*)",
+      "Bash(uv run jaa apply submitted:*)",
+      "Bash(jaa jobs duplicates mark:*)",
+      "Bash(uv run jaa jobs duplicates mark:*)",
+      "Bash(jaa sources resume:*)",
+      "Bash(uv run jaa sources resume:*)",
+      "WebFetch(domain:linkedin.com)",
+      "WebFetch(domain:www.linkedin.com)"
+    ]
+  }
+}
