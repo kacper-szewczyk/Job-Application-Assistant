@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.13.0](https://github.com/kacper-szewczyk/Job-Application-Assistant/compare/jaa-v0.12.0...jaa-v0.13.0) (2026-10-15)
+
+
+### Features
+
+* **applications:** hand applications over and track them with user-confirmed submissions ([#58](https://github.com/kacper-szewczyk/Job-Application-Assistant/issues/58)) ([2f28b99](https://github.com/kacper-szewczyk/Job-Application-Assistant/commit/2f28b99fe5d8c85dc5086ffa6d3a3efdf8a76c51)), closes [#16](https://github.com/kacper-szewczyk/Job-Application-Assistant/issues/16)
+
 ## [0.12.0](https://github.com/kacper-szewczyk/Job-Application-Assistant/compare/jaa-v0.11.0...jaa-v0.12.0) (2026-10-15)
 
 
