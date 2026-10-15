@@ -163,6 +163,19 @@ uv run jaa answers forget <key>          # delete every version
 
 Each question is answered from your confirmed profile (email, phone, links, name, location), from an answer you saved, or not at all. Preferences and unreviewed facts only make suggestions you have to confirm. Questions about work authorization, sponsorship, salary, demographics, criminal or medical history, consent and legal statements always need your answer, unless you set a saved answer to that exact question to `reuse`. Saved answers have a review date (180 days for sensitive ones, 365 for others); after it they must be confirmed again. Every answer records where it came from: the facts, preference or earlier answer you accepted, and the job it was given for. See [ADR 0017](docs/decisions/0017-answer-memory.md).
 
+### Applying and tracking applications
+
+```bash
+uv run jaa apply start <job>             # check for duplicates, then move the job to preparing
+uv run jaa apply handoff <job> --open    # link, CV/cover letter paths and answers; opens the page
+uv run jaa apply submitted <job>         # after you submitted: asks you to confirm, then records it
+uv run jaa apply status <job> interviewing --note "first call"   # any later status, with a note
+uv run jaa apply list                    # your applications, most recently changed first
+uv run jaa apply show <job>              # status history, submission, documents and answers used
+```
+
+jaa never submits an application. `handoff` shows everything to take to the employer's page and can open it in your browser; you fill in the form and submit it. Only `jaa apply submitted`, which asks you every time, marks an application submitted. It stores the time, the link, the documents and the saved answer versions used, and that record cannot be edited afterwards. Starting or submitting is refused while another prepared or submitted job has the same link or the same employer and role, until you mark the pair as different jobs or pass `--allow-duplicate`. See [ADR 0018](docs/decisions/0018-application-tracker.md).
+
 ### Configuration
 
 | Variable | Default | Purpose |

@@ -135,7 +135,7 @@ def _notes(r: Resolution) -> str:
     return "; ".join(_NOTES[n] for n in r.notes)
 
 
-def _resolution_table(resolutions: list[Resolution], *, reveal: bool) -> Table:
+def resolution_table(resolutions: list[Resolution], *, reveal: bool) -> Table:
     table = Table("#", "Question", "Answer", "Kind", "Source", "Confidence", "Use", show_lines=True)
     for number, r in enumerate(resolutions, start=1):
         label, style = _ACTION_STYLES[r.action]
@@ -167,7 +167,7 @@ def prepare(ctx: typer.Context, job: JobArg, reveal: RevealOpt = False) -> None:
             f'with `jaa answers add-question {job} "QUESTION"`.'
         )
         return
-    console.print(_resolution_table(resolutions, reveal=reveal))
+    console.print(resolution_table(resolutions, reveal=reveal))
     asks = sum(r.action is AnswerAction.ASK for r in resolutions)
     reviews = sum(r.action is AnswerAction.REVIEW for r in resolutions)
     console.print(
