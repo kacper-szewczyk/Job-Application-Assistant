@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.25.0](https://github.com/kacper-szewczyk/Job-Application-Assistant/compare/jaa-v0.24.0...jaa-v0.25.0) (2026-10-15)
+
+
+### Features
+
+* **documents:** add jaa's own CV and cover letter designs ([#87](https://github.com/kacper-szewczyk/Job-Application-Assistant/issues/87)) ([b13f67e](https://github.com/kacper-szewczyk/Job-Application-Assistant/commit/b13f67e8d0f3ad48dd2b494b33c74eb194fb6b41)), closes [#41](https://github.com/kacper-szewczyk/Job-Application-Assistant/issues/41)
+
 ## [0.24.0](https://github.com/kacper-szewczyk/Job-Application-Assistant/compare/jaa-v0.23.0...jaa-v0.24.0) (2026-10-15)
 
 
