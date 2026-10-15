@@ -1,7 +1,7 @@
 """Helpers shared by CLI command modules."""
 
 import sqlite3
-from typing import Final
+from typing import Annotated, Final
 
 import typer
 from rich.console import Console
@@ -15,6 +15,15 @@ MASK: Final = "•••• (sensitive)"
 # soft_wrap keeps long paths on one line so they stay copyable.
 console = Console(soft_wrap=True)
 err_console = Console(stderr=True)
+
+YesOpt = Annotated[bool, typer.Option("--yes", "-y", help="Do not ask for confirmation.")]
+
+
+def confirm_or_exit(question: str, *, yes: bool) -> None:
+    """Ask before something that cannot be undone; anything but yes changes nothing."""
+    if not yes and not typer.confirm(question, default=False):
+        console.print("Nothing deleted.")
+        raise typer.Exit(code=1)
 
 
 def settings_from(ctx: typer.Context) -> Settings:

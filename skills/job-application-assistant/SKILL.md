@@ -50,6 +50,7 @@ These are not defaults to trade off. Follow them even when the user asks otherwi
 | Answer application questions, change reuse policy | the user | `jaa answers review JOB`, `jaa answers policy`, `jaa answers forget` in their terminal |
 | Preferences | the user | `jaa onboard`, `jaa preferences set` in their terminal |
 | Same job or different jobs | the user | `jaa jobs duplicates mark` in their terminal |
+| Delete data, restore a backup | the user | `jaa profile delete`, `jaa import delete`, `jaa jobs delete`, `jaa restore` in their terminal |
 
 A dialog the user declines or cancels changes nothing; report that and do not retry unless the
 user asks. If a confirming tool fails because the client cannot show dialogs, tell the user to
@@ -61,8 +62,9 @@ run the equivalent command in their terminal (`jaa profile confirm`, `jaa apply 
 `jaa profile reject`, `jaa profile edit`, `jaa cv tailor approve`, `jaa answers review`,
 `jaa answers set`, `jaa answers reconfirm`, `jaa answers policy`, `jaa answers forget`,
 `jaa apply start`, `jaa apply status`, `jaa apply submitted`, `jaa jobs duplicates mark`,
-`jaa sources resume`. They record the user's own decisions; the repository's
-`.claude/settings.json` denies them to Claude as a backstop. Tell the user which one to run and
+`jaa sources resume`, `jaa profile delete`, `jaa import delete`, `jaa import delete-source`,
+`jaa jobs delete`, `jaa restore`. They record the user's own decisions or delete their data;
+the repository's `.claude/settings.json` denies them to Claude as a backstop. Tell the user which one to run and
 why; they can type it in their own terminal.
 
 ## Tools
@@ -189,6 +191,24 @@ add them yet (issue #46). Do not fetch those pages.
    `update_application_status` when the user reports them.
 6. `list_applications` and `jaa apply show JOB` give the user an overview. Report states as jaa
    records them; a job is "applied" only when it is `submitted`.
+7. Rejected, withdrawn and closed jobs are `archived`: finished, but kept with their history.
+   jaa never deletes them on its own; do not suggest deleting them unless the user asks.
+
+### 6. Privacy: backups and deletion
+
+jaa keeps everything until the user deletes it (ADR 0021). When the user asks to back up,
+move, or delete their data, tell them which command to run in their terminal:
+
+- `jaa backup FILE` or `jaa export FILE` for a copy (it holds their personal data; they keep
+  it somewhere private), and `jaa restore FILE` to load one back.
+- `jaa profile delete FACT…` to delete facts for good (`jaa profile reject` keeps a record),
+  `jaa import delete RUN` for an import and its facts, `jaa import delete-source RUN` for the
+  file it read.
+- `jaa jobs delete JOB…` for jobs with their application, history and generated documents,
+  `jaa answers forget KEY` for every version of a saved answer.
+
+Each one asks before deleting. Do not run them, and do not delete jaa's files or database
+yourself.
 
 ## When something fails
 

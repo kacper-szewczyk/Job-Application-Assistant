@@ -36,6 +36,16 @@
       "Bash(uv run jaa jobs duplicates mark:*)",
       "Bash(jaa sources resume:*)",
       "Bash(uv run jaa sources resume:*)",
+      "Bash(jaa profile delete:*)",
+      "Bash(uv run jaa profile delete:*)",
+      "Bash(jaa import delete:*)",
+      "Bash(uv run jaa import delete:*)",
+      "Bash(jaa import delete-source:*)",
+      "Bash(uv run jaa import delete-source:*)",
+      "Bash(jaa jobs delete:*)",
+      "Bash(uv run jaa jobs delete:*)",
+      "Bash(jaa restore:*)",
+      "Bash(uv run jaa restore:*)",
       "WebFetch(domain:linkedin.com)",
       "WebFetch(domain:www.linkedin.com)"
     ]

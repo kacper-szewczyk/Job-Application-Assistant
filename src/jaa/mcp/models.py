@@ -86,6 +86,7 @@ class JobSummary(BaseModel):
     source: str
     url: str
     status: JobStatus
+    archived: bool = Field(description="Rejected, withdrawn or closed: finished, kept on record.")
     first_seen_at: datetime
     no_longer_listed: bool
     possible_duplicates: list[int] = Field(description="Job ids flagged as maybe the same job.")
@@ -131,6 +132,7 @@ class ApplicationOut(BaseModel):
     title: str
     employer: str
     status: JobStatus
+    archived: bool = Field(description="Rejected, withdrawn or closed: finished, kept on record.")
     status_changed_at: datetime
     started_at: datetime
     submitted_at: datetime | None

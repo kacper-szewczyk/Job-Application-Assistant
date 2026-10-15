@@ -16,7 +16,14 @@ from rich.markup import escape
 from rich.table import Table
 from rich.text import Text
 
-from jaa.cli.common import console, err_console, open_existing, settings_from
+from jaa.cli.common import (
+    YesOpt,
+    confirm_or_exit,
+    console,
+    err_console,
+    open_existing,
+    settings_from,
+)
 from jaa.core.clock import utcnow
 from jaa.core.errors import ImportSourceError, JaaError
 from jaa.core.models import FactCandidate, ImportRun, ImportStatus, JsonValue, RetentionChoice
@@ -24,7 +31,8 @@ from jaa.importers.base import read_source
 from jaa.importers.cv_file import prepare_cv_import
 from jaa.importers.linkedin import INSTRUCTIONS, delete_sources, prepare_linkedin_import
 from jaa.importers.text import prepare_text_import
-from jaa.storage.profile import ImportResult, store_import
+from jaa.storage import privacy
+from jaa.storage.profile import ImportResult, delete_import, store_import
 from jaa.storage.repository import import_runs
 from jaa.storage.templates import list_template_candidates, register_template_candidate
 
@@ -348,6 +356,37 @@ def show_run(
         _print_issues(run.errors)
     else:
         console.print("No issues.")
+
+
+RunArg = Annotated[int, typer.Argument(help="Import run ID (see `jaa import runs`).")]
+
+
+@import_app.command("delete")
+def delete_run(ctx: typer.Context, run_id: RunArg, yes: YesOpt = False) -> None:
+    """Delete an import and every fact it added, confirmed or not. Your file is not touched."""
+    with _database(ctx) as conn:
+        facts = _fact_counts(conn).get(run_id, 0)
+        import_runs.get(conn, run_id)
+        confirm_or_exit(
+            f"Delete import #{run_id} and the {facts} fact(s) it added? This cannot be undone",
+            yes=yes,
+        )
+        result = delete_import(conn, run_id)
+    console.print(f"Deleted import #{run_id} and {result.facts} fact(s).")
+    if result.version is not None:
+        console.print(f"Profile version {result.version.id} created and active.")
+
+
+@import_app.command("delete-source")
+def delete_source(ctx: typer.Context, run_id: RunArg, yes: YesOpt = False) -> None:
+    """Delete the file(s) an import read, if unchanged since. The facts in jaa are kept."""
+    with _database(ctx) as conn:
+        paths = privacy.import_source_paths(import_runs.get(conn, run_id))
+        names = ", ".join(str(p) for p in paths) or "nothing"
+        confirm_or_exit(f"Delete {names}?", yes=yes)
+        deleted = privacy.delete_import_source(conn, run_id)
+    for path in deleted:
+        console.print(Text(f"Deleted {path}."))
 
 
 @import_app.command("templates")

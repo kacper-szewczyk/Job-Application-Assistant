@@ -347,3 +347,56 @@ def version_fact_counts(conn: sqlite3.Connection) -> dict[int, int]:
         "SELECT profile_version_id AS v, COUNT(*) AS n FROM profile_version_facts GROUP BY v"
     ).fetchall()
     return {int(r["v"]): int(r["n"]) for r in rows}
+
+
+@dataclass(frozen=True, slots=True)
+class DeletedFacts:
+    """How many facts were deleted, and the version created if confirmed facts were among them."""
+
+    facts: int
+    version: ProfileVersion | None
+
+
+def _delete_facts(
+    conn: sqlite3.Connection, facts: Sequence[ProfileFact], at: datetime
+) -> DeletedFacts:
+    ids = [_id(f.id) for f in facts]
+    conn.executemany("DELETE FROM profile_facts WHERE id = ?", [(i,) for i in ids])
+    # The deleted facts drop out of every earlier version too; a new version makes the change
+    # visible to matches and tailored CVs, which are compared against the active version.
+    was_confirmed = any(f.state is FactState.CONFIRMED for f in facts)
+    version = _snapshot(conn, at, "deleted facts") if was_confirmed else None
+    return DeletedFacts(len(ids), version)
+
+
+def delete_facts(
+    conn: sqlite3.Connection, fact_ids: Sequence[int], *, at: datetime | None = None
+) -> DeletedFacts:
+    """Delete facts, their review history and their place in every profile version (ADR 0021).
+
+    Unlike rejecting, this removes the value from the database. Corrections made from a deleted
+    fact are kept: they hold what the user typed.
+    """
+    at = at or utcnow()
+    with conn:
+        result = _delete_facts(conn, _get_all(conn, fact_ids), at)
+    log.info("deleted facts=%d", result.facts)
+    return result
+
+
+def delete_import(
+    conn: sqlite3.Connection, run_id: int, *, at: datetime | None = None
+) -> DeletedFacts:
+    """Delete an import run, every fact it added and any template registered from it.
+
+    The imported file itself is not touched; `privacy.delete_import_source` deletes that.
+    """
+    at = at or utcnow()
+    with conn:
+        import_runs.get(conn, run_id)
+        facts = profile_facts.list(conn, import_run_id=run_id)
+        result = _delete_facts(conn, facts, at)
+        conn.execute("DELETE FROM template_candidates WHERE import_run_id = ?", (run_id,))
+        conn.execute("DELETE FROM import_runs WHERE id = ?", (run_id,))
+    log.info("deleted import run id=%s facts=%d", run_id, result.facts)
+    return result

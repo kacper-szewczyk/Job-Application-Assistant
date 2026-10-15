@@ -35,7 +35,14 @@ Rows with `is_sensitive = 1` (profile facts, preferences and their history, answ
 
 ## Loading an export
 
-`jaa.storage.export.import_json` loads an export into an empty, fully migrated database in a single transaction. If anything fails (unknown table or column, schema mismatch, broken foreign key), nothing is written. A CLI restore command is part of T19 (#20).
+`jaa.storage.export.import_json` loads an export into an empty, fully migrated database in a single transaction. If anything fails (unknown table or column, schema mismatch, broken foreign key), nothing is written.
+
+`jaa restore FILE` loads an export, or a SQLite backup written by `jaa backup`, through `jaa.storage.export.restore`:
+
+- The file type is detected from its first bytes (`SQLite format 3`) rather than its name.
+- The restored database is built in a temporary file next to the live one: an export is loaded into a freshly migrated database; a backup is copied read-only, integrity-checked, migrated forward if it comes from an older jaa, and checked for broken foreign keys. A backup from a newer jaa, or one whose applied migrations were changed, is refused.
+- Only a complete, checked database replaces the live one, with an atomic rename. A failed restore leaves the live database untouched.
+- A live database that has records is replaced only with `--force`, and is first copied to `backups/before-restore-<UTC timestamp>.sqlite3` in the data directory. Restore stops if another process (such as `jaa mcp serve`) still has the database open.
 
 ## Compatibility
 

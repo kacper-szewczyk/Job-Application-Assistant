@@ -49,6 +49,7 @@ uv run jaa info   # shows the data directory and database path
 uv run jaa init   # creates the data directory and database (owner-only permissions)
 uv run jaa backup ~/jaa-backup.sqlite3   # consistent SQLite copy
 uv run jaa export ~/jaa-export.json      # JSON export, see docs/export-format.md
+uv run jaa restore ~/jaa-backup.sqlite3  # load a backup or export back (see "Your data")
 ```
 
 ### Importing a CV
@@ -174,7 +175,25 @@ uv run jaa apply list                    # your applications, most recently chan
 uv run jaa apply show <job>              # status history, submission, documents and answers used
 ```
 
+Rejected, withdrawn and closed jobs are marked **archived** in `jaa apply list`, `jaa jobs list` and the MCP tools. They stay with their full history until you delete them.
+
 jaa never submits an application. `handoff` shows everything to take to the employer's page and can open it in your browser; you fill in the form and submit it. Only `jaa apply submitted`, which asks you every time, marks an application submitted. It stores the time, the link, the documents and the saved answer versions used, and that record cannot be edited afterwards. Starting or submitting is refused while another prepared or submitted job has the same link or the same employer and role, until you mark the pair as different jobs or pass `--allow-duplicate`. See [ADR 0018](docs/decisions/0018-application-tracker.md).
+
+### Your data: backups, restore and deletion
+
+jaa deletes nothing on its own: archived jobs, every version of a saved answer and the history of your facts stay until you delete them. Everything you delete is gone from the database for good, so take a backup first if you might want it back.
+
+```bash
+uv run jaa backup ~/jaa-backup.sqlite3   # or: jaa export ~/jaa-export.json
+uv run jaa restore ~/jaa-backup.sqlite3  # into an empty database; --force to replace your records
+uv run jaa profile delete <fact>...      # delete facts, their history and their place in versions
+uv run jaa import delete <run>           # delete an import and every fact it added
+uv run jaa import delete-source <run>    # delete the file an import read, if it is unchanged
+uv run jaa jobs delete <job>...          # delete jobs with their application, history and documents
+uv run jaa answers forget <key>          # delete every version of a saved answer
+```
+
+Each delete command asks first (`--yes` skips the question). `restore` builds the restored database next to yours and swaps it in only once it is complete and checked; when it replaces records, a copy of your current database is saved in the `backups` folder of the data directory first. Stop `jaa mcp serve` before restoring. Generated documents are deleted with their job only when they are in the data directory and unchanged. See [ADR 0021](docs/decisions/0021-retention-and-deletion.md).
 
 ### Using jaa from Claude Code (MCP)
 
@@ -237,7 +256,8 @@ Python 3.12+ managed with [uv](https://docs.astral.sh/uv/), Typer + Rich, pydant
 
 - All data stays local, in the data directory described under [Configuration](#configuration) (see [ADR 0003](docs/decisions/0003-data-directory.md)).
 - Logs record IDs and counts, never CV contents, profile values, answers or secrets. A scrubbing log formatter acts as a safety net.
-- Export, backup and delete controls cover source files, profile facts, answers and application records.
+- Nothing is deleted automatically. Backup, export, restore and delete commands cover source files, profile facts, answers, jobs and application records (see [Your data](#your-data-backups-restore-and-deletion)).
+- Backups, exports and the database are written owner-only; backup and export refuse to write over the database.
 
 ## Roadmap
 

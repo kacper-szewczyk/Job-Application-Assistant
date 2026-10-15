@@ -25,6 +25,18 @@ class NotFoundError(StorageError):
     """A requested record does not exist."""
 
 
+class DeletionError(StorageError):
+    """Something the user asked to delete cannot be deleted safely, e.g. a changed file."""
+
+
+class RestoreError(StorageError):
+    """A backup or export cannot be restored."""
+
+
+class DatabaseNotEmptyError(RestoreError):
+    """Restoring would replace records, and the user did not ask for that."""
+
+
 class ReviewError(JaaError):
     """A profile review action is not allowed, e.g. an invalid state transition."""
 

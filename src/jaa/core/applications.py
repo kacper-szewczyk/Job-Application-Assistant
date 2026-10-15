@@ -21,6 +21,13 @@ BEFORE_SUBMISSION: Final = frozenset(
 AFTER_SUBMISSION: Final = frozenset({JobStatus.INTERVIEWING, JobStatus.REJECTED})
 # Statuses that mean work on an application has started; they need an application record.
 STARTED: Final = frozenset({JobStatus.PREPARING, JobStatus.READY_FOR_REVIEW})
+# Finished jobs. They stay visible, marked archived; nothing is deleted automatically (ADR 0021).
+ARCHIVED: Final = frozenset({JobStatus.REJECTED, JobStatus.WITHDRAWN, JobStatus.CLOSED})
+
+
+def is_archived(status: JobStatus) -> bool:
+    """Whether a job in this status is archived: kept and shown, but finished."""
+    return status in ARCHIVED
 
 
 def check_transition(current: JobStatus, target: JobStatus, *, submitted: bool) -> None:

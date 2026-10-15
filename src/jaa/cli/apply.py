@@ -19,7 +19,7 @@ from rich.text import Text
 
 from jaa.cli.answers import resolution_table
 from jaa.cli.common import console, err_console, open_existing, settings_from
-from jaa.core.applications import Conflict, ConflictReason
+from jaa.core.applications import Conflict, ConflictReason, is_archived
 from jaa.core.errors import ApplicationError, DuplicateApplicationError, JaaError
 from jaa.core.models import ArtifactKind, JobStatus, SubmissionConfirmation
 from jaa.storage import applications as service
@@ -289,7 +289,7 @@ def list_applications(
             str(job.id),
             Text(job.title),
             Text(job.employer),
-            job.status.value,
+            job.status.value + (" (archived)" if is_archived(job.status) else ""),
             _when(job.status_changed_at),
             _when(application.submitted_at),
         )
