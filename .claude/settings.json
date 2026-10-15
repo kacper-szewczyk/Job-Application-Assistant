@@ -48,6 +48,8 @@
       "Bash(uv run jaa restore:*)",
       "Bash(jaa ui:*)",
       "Bash(uv run jaa ui:*)",
+      "Bash(jaa import linkedin-api:*)",
+      "Bash(uv run jaa import linkedin-api:*)",
       "WebFetch(domain:linkedin.com)",
       "WebFetch(domain:www.linkedin.com)"
     ]

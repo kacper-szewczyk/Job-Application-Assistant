@@ -105,29 +105,47 @@ def migrate(conn: sqlite3.Connection, migrations: list[Migration] | None = None)
         if migration.checksum != checksum:
             raise MigrationError(f"applied migration {version:04d} was modified after it ran")
 
-    newly_applied: list[int] = []
-    for migration in migrations:
-        if migration.version in applied:
-            continue
-        # executescript commits any open transaction and runs the script as written, so the
-        # explicit BEGIN/COMMIT makes the migration and its bookkeeping row atomic.
-        script = (
-            "BEGIN;\n"
-            f"{migration.sql}\n;\n"
-            "INSERT INTO schema_migrations (version, name, checksum, applied_at) "
-            f"VALUES ({migration.version}, '{migration.name}', '{migration.checksum}', "
-            f"'{utcnow().isoformat()}');\n"
-            "COMMIT;"
-        )
-        try:
-            conn.executescript(script)
-        except sqlite3.Error as exc:
-            if conn.in_transaction:
-                conn.rollback()
-            raise MigrationError(f"migration {migration.version:04d} failed: {exc}") from exc
-        log.info("applied migration %04d_%s", migration.version, migration.name)
-        newly_applied.append(migration.version)
-    return newly_applied
+    pending = [m for m in migrations if m.version not in applied]
+    if not pending:
+        return []
+    # SQLite's procedure for rebuilding a table (to change a CHECK, say): foreign keys off, so
+    # dropping the old table does not fire ON DELETE actions, then a foreign key check before
+    # the commit. The pragma cannot change inside a transaction, so it is set around them.
+    enforced = bool(conn.execute("PRAGMA foreign_keys").fetchone()[0])
+    conn.execute("PRAGMA foreign_keys = OFF")
+    try:
+        return [_apply(conn, migration) for migration in pending]
+    finally:
+        if enforced:
+            conn.execute("PRAGMA foreign_keys = ON")
+
+
+def _apply(conn: sqlite3.Connection, migration: Migration) -> int:
+    # executescript commits any open transaction and runs the script as written, so the
+    # explicit BEGIN makes the migration and its bookkeeping row one transaction, committed
+    # below once the foreign keys check out.
+    script = (
+        "BEGIN;\n"
+        f"{migration.sql}\n;\n"
+        "INSERT INTO schema_migrations (version, name, checksum, applied_at) "
+        f"VALUES ({migration.version}, '{migration.name}', '{migration.checksum}', "
+        f"'{utcnow().isoformat()}');\n"
+    )
+    try:
+        conn.executescript(script)
+        if conn.execute("PRAGMA foreign_key_check").fetchone() is not None:
+            raise MigrationError(
+                f"migration {migration.version:04d} failed: it broke foreign key references"
+            )
+        conn.commit()
+    except (sqlite3.Error, MigrationError) as exc:
+        if conn.in_transaction:
+            conn.rollback()
+        if isinstance(exc, MigrationError):
+            raise
+        raise MigrationError(f"migration {migration.version:04d} failed: {exc}") from exc
+    log.info("applied migration %04d_%s", migration.version, migration.name)
+    return migration.version
 
 
 def open_database(path: Path) -> sqlite3.Connection:

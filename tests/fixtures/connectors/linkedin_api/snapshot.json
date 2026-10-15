@@ -1,0 +1,67 @@
+{
+  "_comment": "Synthetic Member Snapshot API pages, shaped like LinkedIn's documented sample (memberSnapshotData, Linkedin-Version 202312). Every value is invented. Domains map to their pages; a domain that is missing answers 404 'No data found for this memberId'.",
+  "PROFILE": [
+    [
+      {
+        "First Name": "Avery",
+        "Last Name": "Synthetic",
+        "Maiden Name": "",
+        "Address": "1 Synthetic Lane, Exampleton",
+        "Birth Date": "Feb 29, 1990",
+        "Headline": "Backend engineer at Example Analytics",
+        "Summary": "Builds data pipelines.",
+        "Industry": "Software Development",
+        "Zip Code": "00-000",
+        "Geo Location": "Kraków, Małopolskie, Poland",
+        "Twitter Handles": "",
+        "Websites": "[PORTFOLIO:https://avery.example.test]",
+        "Instant Messengers": ""
+      }
+    ]
+  ],
+  "EMAIL_ADDRESSES": [
+    [
+      {"Email Address": "Avery.Synthetic@Example.test", "Confirmed": "Yes", "Primary": "Yes", "Updated On": "1/2/20, 10:00 AM"}
+    ]
+  ],
+  "POSITIONS": [
+    [
+      {"Company Name": "Example Analytics", "Title": "Backend Engineer", "Description": "Built the ingestion service.", "Location": "Kraków", "Started On": "Mar 2021", "Finished On": ""}
+    ],
+    [
+      {"Company Name": "Sample Systems", "Title": "Junior Developer", "Description": "", "Location": "Warsaw", "Started On": "Jul 2018", "Finished On": "Feb 2021"}
+    ]
+  ],
+  "SKILLS": [
+    [
+      {"Name": "Python"},
+      {"Name": "PostgreSQL"}
+    ]
+  ],
+  "LANGUAGES": [
+    [
+      {"Name": "Polish", "Proficiency": "Native or bilingual proficiency"}
+    ]
+  ],
+  "SAVED_JOBS": [
+    [
+      {"Saved Date": "10/1/26, 9:00 AM", "Job Url": "https://www.linkedin.com/jobs/view/1000000001", "Job Title": "Data Engineer", "Company Name": "Fictional Freight"},
+      {"Saved Date": "10/2/26, 9:00 AM", "Job Url": "", "Job Title": "Platform Engineer", "Company Name": "Imaginary Insurance"}
+    ]
+  ],
+  "JOB_APPLICATIONS": [
+    [
+      {"Application Date": "9/20/26, 4:00 PM", "Contact Email": "Avery.Synthetic@Example.test", "Contact Phone Number": "+44 20 7946 0958", "Company Name": "Fictional Freight", "Job Title": "Data Engineer", "Job Url": "https://www.linkedin.com/jobs/view/1000000001", "Resume Name": "cv.pdf", "Question And Answers": "Are you authorized to work?:Yes"}
+    ]
+  ],
+  "SAVED_JOB_ALERTS": [
+    [
+      {"Saved Date": "8/1/26", "Alert Parameters": "keywords=python; location=Kraków", "Search Url": "https://www.linkedin.com/jobs/search/?keywords=python"}
+    ]
+  ],
+  "JOB_SEEKER_PREFERENCES": [
+    [
+      {"Locations": "Kraków; Remote", "Job Titles": "Backend Engineer", "Preferred Job Types": "Full-time", "Phone Number": "+44 20 7946 0958", "Commute Preference Starting Address": "1 Synthetic Lane, Exampleton", "Open To Recruiters": "Yes"}
+    ]
+  ]
+}

@@ -140,3 +140,58 @@ def test_job_statuses_match_spec() -> None:
         "withdrawn",
         "closed",
     ]
+
+
+def test_rebuilding_import_runs_keeps_fact_references(tmp_path: Path) -> None:
+    # 0013 drops and recreates import_runs; with foreign keys on, the drop would null
+    # profile_facts.import_run_id (ON DELETE SET NULL).
+    conn = connect(tmp_path / "jaa.sqlite3")
+    migrations = load_migrations()
+    migrate(conn, [mg for mg in migrations if mg.version < 13])
+    now = "2026-10-15T10:00:00+00:00"
+    conn.execute(
+        "INSERT INTO import_runs (id, source_type, imported_at, status, retention) "
+        "VALUES (7, 'text', ?, 'succeeded', 'keep')",
+        (now,),
+    )
+    conn.execute(
+        "INSERT INTO profile_facts (field_key, value_raw, value_normalized, origin, "
+        "import_run_id, created_at, updated_at) "
+        "VALUES ('headline', 'x', '\"x\"', 'import', 7, ?, ?)",
+        (now, now),
+    )
+    conn.commit()
+    assert migrate(conn, migrations) == [mg.version for mg in migrations if mg.version >= 13]
+    assert conn.execute("SELECT import_run_id FROM profile_facts").fetchone()[0] == 7
+    assert conn.execute("PRAGMA foreign_keys").fetchone()[0] == 1
+    conn.execute(
+        "INSERT INTO import_runs (source_type, imported_at, status, retention) "
+        "VALUES ('linkedin_api', ?, 'succeeded', 'keep')",
+        (now,),
+    )
+    conn.close()
+
+
+def test_migration_that_breaks_foreign_keys_is_rolled_back(tmp_path: Path) -> None:
+    conn = connect(tmp_path / "jaa.sqlite3")
+    migrations = load_migrations()
+    migrate(conn, migrations)
+    now = "2026-10-15T10:00:00+00:00"
+    conn.execute(
+        "INSERT INTO import_runs (id, source_type, imported_at, status, retention) "
+        "VALUES (1, 'text', ?, 'succeeded', 'keep')",
+        (now,),
+    )
+    conn.execute(
+        "INSERT INTO profile_facts (field_key, value_raw, value_normalized, origin, "
+        "import_run_id, created_at, updated_at) "
+        "VALUES ('headline', 'x', '\"x\"', 'import', 1, ?, ?)",
+        (now, now),
+    )
+    conn.commit()
+    bad = Migration(len(migrations) + 1, "bad", "DELETE FROM import_runs;")
+    with pytest.raises(MigrationError, match="foreign key"):
+        migrate(conn, [*migrations, bad])
+    assert conn.execute("SELECT count(*) FROM import_runs").fetchone()[0] == 1
+    assert schema_version(conn) == len(migrations)
+    conn.close()

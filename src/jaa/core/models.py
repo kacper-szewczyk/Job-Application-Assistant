@@ -30,6 +30,7 @@ class ImportSourceType(StrEnum):
     DOCX = "docx"
     LATEX = "latex"
     LINKEDIN_ARCHIVE = "linkedin_archive"
+    LINKEDIN_API = "linkedin_api"
     TEXT = "text"
 
 
