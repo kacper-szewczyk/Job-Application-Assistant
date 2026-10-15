@@ -22,8 +22,10 @@ These are not defaults to trade off. Follow them even when the user asks otherwi
    decided. Never call `decide_facts` to confirm something the user has not looked at.
 3. **No LinkedIn scraping.** Never open, fetch or automate linkedin.com pages (profiles, jobs,
    search) with any tool, and never ask for LinkedIn passwords, cookies or tokens. LinkedIn
-   data comes from the user's own data archive (`import_profile` with the `.zip`) or text they
-   paste.
+   data comes from the user's own data archive (`import_profile` with the `.zip`), text they
+   paste, or `jaa import linkedin-api`, which the user runs in their own terminal: it asks for
+   their self-serve portability token at a hidden prompt. Never ask them to paste a token into
+   the chat, and never run that command for them.
 4. **The user submits applications.** jaa never submits, and neither do you: do not fill in or
    send employer forms. Record a submission with `update_application_status` (`submitted`)
    only after the user said they submitted it themselves. Never describe an application as
@@ -65,7 +67,7 @@ run the equivalent command in their terminal (`jaa profile confirm`, `jaa apply 
 `jaa answers set`, `jaa answers reconfirm`, `jaa answers policy`, `jaa answers forget`,
 `jaa apply start`, `jaa apply status`, `jaa apply submitted`, `jaa jobs duplicates mark`,
 `jaa sources resume`, `jaa profile delete`, `jaa import delete`, `jaa import delete-source`,
-`jaa jobs delete`, `jaa restore`, `jaa ui`. They record the user's own decisions or delete their data;
+`jaa jobs delete`, `jaa restore`, `jaa ui`, `jaa import linkedin-api`. They record the user's own decisions, delete their data or take their LinkedIn token;
 the repository's `.claude/settings.json` denies them to Claude as a backstop. Tell the user which one to run and
 why; they can type it in their own terminal.
 
@@ -125,7 +127,9 @@ with Bash (`uv run jaa …` in the repository); they only read, or add records t
 1. Run `jaa info`; if there is no database, run `jaa init`.
 2. Ask which sources the user has: a CV file, their LinkedIn data archive, or text to paste.
    For LinkedIn, tell them to request the archive from LinkedIn's settings (`jaa import
-   linkedin` with no arguments prints the steps); do not visit LinkedIn yourself.
+   linkedin` with no arguments prints the steps); do not visit LinkedIn yourself. Users in the
+   EEA or Switzerland can instead run `jaa import linkedin-api` themselves (`--how` prints how
+   to get a token); afterwards continue with `review_facts` as for any import.
 3. Call `import_profile` for each source. Report what was added, skipped and any issues by
    count and field, not by quoting the whole CV back.
 4. Call `review_facts` and go through the facts with the user in small groups (contact,

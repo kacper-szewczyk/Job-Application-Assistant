@@ -13,7 +13,7 @@ These come from `SPEC.md` and apply to every change:
 - **Never invent candidate facts.** Employers, titles, dates, credentials, metrics, skills and eligibility answers come only from user-provided sources or user input.
 - **Extractors produce candidates, not truth.** Importers write `unreviewed` facts with provenance; only the review workflow can mark a fact `confirmed`.
 - **Re-imports never silently overwrite confirmed facts** — conflicts go to review.
-- **No LinkedIn scraping.** Never fetch LinkedIn profile URLs, automate LinkedIn pages, or ask for LinkedIn passwords, cookies or tokens. LinkedIn data comes only from the user's data archive or pasted/uploaded documents.
+- **No LinkedIn scraping.** Never fetch LinkedIn profile URLs, automate LinkedIn pages, or ask for LinkedIn passwords, cookies or tokens. LinkedIn data comes only from the user's data archive, pasted/uploaded documents, or the Member Data Portability API via `jaa import linkedin-api`. That command is the one narrow exception (ADR 0026): the user types their own self-serve token at a hidden terminal prompt, it is used for one pull of the mapped domains only, never stored, logged or shown, and Claude and the MCP server never handle it.
 - **No working around access controls** (login walls, CAPTCHAs, bot protection, ToS restrictions) in job connectors.
 - **The user submits applications.** Never mark an application `submitted` without explicit user confirmation or a verifiable authorized integration receipt.
 - **Sensitive questions** (work authorization, sponsorship, salary, demographics, criminal/medical, consent, legal attestations) are never answered from guesses.

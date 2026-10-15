@@ -24,14 +24,25 @@ from jaa.cli.common import (
     open_existing,
     settings_from,
 )
+from jaa.connectors.http import Transport
+from jaa.connectors.urllib_transport import UrllibTransport
 from jaa.core.clock import utcnow
 from jaa.core.errors import ImportSourceError, JaaError
-from jaa.core.models import FactCandidate, ImportRun, ImportStatus, JsonValue, RetentionChoice
+from jaa.core.models import (
+    FactCandidate,
+    ImportRun,
+    ImportSourceType,
+    ImportStatus,
+    JsonValue,
+    RetentionChoice,
+)
+from jaa.importers import linkedin_api
 from jaa.importers.base import read_source
 from jaa.importers.cv_file import prepare_cv_import
 from jaa.importers.linkedin import INSTRUCTIONS, delete_sources, prepare_linkedin_import
 from jaa.importers.text import prepare_text_import
-from jaa.storage import privacy
+from jaa.logging import Sensitive
+from jaa.storage import linkedin_jobs, privacy
 from jaa.storage.profile import ImportResult, delete_import, store_import
 from jaa.storage.repository import import_runs
 from jaa.storage.templates import list_template_candidates, register_template_candidate
@@ -142,10 +153,12 @@ def _report(
     result: ImportResult, earlier: list[ImportRun], conflicts: int, notes: Sequence[str] = ()
 ) -> None:
     run = result.run
+    source = run.source_path or (
+        "(LinkedIn API)" if run.source_type is ImportSourceType.LINKEDIN_API else "(pasted text)"
+    )
     console.print(
         Text(
-            f"Import #{run.id}: {run.source_type} {run.source_path or '(pasted text)'} — "
-            f"{run.status}",
+            f"Import #{run.id}: {run.source_type} {source} — {run.status}",
             style="bold",
         )
     )
@@ -258,6 +271,134 @@ def import_linkedin(
     else:
         console.print("Kept the imported file(s) where they are.")
     if run.status is ImportStatus.FAILED:
+        raise typer.Exit(code=1)
+
+
+def _is_terminal() -> bool:
+    return sys.stdin.isatty()
+
+
+def _read_token() -> Sensitive[str]:
+    """Ask for the token with hidden input. Never accepted from an argument, env var or pipe."""
+    text: str = typer.prompt("LinkedIn access token (hidden)", hide_input=True)
+    return linkedin_api.parse_token(text)
+
+
+def _transport() -> Transport:
+    return UrllibTransport()
+
+
+def _print_jobs_from_linkedin(
+    conn: sqlite3.Connection,
+    prepared: linkedin_api.PreparedLinkedInApiImport,
+    add_saved: bool | None,
+) -> None:
+    saved = prepared.saved_jobs
+    if saved:
+        console.print(f"\n[bold]Saved jobs on LinkedIn ({len(saved)})[/bold]")
+        for job in saved:
+            console.print(Text(f"  {job.title} — {job.company}"))
+        if add_saved is None:
+            add_saved = typer.confirm(
+                f"Add the {len(saved)} saved job{'s' if len(saved) != 1 else ''} to jaa? "
+                "You paste each description yourself; LinkedIn job pages are never opened",
+                default=True,
+            )
+        if add_saved:
+            added = linkedin_jobs.add_saved_jobs(conn, saved)
+            console.print(
+                f"Added {len(added.added)} job{'s' if len(added.added) != 1 else ''}"
+                + (f" ({', '.join(f'#{i}' for i in added.added)})" if added.added else "")
+                + (f"; {len(added.existing)} already in jaa" if added.existing else "")
+                + (f"; {added.without_link} without a link skipped" if added.without_link else "")
+                + "."
+            )
+            if added.flagged:
+                console.print("Some look like jobs fetched before; see `jaa jobs duplicates list`.")
+            if added.added:
+                console.print(
+                    Text(
+                        "LinkedIn sends no job descriptions, so these jobs have no requirements "
+                        "to match against yet.",
+                        style="yellow",
+                    )
+                )
+    if prepared.applications:
+        apps = prepared.applications
+        console.print(f"\n[bold]Applications on LinkedIn ({len(apps)})[/bold]")
+        for job in apps:
+            ids = linkedin_jobs.matching_jobs(conn, job)
+            hint = f" — may be job {', '.join(f'#{i}' for i in ids)}" if ids else ""
+            when = f" ({job.date})" if job.date else ""
+            console.print(Text(f"  {job.title} — {job.company}{when}{hint}"))
+        console.print(
+            "jaa did not record these. To track one, run `jaa apply start JOB` and "
+            "`jaa apply submitted JOB` yourself."
+        )
+    if prepared.job_alerts:
+        console.print(f"\n[bold]Job alerts on LinkedIn ({len(prepared.job_alerts)})[/bold]")
+        for alert in prepared.job_alerts:
+            console.print(Text("  " + " · ".join(value for _, value in alert)))
+        console.print("Use them as ideas for `jaa jobs list --save` searches.")
+    if prepared.seeker_preferences:
+        console.print("\n[bold]Job seeker preferences on LinkedIn[/bold]")
+        for label, value in prepared.seeker_preferences:
+            console.print(Text(f"  {label.capitalize()}: {value}"))
+        console.print(
+            "These were not saved. Set the ones you want with `jaa onboard` or "
+            "`jaa preferences set`."
+        )
+
+
+@import_app.command("linkedin-api")
+def import_linkedin_api(
+    ctx: typer.Context,
+    how: Annotated[bool, typer.Option("--how", help="Show how to get a token, then exit.")] = False,
+    add_saved: Annotated[
+        bool | None,
+        typer.Option(
+            "--add-saved-jobs/--no-saved-jobs",
+            help="Add your LinkedIn saved jobs as jobs in jaa, or not. Asked when not given.",
+            show_default=False,
+        ),
+    ] = None,
+) -> None:
+    """Import your LinkedIn profile through LinkedIn's data portability API (EEA/Switzerland).
+
+    You paste your own self-serve access token when asked; it is used for this one import and
+    never stored or logged. Nothing is confirmed until you review it.
+    """
+    if how:
+        console.print(linkedin_api.INSTRUCTIONS)
+        return
+    if not _is_terminal():
+        err_console.print(
+            "[red]Cannot import:[/red] run this in your own terminal. The token is only "
+            "accepted at the hidden prompt. See `jaa import linkedin-api --how`."
+        )
+        raise typer.Exit(code=2)
+    with _database(ctx) as conn:
+        try:
+            token = _read_token()
+            snapshot = linkedin_api.fetch_snapshot(token, _transport())
+        except ImportSourceError as exc:
+            err_console.print(f"[red]Cannot import:[/red] {escape(str(exc))}")
+            raise typer.Exit(code=2) from exc
+        del token
+        prepared = linkedin_api.prepare_linkedin_api_import(snapshot)
+        result, earlier, conflicts = _store(conn, prepared.run, prepared.candidates)
+        _report(result, earlier, conflicts)
+        if prepared.empty_domains:
+            console.print(
+                Text(
+                    "LinkedIn had no data for: "
+                    + ", ".join(d.lower().replace("_", " ") for d in prepared.empty_domains)
+                    + ". Empty sections are normal; if you just generated the token, LinkedIn "
+                    "may still be preparing them, so run the import again later."
+                )
+            )
+        _print_jobs_from_linkedin(conn, prepared, add_saved)
+    if result.run.status is ImportStatus.FAILED:
         raise typer.Exit(code=1)
 
 

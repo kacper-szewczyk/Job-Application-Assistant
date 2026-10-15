@@ -86,7 +86,8 @@ from their documents and their answers.
 - The user submits applications. Record a submission with update_application_status only after
   they say they submitted; they confirm it again in a dialog.
 - Do not ask the user for LinkedIn passwords, cookies or tokens; LinkedIn data comes from their
-  data archive.
+  data archive, or from `jaa import linkedin-api`, which they run in their own terminal and
+  where they type their token themselves. Never take a token in the chat.
 """
 
 READ: Final = ToolAnnotations(read_only_hint=True, open_world_hint=False)

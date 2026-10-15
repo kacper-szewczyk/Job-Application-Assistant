@@ -22,7 +22,7 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Final
+from typing import Final, Protocol
 
 from jaa.core.clock import utcnow
 from jaa.core.errors import ImportSourceError
@@ -130,6 +130,28 @@ class CsvFile:
     data: bytes = field(repr=False)
 
 
+class _Named(Protocol):
+    @property
+    def name(self) -> str: ...
+
+
+type Row = dict[str, str]
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class RowTable:
+    """Rows of one LinkedIn table that did not come from a CSV file (the portability API).
+
+    `kind` is the archive file the rows correspond to (e.g. `positions.csv`), so they are
+    parsed with the same column rules; `name` is what provenance shows.
+    """
+
+    name: str
+    kind: str
+    # Keyed by lower-cased column label, as in the archive CSVs.
+    rows: tuple[Row, ...] = field(repr=False)
+
+
 @dataclass(frozen=True, slots=True, kw_only=True)
 class ParsedLinkedIn:
     candidates: tuple[FactCandidate, ...]
@@ -211,10 +233,7 @@ def parse_date(text: str) -> str | None:
     return None
 
 
-type _Row = dict[str, str]
-
-
-def _rows(file: CsvFile, out: _Collector) -> list[_Row] | None:
+def _rows(file: CsvFile, out: _Collector) -> list[Row] | None:
     """Rows keyed by lower-cased column name, or None (with an issue) if unreadable."""
     try:
         text = file.data.decode("utf-8-sig")
@@ -231,7 +250,7 @@ def _rows(file: CsvFile, out: _Collector) -> list[_Row] | None:
     try:
         reader = csv.reader(io.StringIO(text, newline=""))
         header = [h.strip().lower() for h in next(reader, list[str]())]
-        rows: list[_Row] = []
+        rows: list[Row] = []
         for values in reader:
             if len(rows) >= MAX_ROWS:
                 out.warn(
@@ -255,12 +274,12 @@ def _rows(file: CsvFile, out: _Collector) -> list[_Row] | None:
     return rows
 
 
-def _where(file: CsvFile, index: int) -> str:
+def _where(file: _Named, index: int) -> str:
     return f"{file.name} row {index}"
 
 
 def _dates(
-    file: CsvFile,
+    file: _Named,
     index: int,
     start_raw: str,
     end_raw: str,
@@ -304,7 +323,7 @@ def _unique(base: str, start: JsonValue, used: set[str]) -> str:
     return candidate
 
 
-def _profile(file: CsvFile, rows: list[_Row], out: _Collector) -> None:
+def _profile(file: _Named, rows: list[Row], out: _Collector) -> None:
     if len(rows) > 1:
         out.warn("extra_rows", f"{len(rows)} rows; only the first was used.", file.name)
     row = rows[0]
@@ -334,7 +353,7 @@ def _profile(file: CsvFile, rows: list[_Row], out: _Collector) -> None:
         )
 
 
-def _emails(file: CsvFile, rows: list[_Row], out: _Collector) -> None:
+def _emails(file: _Named, rows: list[Row], out: _Collector) -> None:
     usable = [(i, r) for i, r in enumerate(rows, 1) if "@" in r.get("email address", "")]
     if not usable:
         return
@@ -353,7 +372,7 @@ def _emails(file: CsvFile, rows: list[_Row], out: _Collector) -> None:
         )
 
 
-def _phones(file: CsvFile, rows: list[_Row], out: _Collector) -> None:
+def _phones(file: _Named, rows: list[Row], out: _Collector) -> None:
     usable = [
         (i, r) for i, r in enumerate(rows, 1) if len(re.sub(r"\D", "", r.get("number", ""))) >= 6
     ]
@@ -373,7 +392,7 @@ def _phones(file: CsvFile, rows: list[_Row], out: _Collector) -> None:
         )
 
 
-def _positions(file: CsvFile, rows: list[_Row], out: _Collector) -> None:
+def _positions(file: _Named, rows: list[Row], out: _Collector) -> None:
     used: set[str] = set()
     for index, row in enumerate(rows, 1):
         where = _where(file, index)
@@ -408,7 +427,7 @@ def _positions(file: CsvFile, rows: list[_Row], out: _Collector) -> None:
             )
 
 
-def _education(file: CsvFile, rows: list[_Row], out: _Collector) -> None:
+def _education(file: _Named, rows: list[Row], out: _Collector) -> None:
     used: set[str] = set()
     for index, row in enumerate(rows, 1):
         where = _where(file, index)
@@ -444,13 +463,13 @@ def _education(file: CsvFile, rows: list[_Row], out: _Collector) -> None:
                 )
 
 
-def _skills(file: CsvFile, rows: list[_Row], out: _Collector) -> None:
+def _skills(file: _Named, rows: list[Row], out: _Collector) -> None:
     for index, row in enumerate(rows, 1):
         if name := row.get("name", ""):
             out.add(_where(file, index), f"skills.{slug(name)}", name, name)
 
 
-def _languages(file: CsvFile, rows: list[_Row], out: _Collector) -> None:
+def _languages(file: _Named, rows: list[Row], out: _Collector) -> None:
     for index, row in enumerate(rows, 1):
         if name := row.get("name", ""):
             level = row.get("proficiency", "") or None
@@ -463,7 +482,7 @@ def _languages(file: CsvFile, rows: list[_Row], out: _Collector) -> None:
             )
 
 
-def _certifications(file: CsvFile, rows: list[_Row], out: _Collector) -> None:
+def _certifications(file: _Named, rows: list[Row], out: _Collector) -> None:
     for index, row in enumerate(rows, 1):
         name = row.get("name", "")
         if not name:
@@ -486,7 +505,7 @@ def _certifications(file: CsvFile, rows: list[_Row], out: _Collector) -> None:
         )
 
 
-type _Handler = Callable[[CsvFile, list[_Row], _Collector], None]
+type _Handler = Callable[[_Named, list[Row], _Collector], None]
 
 
 @dataclass(frozen=True, slots=True)
@@ -563,6 +582,56 @@ def parse_linkedin_files(files: Sequence[CsvFile]) -> ParsedLinkedIn:
         imported.append(file.name)
         if rows:
             known.handler(file, rows, out)
+    return ParsedLinkedIn(
+        candidates=tuple(out.candidates),
+        issues=tuple(out.issues),
+        imported_files=tuple(imported),
+        skipped_files=tuple(skipped),
+        sections=dict(out.sections),
+    )
+
+
+def known_kinds() -> tuple[str, ...]:
+    """The archive files (normalized names) whose rows become facts, in processing order."""
+    return tuple(_KNOWN)
+
+
+def parse_linkedin_tables(tables: Sequence[RowTable]) -> ParsedLinkedIn:
+    """Turn LinkedIn rows that did not come from CSV files into fact candidates. Pure.
+
+    The rows follow the archive's column labels (ADR 0026), so they meet the same column
+    checks and field keys as an archive import. Tables of unknown kinds are listed as skipped.
+    """
+    out = _Collector()
+    imported: list[str] = []
+    skipped: list[str] = []
+    order = list(_KNOWN)
+    for table in sorted(
+        tables,
+        key=lambda t: (order.index(t.kind) if t.kind in order else len(order), t.name),
+    ):
+        known = _KNOWN.get(table.kind)
+        if known is None:
+            skipped.append(table.name)
+            continue
+        rows = list(table.rows[:MAX_ROWS])
+        if len(table.rows) > MAX_ROWS:
+            out.warn(
+                "too_many_rows",
+                f"More than {MAX_ROWS} rows; the rest were not imported.",
+                table.name,
+            )
+        if rows and (missing := [c for c in known.required if c not in rows[0]]):
+            out.warn(
+                "unexpected_format",
+                f"The expected fields are missing ({', '.join(missing)}); "
+                "LinkedIn may have changed the format. It was not imported.",
+                table.name,
+            )
+            continue
+        imported.append(table.name)
+        if rows:
+            known.handler(table, rows, out)
     return ParsedLinkedIn(
         candidates=tuple(out.candidates),
         issues=tuple(out.issues),
