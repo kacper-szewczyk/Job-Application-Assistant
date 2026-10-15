@@ -148,6 +148,21 @@ uv run jaa cv tailor list <job>          # revisions
 
 Tailoring can only hide, reorder, emphasize (bold) and reword what your CV already says. Names, employers, titles, schools and dates cannot be edited. Every edit is linked to the confirmed facts behind it. A rewording, or a cover letter paragraph, is blocked when it adds numbers, names, technologies or job keywords that its target and cited facts do not contain; you can approve a blocked edit explicitly, and the approval is lost when the edit changes. Each change is a new revision checked against one profile version, and a build records the job, the profile version and the list of changes in its manifest. See [ADR 0016](docs/decisions/0016-tailored-cvs.md).
 
+### Application questions and saved answers
+
+```bash
+uv run jaa answers add-question <job> "Notice period?" --required   # copy a question from the form
+uv run jaa answers prepare <job>         # how each question would be answered, and from where
+uv run jaa answers review <job>          # answer what needs your input; answers are saved
+uv run jaa answers list                  # saved answers, reuse policy and review date
+uv run jaa answers show <key>            # every version of an answer and its sources
+uv run jaa answers reconfirm <key>       # still right: start a new review period
+uv run jaa answers policy <key> reuse    # reuse without asking (asks you first if sensitive)
+uv run jaa answers forget <key>          # delete every version
+```
+
+Each question is answered from your confirmed profile (email, phone, links, name, location), from an answer you saved, or not at all. Preferences and unreviewed facts only make suggestions you have to confirm. Questions about work authorization, sponsorship, salary, demographics, criminal or medical history, consent and legal statements always need your answer, unless you set a saved answer to that exact question to `reuse`. Saved answers have a review date (180 days for sensitive ones, 365 for others); after it they must be confirmed again. Every answer records where it came from: the facts, preference or earlier answer you accepted, and the job it was given for. See [ADR 0017](docs/decisions/0017-answer-memory.md).
+
 ### Configuration
 
 | Variable | Default | Purpose |

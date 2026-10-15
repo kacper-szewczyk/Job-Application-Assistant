@@ -55,6 +55,19 @@ class ReusePolicy(StrEnum):
     REUSE = "reuse"
 
 
+class AnswerOrigin(StrEnum):
+    """What added an answer row (ADR 0017). Answers are append-only; the latest row counts."""
+
+    # The user typed the value.
+    USER = "user"
+    # The user accepted a suggestion: a profile fact, a preference or an earlier answer.
+    ACCEPTED = "accepted"
+    # The user confirmed the current value again, starting a new review period.
+    RECONFIRMED = "reconfirmed"
+    # The user changed the reuse policy or review date; the value is unchanged.
+    POLICY_CHANGED = "policy_changed"
+
+
 class JobStatus(StrEnum):
     DISCOVERED = "discovered"
     SAVED = "saved"
@@ -206,6 +219,13 @@ class Answer:
     created_at: datetime
     confirmed_at: datetime | None = None
     expires_at: datetime | None = None
+    # T14 (ADR 0017): how the row came about, and where an accepted value came from: a
+    # preference, an earlier answer to another question, or profile facts (`answer_sources`).
+    # `job_id` is the job whose question it answered.
+    origin: AnswerOrigin = AnswerOrigin.USER
+    source_preference_key: str | None = None
+    source_answer_id: int | None = None
+    job_id: int | None = None
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -422,3 +442,14 @@ class TemplateCandidate:
     packages: JsonArray = field(default_factory=list[JsonValue])
     content_sha256: str
     registered_at: datetime
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class JobQuestion:
+    """An application question the user copied from the employer's form (ADR 0017)."""
+
+    id: int | None = None
+    job_id: int
+    label: str
+    required: bool = False
+    created_at: datetime

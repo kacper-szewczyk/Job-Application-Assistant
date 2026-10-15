@@ -20,6 +20,7 @@ SENSITIVE_KEY_PREFIXES: Final = (
     "medical",
     "health",
     "consent",
+    "legal",
     "date_of_birth",
     "nationality",
 )

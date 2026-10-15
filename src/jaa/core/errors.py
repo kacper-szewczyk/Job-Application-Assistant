@@ -105,3 +105,7 @@ class SearchError(JaaError):
 
 class MatchError(JaaError):
     """A job cannot be matched, e.g. because no profile facts are confirmed yet."""
+
+
+class AnswerError(JaaError):
+    """An application answer cannot be saved or used, e.g. an empty value or an unknown key."""
