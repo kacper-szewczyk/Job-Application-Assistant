@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.15.0](https://github.com/kacper-szewczyk/Job-Application-Assistant/compare/jaa-v0.14.0...jaa-v0.15.0) (2026-10-15)
+
+
+### Features
+
+* **skill:** add a Claude Code skill for the job application workflows ([#62](https://github.com/kacper-szewczyk/Job-Application-Assistant/issues/62)) ([0828457](https://github.com/kacper-szewczyk/Job-Application-Assistant/commit/08284578fefd6e1aae95d29c2e9c33b37d2e8a88)), closes [#18](https://github.com/kacper-szewczyk/Job-Application-Assistant/issues/18)
+
 ## [0.14.0](https://github.com/kacper-szewczyk/Job-Application-Assistant/compare/jaa-v0.13.0...jaa-v0.14.0) (2026-10-15)
 
 
