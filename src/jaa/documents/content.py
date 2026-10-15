@@ -71,6 +71,8 @@ class CvEntry:
     dates: JsonObject | None = field(default=None, repr=False)
     location: str | None = field(default=None, repr=False)
     items: tuple[str, ...] = field(default=(), repr=False)  # bullets or education details
+    # Indices into `items` a tailored CV sets in bold (ADR 0016).
+    emphasized: tuple[int, ...] = ()
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -98,8 +100,14 @@ class CvContent:
     experience: tuple[CvEntry, ...] = field(default=(), repr=False)
     education: tuple[CvEntry, ...] = field(default=(), repr=False)
     skills: tuple[str, ...] = field(default=(), repr=False)
+    # The field key of each skill, in the same order (`skills.python`).
+    skill_keys: tuple[str, ...] = ()
+    # Indices into `skills` a tailored CV sets in bold (ADR 0016).
+    emphasized_skills: tuple[int, ...] = ()
     languages: tuple[CvLanguageSkill, ...] = field(default=(), repr=False)
     certifications: tuple[CvCertification, ...] = field(default=(), repr=False)
+    # The field key of each certification, in the same order.
+    certification_keys: tuple[str, ...] = ()
     # Ids of every fact the content uses, for the manifest.
     fact_ids: tuple[int, ...] = ()
 
@@ -264,11 +272,13 @@ def build_content(facts: Sequence[ProfileFact]) -> ContentResult:
         if name:
             languages.append(CvLanguageSkill(name=name, level=level))
     certifications: list[CvCertification] = []
+    certification_keys: list[str] = []
     for fact in group("certifications."):
         value = fact.value_normalized
         name = text_of(value)
         if not name:
             continue
+        certification_keys.append(fact.field_key)
         if isinstance(value, dict):
             certifications.append(
                 CvCertification(
@@ -280,6 +290,7 @@ def build_content(facts: Sequence[ProfileFact]) -> ContentResult:
         else:
             certifications.append(CvCertification(name=name))
 
+    skills = [(f.field_key, t) for f in group("skills.") if (t := text_of(f.value_normalized))]
     content = CvContent(
         name=single("identity.name"),
         headline=single("headline"),
@@ -290,9 +301,11 @@ def build_content(facts: Sequence[ProfileFact]) -> ContentResult:
         summary=single("summary"),
         experience=_entries(confirmed, "experience", _EXPERIENCE_FIELDS, used),
         education=_entries(confirmed, "education", _EDUCATION_FIELDS, used),
-        skills=tuple(t for f in group("skills.") if (t := text_of(f.value_normalized))),
+        skills=tuple(t for _, t in skills),
+        skill_keys=tuple(k for k, _ in skills),
         languages=tuple(languages),
         certifications=tuple(certifications),
+        certification_keys=tuple(certification_keys),
         fact_ids=tuple(sorted(f.id for f in used if f.id is not None)),
     )
     used_ids = {id(f) for f in used}

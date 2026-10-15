@@ -25,6 +25,7 @@ EXPECTED_TABLES = {
     "jobs",
     "job_status_events",
     "job_matches",
+    "cv_tailorings",
     "applications",
     "application_answers",
     "document_artifacts",
@@ -108,6 +109,7 @@ ENUM_COLUMNS: list[tuple[str, str, type[StrEnum]]] = [
     ("source_fetch_runs", "outcome", m.FetchRunOutcome),
     ("job_duplicates", "reason", m.DuplicateReason),
     ("job_duplicate_reviews", "verdict", m.DuplicateVerdict),
+    ("cv_tailorings", "origin", m.TailoringOrigin),
 ]
 
 

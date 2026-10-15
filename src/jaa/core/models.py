@@ -350,6 +350,36 @@ class JobMatch:
     created_at: datetime
 
 
+class TailoringOrigin(StrEnum):
+    """What made a tailoring revision (ADR 0016)."""
+
+    PROPOSED = "proposed"
+    EDITED = "edited"
+    APPROVED = "approved"
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class CvTailoring:
+    """One revision of a job's tailored CV plan (ADR 0016). Append-only.
+
+    `plan` is a `jaa.documents.tailoring.Plan` as JSON and holds CV text; `checks` holds issue
+    codes per edit; `approvals` the fingerprints of edits the user approved despite issues.
+    """
+
+    id: int | None = None
+    job_id: int
+    revision: int
+    profile_version_id: int
+    job_match_id: int | None = None
+    origin: TailoringOrigin
+    plan: JsonObject = field(default_factory=dict[str, JsonValue], repr=False)
+    checks: JsonArray = field(default_factory=list[JsonValue])
+    approvals: JsonArray = field(default_factory=list[JsonValue])
+    blocked: bool = False
+    method: str
+    created_at: datetime
+
+
 @dataclass(frozen=True, slots=True, kw_only=True)
 class Application:
     id: int | None = None

@@ -34,6 +34,7 @@ EXPORT_TABLES: Final = (
     "job_duplicates",
     "job_duplicate_reviews",
     "job_matches",
+    "cv_tailorings",
     "applications",
     "application_answers",
     "document_artifacts",
