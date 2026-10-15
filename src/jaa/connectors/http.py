@@ -9,6 +9,7 @@ and counts, never response bodies.
 
 import json
 import logging
+import re
 import time
 from collections import deque
 from collections.abc import Callable, Mapping
@@ -17,12 +18,14 @@ from datetime import UTC, datetime
 from email.utils import parsedate_to_datetime
 from typing import Final, Protocol
 from urllib.parse import urlsplit
+from xml.etree import ElementTree as ET
 
 from jaa import __version__
 from jaa.connectors.base import SourcePolicy
 from jaa.core.errors import (
     SourceAccessDeniedError,
     SourceDataError,
+    SourceNotFoundError,
     SourceUnavailableError,
 )
 from jaa.core.models import JsonValue
@@ -33,6 +36,8 @@ USER_AGENT: Final = f"jaa/{__version__} (local job application assistant)"
 
 # Statuses that mean "you may not have this", whatever the reason. Never retried.
 DENIED_STATUSES: Final = frozenset({401, 403, 407, 451})
+# The root element's start tag; everything before it is the XML prolog.
+_XML_ROOT: Final = re.compile(rb"<[A-Za-z_]")
 # Statuses worth trying again after a pause.
 RETRY_STATUSES: Final = frozenset({429, 500, 502, 503, 504})
 
@@ -137,11 +142,18 @@ class SourceClient:
         )
         self.requests_made = 0
 
-    def _check_url(self, url: str, *, redirected: bool = False) -> str:
+    def _check_url(self, url: str, *, redirected_from: str | None = None) -> str:
         parts = urlsplit(url)
         host = (parts.hostname or "").lower()
-        if parts.scheme != "https" or host not in self.policy.allowed_hosts:
-            if redirected:
+        if parts.scheme != "https" or not self.policy.allows_host(host):
+            if redirected_from is not None and self.policy.is_company_host(redirected_from):
+                # One company moved its board (often to its own domain). That says nothing
+                # about the provider letting us in, so it fails this target only (ADR 0025).
+                raise SourceDataError(
+                    f"{self.policy.key}: {redirected_from} redirects to {parts.scheme}://{host}, "
+                    "which the source policy does not allow"
+                )
+            if redirected_from is not None:
                 # Typically a login page or a bot check on another host; following it would be
                 # working around the source's access control.
                 raise SourceAccessDeniedError(
@@ -189,7 +201,7 @@ class SourceClient:
             response = self._send_once(url, host, headers or {})
             wait = retry.backoff_seconds * 2**attempt
             if response is not None:
-                self._check_url(response.url, redirected=True)
+                self._check_url(response.url, redirected_from=host)
                 log.debug(
                     "source=%s host=%s status=%s bytes=%s",
                     self.policy.key,
@@ -208,6 +220,8 @@ class SourceClient:
                     )
                 if 200 <= response.status < 300:
                     return response
+                if response.status == 404:
+                    raise SourceNotFoundError(f"{self.policy.key}: {host} has no such page (404)")
                 if response.status not in RETRY_STATUSES:
                     raise SourceDataError(
                         f"{self.policy.key}: unexpected HTTP {response.status} from {host}"
@@ -247,3 +261,26 @@ class SourceClient:
         except (UnicodeDecodeError, json.JSONDecodeError) as exc:
             raise SourceDataError(f"{self.policy.key}: response is not valid JSON") from exc
         return data
+
+    def get_xml(self, url: str) -> ET.Element:
+        """GET `url` and parse an RSS/XML feed. HTML is treated as a login wall or bot check.
+
+        Documents with a DOCTYPE are refused: feeds do not need one, and entity declarations
+        are how XML expands a small response into a huge one.
+        """
+        response = self.get(
+            url, headers={"Accept": "application/rss+xml, application/xml;q=0.9, text/xml;q=0.8"}
+        )
+        content_type = response.headers.get("content-type", "").lower()
+        if content_type.startswith("text/html"):
+            raise SourceAccessDeniedError(
+                f"{self.policy.key}: got an HTML page instead of a feed "
+                "(possibly a login wall or bot check)"
+            )
+        root = _XML_ROOT.search(response.body)
+        if root is None or b"<!DOCTYPE" in response.body[: root.start()]:
+            raise SourceDataError(f"{self.policy.key}: response is not a plain XML document")
+        try:
+            return ET.fromstring(response.body)  # noqa: S314 - DOCTYPE (entities) refused above
+        except ET.ParseError as exc:
+            raise SourceDataError(f"{self.policy.key}: response is not valid XML") from exc

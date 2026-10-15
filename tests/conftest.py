@@ -294,6 +294,15 @@ def populate(conn: sqlite3.Connection) -> Sample:
             issues=[{"code": "duplicate_listing", "severity": "warning", "source_job_id": "123"}],
         ),
     )
+    repo.source_follows.insert(
+        conn,
+        m.SourceFollow(
+            source="example_board",
+            target="example",
+            action=m.FollowAction.FOLLOW,
+            occurred_at=T0,
+        ),
+    )
     conn.commit()
     return Sample(run, fact, email, version, answer, job, application, artifact)
 

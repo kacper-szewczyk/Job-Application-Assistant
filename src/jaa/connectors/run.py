@@ -17,6 +17,7 @@ from jaa.connectors.base import (
     IssueSeverity,
     JobListing,
     ListingField,
+    OfferConnector,
     SourceIssue,
     SourceState,
 )
@@ -196,5 +197,42 @@ def run_connector(
         target=target,
         listings=listings,
         issues=(*result.issues, *issues),
+        requests_made=client.requests_made,
+    )
+
+
+def run_connector_job(
+    connector: OfferConnector,
+    target: str,
+    job_id: str,
+    *,
+    state: SourceState,
+    transport: Transport,
+    clock: Callable[[], float] = time.monotonic,
+    sleep: Callable[[float], None] = time.sleep,
+) -> FetchOutcome:
+    """Fetch one offer of `target`, like `run_connector` but for a single job (ADR 0025).
+
+    `FetchOutcome.listings` holds the offer, or nothing when the source no longer lists it.
+    """
+    policy = connector.policy
+    if state.status is SourceStatus.PAUSED:
+        raise SourcePausedError(f"{policy.key} is paused: {state.reason or 'no reason given'}")
+    target = connector.target_key(target)
+    client = SourceClient(policy, transport, clock=clock, sleep=sleep)
+    found = connector.fetch_job(client, target, job_id)
+    listings, issues = validate_listings(connector, () if found is None else (found,))
+    log.info(
+        "source=%s fetched one offer found=%s kept=%s requests=%s",
+        policy.key,
+        found is not None,
+        len(listings),
+        client.requests_made,
+    )
+    return FetchOutcome(
+        source=policy.key,
+        target=target,
+        listings=listings,
+        issues=tuple(issues),
         requests_made=client.requests_made,
     )

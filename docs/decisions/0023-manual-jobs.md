@@ -17,3 +17,6 @@ justjoin.it and bulldogjob.pl disallow their API and feeds in `robots.txt`, and 
 ## Consequences
 - Manually added jobs never change on their own: if the employer edits the offer, the user deletes the job (`jaa jobs delete`) and adds it again, or keeps the old text.
 - Structured details (salary, listed skills, experience level) are not captured; requirements come only from headings in the pasted text (ADR 0015), so a description without headings yields no free-text requirements.
+
+## Amendment (2026-10-15): links to boards jaa can read
+ADR 0025: `jaa jobs add <link>` reads an offer on a Greenhouse, Lever, Teamtailor or Personio board through that provider's API or feed (never the offer page itself). For every other link, and with `--no-fetch`, the job is added from the pasted text as described here, and the link is still never requested.

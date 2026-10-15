@@ -31,6 +31,7 @@ def _event(status: SourceStatus, reason: str | None = None) -> SourceStatusEvent
         ({"terms_url": "http://boards.example.test/terms"}, "terms_url"),
         ({"permitted_fields": frozenset({ListingField.TITLE})}, "required fields"),
         ({"max_response_bytes": 0}, "max_response_bytes"),
+        ({"host_suffixes": frozenset({"*.example.test"})}, "invalid host"),
     ],
 )
 def test_policy_validation(overrides: dict[str, object], message: str) -> None:
@@ -89,3 +90,11 @@ def test_policy_summary_documents_every_requirement() -> None:
     assert summary["Rate limit"] == "2 per 1s, at most 10 per run"
     assert summary["Retries"].startswith("2 (backoff 1s")
     assert "questions" in summary["Permitted fields"]
+
+
+def test_company_hosts_are_one_label_under_a_suffix() -> None:
+    policy = make_policy(allowed_hosts=frozenset[str](), host_suffixes=frozenset({"ats.test"}))
+    assert policy.allows_host("acme.ats.test")
+    for host in ("ats.test", "a.b.ats.test", "-x.ats.test", "acme.ats.test.evil", "acmeats.test"):
+        assert not policy.allows_host(host), host
+    assert "*.ats.test" in policy_summary(policy)["Allowed hosts"]

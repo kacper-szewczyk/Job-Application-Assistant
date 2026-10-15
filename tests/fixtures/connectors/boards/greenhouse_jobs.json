@@ -1,0 +1,28 @@
+{
+  "jobs": [
+    {
+      "id": 4012345,
+      "internal_job_id": 300001,
+      "title": "Senior Widget Engineer",
+      "updated_at": "2026-10-10T09:30:00-04:00",
+      "requisition_id": "ENG-12",
+      "location": {"name": "Warsaw, Poland"},
+      "absolute_url": "https://job-boards.greenhouse.io/examplewidgets/jobs/4012345",
+      "language": "en",
+      "metadata": null,
+      "content": "&lt;p&gt;Build widgets.&lt;/p&gt;&lt;h3&gt;Requirements&lt;/h3&gt;&lt;ul&gt;&lt;li&gt;Python&lt;/li&gt;&lt;li&gt;PostgreSQL&lt;/li&gt;&lt;/ul&gt;",
+      "departments": [{"id": 1, "name": "Engineering", "parent_id": null, "child_ids": []}],
+      "offices": [{"id": 2, "name": "Warsaw", "location": "Warsaw, Poland", "parent_id": null, "child_ids": []}]
+    },
+    {
+      "id": 4012346,
+      "title": "Widget Designer",
+      "updated_at": "2026-10-11T12:00:00Z",
+      "location": {"name": "Remote"},
+      "absolute_url": "https://job-boards.greenhouse.io/examplewidgets/jobs/4012346",
+      "content": "&lt;p&gt;Design widgets.&lt;/p&gt;"
+    },
+    {"id": "not-a-number", "title": "Broken"}
+  ],
+  "meta": {"total": 3}
+}

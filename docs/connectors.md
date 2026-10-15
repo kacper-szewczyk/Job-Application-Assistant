@@ -12,6 +12,7 @@ Every connector declares a `SourcePolicy`. `jaa sources show <key>` prints it.
 | `name` | Human-readable name. |
 | `access_method` | `public_api` (documented API meant for programmatic use) or `feed` (published RSS/Atom/JSON/XML feed). There is no HTML-scraping method. |
 | `allowed_hosts` | Exact host names the client may request over https. A redirect to any other host counts as access denied. |
+| `host_suffixes` | Provider domains that serve each company from its own subdomain: exactly one DNS label under the suffix is allowed (`teamtailor.com` allows `acme.teamtailor.com` only). A redirect from such a host to one outside the policy fails that target (`SourceDataError`) without pausing the source (ADR 0025). |
 | `terms_url` | https link to the terms or API documentation that permit this access. |
 | `terms_reviewed_on` | Date someone checked those terms. `None` keeps the source paused. |
 | `permitted_fields` | `JobListing` fields the connector may keep. Must include `source_job_id`, `url`, `title`, `company`. Other fields are dropped and reported (`field_not_permitted`). |
@@ -42,11 +43,11 @@ Every connector declares a `SourcePolicy`. `jaa sources show <key>` prints it.
 
 ## Shared HTTP client, rate limiting and errors
 
-Connectors receive a `SourceClient` bound to their policy and make every request through `client.get(url)` or `client.get_json(url)`. The network is behind a `Transport` protocol. The real one is `jaa.connectors.urllib_transport.UrllibTransport` (stdlib, no cookies, redirects followed only within the same scheme, host and port), and tests replay recorded responses (`tests/fixtures/fake_connector.py`).
+Connectors receive a `SourceClient` bound to their policy and make every request through `client.get(url)`, `client.get_json(url)` or `client.get_xml(url)` (RSS/XML feeds; documents with a DOCTYPE are refused, so no entity expansion). The network is behind a `Transport` protocol. The real one is `jaa.connectors.urllib_transport.UrllibTransport` (stdlib, no cookies, redirects followed only within the same scheme, host and port), and tests replay recorded responses (`tests/fixtures/fake_connector.py`).
 
 The client:
 
-- refuses non-https URLs, hosts outside `allowed_hosts` and URLs with credentials, before sending anything;
+- refuses non-https URLs, hosts outside `allowed_hosts` and `host_suffixes`, and URLs with credentials, before sending anything;
 - sends `User-Agent: jaa/<version> (local job application assistant)`;
 - waits for the rate limiter before every attempt, and stops at `max_requests_per_run`;
 - caps response size and applies `timeout_seconds`.
@@ -55,9 +56,11 @@ The client:
 
 | Situation | Result | Retried? |
 |---|---|---|
-| HTTP 401, 403, 407, 451; `cf-mitigated: challenge`; redirect off the allowed hosts; HTML where JSON was expected | `SourceAccessDeniedError` | Never. The caller pauses the source. |
+| HTTP 401, 403, 407, 451; `cf-mitigated: challenge`; redirect off the allowed hosts; HTML where JSON or a feed was expected | `SourceAccessDeniedError` | Never. The caller pauses the source. |
+| Redirect from a per-company host (`host_suffixes`) to a host outside the policy | `SourceDataError` (that target only) | No. |
+| HTTP 404 | `SourceNotFoundError` (a `SourceDataError`); a single offer that is gone returns nothing | No. |
 | Network error, HTTP 429, 500, 502, 503, 504 | retried after `Retry-After`, or `backoff_seconds * 2**attempt` | Up to `max_retries`, then `SourceUnavailableError`. A `Retry-After` longer than `max_wait_seconds` gives up at once. |
-| Other non-2xx status, oversized body, invalid JSON, request budget exhausted, URL outside policy | `SourceDataError` | No. |
+| Other non-2xx status, oversized body, invalid JSON or XML, XML with a DOCTYPE, request budget exhausted, URL outside policy | `SourceDataError` | No. |
 | Source paused (by policy or user) | `SourcePausedError` before any request | — |
 
 ## Pausing
@@ -73,13 +76,25 @@ A source is paused when its policy says so (`paused_reason`, unreviewed terms, r
 - Every fetch that reached the source adds a `source_fetch_runs` row with its outcome and counts. A `denied` fetch also pauses the source.
 - New jobs, and jobs whose canonical URL or employer, title and location changed, are checked for duplicates. A possible duplicate gets a `job_duplicates` flag; jobs are never merged (ADR 0014).
 
-`jaa jobs fetch <source> <target>…` does this from the CLI.
+`jaa jobs fetch <source> <target>…` does this from the CLI; `jaa jobs fetch --followed` fetches every target the user follows (`jaa jobs follow|unfollow|following`, append-only `source_follows`, ADR 0025).
+
+`fetch_and_store_job` does the same for one offer of a target (`OfferConnector.fetch_job`), for links the user brings with `jaa jobs add <link>`. It never marks other jobs of the target removed.
+
+## Links the user brings
+
+`jaa.connectors.links.recognize(url)` (pure, no request) sorts a link into an offer or a board on a source jaa can read (with the connector's target and the offer id), a blocked site with the reason, or an unknown site. `jaa jobs add <link>` reads recognised offers through the provider's API or feed, suggests following for board links, and needs the pasted offer for everything else (ADR 0023, ADR 0025).
 
 ## Sources
 
 | Key | Source | Access | Targets |
 |---|---|---|---|
 | `solid_jobs` | [SOLID.Jobs](https://solid.jobs/api-ofert-pracy), Poland | Public offers API for integrators and aggregators, no key, `campaign=jaa`; 30 requests/min (the source allows 300) | Divisions: `IT`, `Engineering`, `Marketing`, `Sales`, `HR`, `Logistics`, `Finances`, `Other` |
+| `greenhouse` | [Greenhouse Job Board API](https://docs.greenhouse.io/job-board.html) | Public GET endpoints, no key; board name plus `jobs?content=true`, one request per offer (with application questions); 20 requests/min | Board tokens: `acme`, or `eu:acme` for EU boards |
+| `lever` | [Lever Postings API](https://github.com/lever/postings-api) | Published postings, no key, pages of 100; the site name stands in for the employer; 20 requests/min | Site names: `acme`, or `eu:acme` |
+| `teamtailor` | [Teamtailor RSS feed](https://support.teamtailor.com/en/articles/11171756-rss-feed-how-to-guide) | `jobs.rss` of each career site, pages of 100; only `<company>.teamtailor.com`, not custom domains; 20 requests/min | Sites: `acme` or `acme.teamtailor.com` |
+| `personio` | [Personio positions feed](https://developer.personio.de/docs/retrieving-open-job-positions) | `/xml` of each career page, one request; employer is the subcompany or the subdomain | Pages: `acme`, `acme.jobs.personio.de` or `acme.jobs.personio.com` |
+
+Ashby, Workable and Recruitee are not added until their own documentation confirms unauthenticated read access; SmartRecruiters requires an API key.
 
 Checked and not used (#21): justjoin.it and bulldogjob.pl disallow their API and feeds in `robots.txt`; nofluffjobs.com blocks automated clients and documents no API. Add offers from those boards by hand from their pasted text with `jaa jobs add` (source `manual`, ADR 0023); jaa records the link and never fetches it.
 
@@ -89,4 +104,4 @@ Checked and not used (#21): justjoin.it and bulldogjob.pl disallow their API and
 2. Write the policy with `terms_url`, `terms_reviewed_on`, the narrowest `allowed_hosts` and `permitted_fields`, and rate limits at or below what the source documents.
 3. Implement `target_key` and `fetch`, with `client.get_json`/`client.get` only. Put unreadable items in `FetchResult.issues`; raise `SourceDataError` when the whole response is unusable.
 4. Record real responses as synthetic fixtures (no personal data) and test against them with a replaying transport. Tests never touch the network.
-5. Register it in `jaa.connectors.registry`.
+5. Register it in `jaa.connectors.registry`. If it can read one offer by id, implement `fetch_job` (`OfferConnector`) and teach `jaa.connectors.links` its offer and board links.

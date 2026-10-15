@@ -153,6 +153,7 @@ job_duplicate_reviews: Final = Table(models.JobDuplicateReview, "job_duplicate_r
 saved_searches: Final = Table(models.SavedSearch, "saved_searches")
 source_status_events: Final = Table(models.SourceStatusEvent, "source_status_events")
 source_fetch_runs: Final = Table(models.SourceFetchRun, "source_fetch_runs")
+source_follows: Final = Table(models.SourceFollow, "source_follows")
 job_matches: Final = Table(models.JobMatch, "job_matches")
 cv_tailorings: Final = Table(models.CvTailoring, "cv_tailorings")
 applications: Final = Table(models.Application, "applications")

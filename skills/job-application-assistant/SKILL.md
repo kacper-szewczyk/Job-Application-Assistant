@@ -95,9 +95,15 @@ with Bash (`uv run jaa …` in the repository); they only read, or add records t
 - `jaa info`: where the data lives; `jaa init` if the database does not exist yet.
 - `jaa preferences list`: the user's saved preferences.
 - `jaa sources list`: which job sources are active.
-- `jaa jobs fetch SOURCE TARGET…`: fetch listings, e.g. `uv run jaa jobs fetch solid_jobs IT`.
-- `jaa jobs add --url URL --title TITLE --company COMPANY [--location PLACE]
-  --description-file -`: add an offer the user pasted (source `manual`; the link is never fetched).
+- `jaa jobs fetch SOURCE TARGET…`: fetch listings, e.g. `uv run jaa jobs fetch solid_jobs IT`;
+  `jaa jobs fetch --followed` fetches every board the user follows.
+- `jaa jobs follow LINK` (or `SOURCE TARGET`), `jaa jobs unfollow …`, `jaa jobs following`: the
+  company career boards (Greenhouse, Lever, Teamtailor, Personio) the user chose to follow.
+- `jaa jobs add LINK`: add one offer from a Greenhouse, Lever, Teamtailor or Personio board,
+  read through the provider's public API or feed.
+- `jaa jobs add LINK --title TITLE --company COMPANY [--location PLACE] --description-file -`:
+  add an offer the user pasted (source `manual`; the link is never fetched). Add `--no-fetch`
+  when the link is on one of those boards but the user wants their pasted text kept.
 - `jaa jobs match JOB…` or `jaa jobs match --all`: compare jobs with the confirmed profile.
 - `jaa jobs matches`: rank jobs by their latest match.
 - `jaa jobs duplicates list`: jobs that may be the same job.
@@ -149,10 +155,15 @@ with Bash (`uv run jaa …` in the repository); they only read, or add records t
    verdict on the user, and never suggest adding a skill they did not claim.
 5. If `get_job` lists possible duplicates, point the user to `jaa jobs duplicates mark`.
 
-For jobs from boards without a permitted API (justjoin.it, bulldogjob, nofluffjobs), ask the
-user to paste the offer's text, link, title and company, then add it with `jaa jobs add`
-(description on standard input with `--description-file -`). Use only what the user pasted: do
-not fill in a missing company, location or requirement, and do not open or fetch the link.
+When the user brings a job link, run `jaa jobs add LINK` first: jaa recognises offers on
+Greenhouse, Lever, Teamtailor and Personio boards and reads them itself. For a company's whole
+board it suggests `jaa jobs follow`; follow only boards the user asked for, then
+`jaa jobs fetch --followed`. For every other site, including boards without a permitted API
+(justjoin.it, bulldogjob, nofluffjobs, LinkedIn), it says why it cannot read the page; ask the
+user to paste the offer's text, title and company, then add it with `jaa jobs add LINK --title
+… --company …` (description on standard input with `--description-file -`). Use only what the
+user pasted: do not fill in a missing company, location or requirement, and do not open or
+fetch the link yourself.
 
 ### 3. Tailoring: a CV for one job
 

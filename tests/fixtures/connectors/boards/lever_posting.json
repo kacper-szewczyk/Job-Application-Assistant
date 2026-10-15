@@ -1,0 +1,41 @@
+{
+  "id": "0b1c2d3e-0000-4000-8000-000000000001",
+  "text": "Backend Developer",
+  "categories": {
+    "commitment": "Full-time",
+    "department": "Engineering",
+    "location": "Krak\u00f3w",
+    "team": "Platform",
+    "allLocations": [
+      "Krak\u00f3w",
+      "Wroc\u0142aw"
+    ]
+  },
+  "country": "PL",
+  "createdAt": 1791100800000,
+  "workplaceType": "hybrid",
+  "opening": "<div>Join our platform team.</div>",
+  "openingPlain": "Join our platform team.",
+  "description": "<div>Join our platform team.</div>",
+  "descriptionPlain": "Join our platform team.",
+  "lists": [
+    {
+      "text": "Requirements",
+      "content": "<li>Go or Python</li><li>Kubernetes</li>"
+    },
+    {
+      "text": "Nice to have",
+      "content": "<li>Terraform</li>"
+    }
+  ],
+  "additional": "<div>We offer a widget allowance.</div>",
+  "additionalPlain": "We offer a widget allowance.",
+  "hostedUrl": "https://jobs.lever.co/examplewidgets/0b1c2d3e-0000-4000-8000-000000000001",
+  "applyUrl": "https://jobs.lever.co/examplewidgets/0b1c2d3e-0000-4000-8000-000000000001/apply",
+  "salaryRange": {
+    "currency": "pln",
+    "interval": "per-month-salary",
+    "min": 18000,
+    "max": 24000
+  }
+}

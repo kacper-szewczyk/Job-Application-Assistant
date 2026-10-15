@@ -14,7 +14,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import date, datetime
 from enum import StrEnum
-from typing import TYPE_CHECKING, Final, Protocol
+from typing import TYPE_CHECKING, Final, Protocol, runtime_checkable
 
 from jaa.core.job_details import JobDetails
 from jaa.core.models import SourceStatus, SourceStatusEvent
@@ -26,6 +26,8 @@ _KEY_PATTERN: Final = re.compile(r"[a-z][a-z0-9_]{1,39}")
 _HOST_PATTERN: Final = re.compile(
     r"[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+"
 )
+# One DNS label: the company's part of a per-company host such as `acme.teamtailor.com`.
+_LABEL_PATTERN: Final = re.compile(r"[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?")
 
 
 class AccessMethod(StrEnum):
@@ -110,6 +112,9 @@ class SourcePolicy:
     access_method: AccessMethod
     # Exact host names the client may request. Redirects elsewhere count as access denied.
     allowed_hosts: frozenset[str]
+    # Provider domains that serve each company from its own subdomain (ADR 0025): a suffix
+    # `teamtailor.com` allows `acme.teamtailor.com`, exactly one label deeper, nothing else.
+    host_suffixes: frozenset[str] = frozenset()
     # Where the source's terms or API documentation say programmatic access is permitted.
     terms_url: str
     terms_reviewed_on: date | None
@@ -126,9 +131,11 @@ class SourcePolicy:
     def __post_init__(self) -> None:
         if not _KEY_PATTERN.fullmatch(self.key):
             raise ValueError(f"connector key must match {_KEY_PATTERN.pattern}: {self.key!r}")
-        if not self.allowed_hosts:
-            raise ValueError(f"{self.key}: allowed_hosts must not be empty")
-        bad_hosts = sorted(h for h in self.allowed_hosts if not _HOST_PATTERN.fullmatch(h))
+        if not self.allowed_hosts and not self.host_suffixes:
+            raise ValueError(f"{self.key}: allowed_hosts or host_suffixes must not be empty")
+        bad_hosts = sorted(
+            h for h in self.allowed_hosts | self.host_suffixes if not _HOST_PATTERN.fullmatch(h)
+        )
         if bad_hosts:
             raise ValueError(f"{self.key}: invalid host names {bad_hosts}")
         if not self.terms_url.startswith("https://"):
@@ -138,6 +145,15 @@ class SourcePolicy:
             raise ValueError(f"{self.key}: required fields not permitted {sorted(missing)}")
         if self.max_response_bytes < 1:
             raise ValueError(f"{self.key}: max_response_bytes must be positive")
+
+    def is_company_host(self, host: str) -> bool:
+        """Whether `host` is one company's subdomain under one of `host_suffixes`."""
+        label, _, rest = host.partition(".")
+        return rest in self.host_suffixes and _LABEL_PATTERN.fullmatch(label) is not None
+
+    def allows_host(self, host: str) -> bool:
+        """Whether the client may request `host` (already lower-cased)."""
+        return host in self.allowed_hosts or self.is_company_host(host)
 
 
 class QuestionKind(StrEnum):
@@ -234,6 +250,17 @@ class Connector(Protocol):
     def fetch(self, client: "SourceClient", target: str) -> FetchResult: ...
 
 
+@runtime_checkable
+class OfferConnector(Connector, Protocol):
+    """A connector that can also read one offer by its id, for links the user brings (ADR 0025).
+
+    `fetch_job` returns None when the source no longer lists the offer. It raises
+    `ConnectorTargetError` for an id the connector cannot use, before any request.
+    """
+
+    def fetch_job(self, client: "SourceClient", target: str, job_id: str) -> JobListing | None: ...
+
+
 @dataclass(frozen=True, slots=True, kw_only=True)
 class SourceState:
     """Whether a source may run now, combining its policy with the stored pause history."""
@@ -271,7 +298,9 @@ def policy_summary(policy: SourcePolicy) -> Mapping[str, str]:
         "Key": policy.key,
         "Name": policy.name,
         "Access method": policy.access_method.value,
-        "Allowed hosts": ", ".join(sorted(policy.allowed_hosts)),
+        "Allowed hosts": ", ".join(
+            [*sorted(policy.allowed_hosts), *(f"*.{s}" for s in sorted(policy.host_suffixes))]
+        ),
         "Terms": policy.terms_url,
         "Terms reviewed": (
             policy.terms_reviewed_on.isoformat() if policy.terms_reviewed_on else "not reviewed"

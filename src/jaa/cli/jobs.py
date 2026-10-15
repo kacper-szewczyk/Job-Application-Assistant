@@ -1,5 +1,6 @@
-"""`jaa jobs …`: fetch listings from approved sources or add them by hand, then search, inspect,
-dedupe and match the stored jobs (T10 to T12, #46, ADR 0013 to 0015 and 0023)."""
+"""`jaa jobs …`: fetch listings from approved sources, follow company boards or add offers by
+link or by hand, then search, inspect, dedupe and match the stored jobs (T10 to T12, #46, #71,
+ADR 0013 to 0015, 0023 and 0025)."""
 
 import sqlite3
 import sys
@@ -23,11 +24,19 @@ from jaa.cli.common import (
     open_existing,
     settings_from,
 )
-from jaa.connectors import registry
+from jaa.connectors import links, registry
+from jaa.connectors.base import Connector, OfferConnector
 from jaa.connectors.http import Transport
 from jaa.connectors.urllib_transport import UrllibTransport
 from jaa.core.applications import is_archived
-from jaa.core.errors import ImportSourceError, JaaError, NotFoundError, SourceAccessDeniedError
+from jaa.core.errors import (
+    ConnectorTargetError,
+    ImportSourceError,
+    JaaError,
+    NotFoundError,
+    SourceAccessDeniedError,
+    SourcePausedError,
+)
 from jaa.core.models import DuplicateVerdict, Job, JobMatch, JobStatus
 from jaa.core.search import JobQuery
 from jaa.importers.base import resolve_source
@@ -35,9 +44,9 @@ from jaa.matching.match import Outcome, PreferenceOutcome
 from jaa.matching.requirements import JobRequirements, RequirementOrigin, extract_requirements
 from jaa.storage import applications as tracker
 from jaa.storage import duplicates as dupes
+from jaa.storage import follows, privacy, searches
 from jaa.storage import listings as service
 from jaa.storage import matches as matching
-from jaa.storage import privacy, searches
 from jaa.storage.manual_jobs import MAX_DESCRIPTION_CHARS, add_manual_job
 from jaa.storage.profile import active_version_id
 from jaa.storage.repository import jobs as jobs_table
@@ -108,31 +117,146 @@ def _report(source: str, report: service.FetchReport) -> None:
         console.print(Text(f"  {len(report.issues)} issue(s): {summary}", style="yellow"))
 
 
+def _connector(source: str) -> Connector:
+    connector = registry.available_connectors().get(source)
+    if connector is None:
+        raise NotFoundError(f"unknown source {source!r}; see `jaa sources list`")
+    return connector
+
+
 @jobs_app.command()
 def fetch(
     ctx: typer.Context,
-    source: Annotated[str, typer.Argument(help="Source key, see `jaa sources list`.")],
+    source: Annotated[
+        str | None, typer.Argument(help="Source key, see `jaa sources list`.", show_default=False)
+    ] = None,
     targets: Annotated[
-        list[str],
-        typer.Argument(help="What to fetch from the source, e.g. solid.jobs divisions: IT HR."),
-    ],
+        list[str] | None,
+        typer.Argument(
+            help="What to fetch from the source, e.g. solid.jobs divisions: IT HR, or a "
+            "Greenhouse board token.",
+            show_default=False,
+        ),
+    ] = None,
+    followed: Annotated[
+        bool,
+        typer.Option("--followed", help="Fetch every board you follow (`jaa jobs following`)."),
+    ] = False,
 ) -> None:
     """Fetch every listing of each target and store new, changed and removed jobs."""
+    if followed == (source is not None):
+        err_console.print(
+            "[red]Error:[/red] give a source and its targets, or --followed on its own."
+        )
+        raise typer.Exit(code=2)
+    if source is not None and not targets:
+        err_console.print(f"[red]Error:[/red] name what to fetch from {escape(source)}.")
+        raise typer.Exit(code=2)
     failed = False
     with _database(ctx) as conn:
-        connector = registry.available_connectors().get(source)
-        if connector is None:
-            raise NotFoundError(f"unknown source {source!r}; see `jaa sources list`")
+        if source is not None:
+            plan = [(_connector(source), t) for t in targets or []]
+        else:
+            known = registry.available_connectors()
+            plan = [
+                (known[f.source], f.target) for f in follows.followed(conn) if f.source in known
+            ]
+            if not plan:
+                console.print("You follow no boards yet; see `jaa jobs follow --help`.")
+                return
         transport = make_transport()
-        for target in targets:
+        paused: set[str] = set()
+        for connector, target in plan:
+            key = connector.policy.key
+            if key in paused:
+                continue
             report = service.fetch_and_store(conn, connector, target, transport=transport)
-            _report(source, report)
+            _report(key, report)
             if report.error is not None:
                 failed = True
                 if report.paused:
-                    break
+                    paused.add(key)
     if failed:
         raise typer.Exit(code=1)
+
+
+def _board(first: str, target: str | None) -> tuple[Connector, str]:
+    """A source and canonical target, from `SOURCE TARGET` or from a board or offer link."""
+    if target is not None:
+        connector = _connector(first)
+        return connector, connector.target_key(target)
+    link = links.recognize(first)
+    if isinstance(link, links.BlockedLink):
+        raise ConnectorTargetError(f"jaa cannot follow {link.host}: {link.reason}")
+    if isinstance(link, links.UnknownLink):
+        raise ConnectorTargetError(
+            f"{first!r} is not a link to a board jaa can read; give SOURCE TARGET instead, "
+            "see `jaa sources list`"
+        )
+    connector = _connector(link.source)
+    return connector, connector.target_key(link.target)
+
+
+BoardArg = Annotated[
+    str,
+    typer.Argument(
+        help="A link to the company's board or one of its offers, or a source key followed by "
+        "TARGET.",
+        show_default=False,
+    ),
+]
+TargetArg = Annotated[
+    str | None,
+    typer.Argument(help="The board, when the first argument is a source key.", show_default=False),
+]
+
+
+@jobs_app.command("follow")
+def follow_board(ctx: typer.Context, board: BoardArg, target: TargetArg = None) -> None:
+    """Follow a company's career board, so `jaa jobs fetch --followed` fetches it.
+
+    E.g. `jaa jobs follow https://job-boards.greenhouse.io/acme` or `jaa jobs follow lever acme`.
+    """
+    with _database(ctx) as conn:
+        connector, key = _board(board, target)
+        source = connector.policy.key
+        if follows.follow(conn, source, key):
+            console.print(
+                Text(f"Following {source} {key}. Fetch it with `jaa jobs fetch --followed`.")
+            )
+        else:
+            console.print(Text(f"Already following {source} {key}."))
+
+
+@jobs_app.command("unfollow")
+def unfollow_board(ctx: typer.Context, board: BoardArg, target: TargetArg = None) -> None:
+    """Stop following a board. Jobs already fetched from it stay."""
+    with _database(ctx) as conn:
+        connector, key = _board(board, target)
+        source = connector.policy.key
+        if follows.unfollow(conn, source, key):
+            console.print(Text(f"No longer following {source} {key}."))
+        else:
+            console.print(Text(f"You were not following {source} {key}."))
+
+
+@jobs_app.command("following")
+def following(ctx: typer.Context) -> None:
+    """List the boards you follow."""
+    with _database(ctx) as conn:
+        rows = follows.followed(conn)
+    if not rows:
+        console.print("You follow no boards yet; see `jaa jobs follow --help`.")
+        return
+    table = Table("Source", "Target", "Board", "Since")
+    for row in rows:
+        table.add_row(
+            row.source,
+            Text(row.target),
+            Text(links.board_link(row.source, row.target) or "-"),
+            _when(row.since),
+        )
+    console.print(table)
 
 
 def _description(text: str | None, path: Path | None) -> str | None:
@@ -157,12 +281,73 @@ def _description(text: str | None, path: Path | None) -> str | None:
         raise typer.Exit(code=2) from exc
 
 
+def _fetch_offer(conn: sqlite3.Connection, link: links.OfferLink) -> None:
+    connector = _connector(link.source)
+    if not isinstance(connector, OfferConnector):
+        raise ConnectorTargetError(f"{link.source} cannot read single offers")
+    try:
+        report = service.fetch_and_store_job(
+            conn, connector, link.target, link.job_id, transport=make_transport()
+        )
+    except SourcePausedError as exc:
+        raise SourcePausedError(
+            f"{exc}. Add the offer from its pasted text with --no-fetch instead."
+        ) from exc
+    if report.error is not None:
+        _report(link.source, report)
+        raise typer.Exit(code=1)
+    changes = report.changes
+    job_ids = changes.new or changes.changed or changes.unchanged or changes.reappeared
+    if not job_ids:
+        err_console.print(
+            Text(
+                f"{link.source} {report.run.target} no longer lists this offer, so nothing was "
+                "added.",
+                style="red",
+            )
+        )
+        raise typer.Exit(code=1)
+    job = jobs_table.get(conn, job_ids[0])
+    verb = "Added" if changes.new else "Updated"
+    console.print(
+        Text(
+            f"{verb} job {job.id} from {link.source}: {job.title} at {job.employer}. "
+            f"See `jaa jobs show {job.id}`."
+        )
+    )
+    if changes.flagged:
+        console.print(
+            Text(
+                f"{len(changes.flagged)} possible duplicate(s) flagged; "
+                "see `jaa jobs duplicates list`.",
+                style="yellow",
+            )
+        )
+
+
+def _manual_only(link: links.Link) -> str:
+    """Why a link needs the offer pasted, for when the user gave no title and company."""
+    if isinstance(link, links.BlockedLink):
+        return f"jaa does not read {link.host}: {link.reason}."
+    if isinstance(link, links.UnknownLink):
+        return f"jaa does not open pages on {link.host or 'that site'}."
+    return "--no-fetch adds the offer from the text you give."
+
+
 @jobs_app.command("add")
 def add(
     ctx: typer.Context,
-    url: Annotated[str, typer.Option("--url", help="The offer's page. Recorded, never opened.")],
-    title: Annotated[str, typer.Option("--title", help="Job title as the offer gives it.")],
-    company: Annotated[str, typer.Option("--company", help="Employer name.")],
+    link: Annotated[
+        str | None,
+        typer.Argument(help="The offer's link (same as --url).", show_default=False),
+    ] = None,
+    url: Annotated[
+        str | None, typer.Option("--url", help="The offer's link.", show_default=False)
+    ] = None,
+    title: Annotated[
+        str | None, typer.Option("--title", help="Job title as the offer gives it.")
+    ] = None,
+    company: Annotated[str | None, typer.Option("--company", help="Employer name.")] = None,
     location: Annotated[
         str | None, typer.Option("--location", help="Location, e.g. `Kraków, hybrid`.")
     ] = None,
@@ -177,17 +362,62 @@ def add(
             show_default=False,
         ),
     ] = None,
+    no_fetch: Annotated[
+        bool,
+        typer.Option(
+            "--no-fetch",
+            help="Add the offer from the text you give even when jaa could read it from the "
+            "company's board.",
+        ),
+    ] = False,
 ) -> None:
-    """Add a job by hand, e.g. an offer from justjoin.it, bulldogjob or nofluffjobs.
+    """Add one job offer by its link.
 
-    jaa does not read those boards; copy the offer's text instead. The job is stored with source
-    `manual` and is matched, tailored and tracked like a fetched job. jaa never opens the URL.
+    A link to one offer on a Greenhouse, Lever, Teamtailor or Personio board is read through
+    that provider's public API or feed. For any other site, e.g. justjoin.it, bulldogjob or
+    nofluffjobs, copy the offer's text and give --title, --company and the description: the job
+    is stored with source `manual` and jaa never opens the link.
     """
+    if (link is None) == (url is None):
+        err_console.print("[red]Error:[/red] give the offer's link once, as LINK or --url.")
+        raise typer.Exit(code=2)
+    address = link or url or ""
+    found = links.recognize(address)
+    pasted = any(v is not None for v in (title, company, location, description, description_file))
+    if isinstance(found, links.OfferLink) and not no_fetch:
+        if pasted:
+            err_console.print(
+                f"[red]Error:[/red] jaa reads this offer from {found.source}; leave out "
+                "--title, --company, --location and the description, or add --no-fetch to "
+                "store the text you give instead."
+            )
+            raise typer.Exit(code=2)
+        with _database(ctx) as conn:
+            _fetch_offer(conn, found)
+        return
+    if isinstance(found, links.BoardLink) and not no_fetch and not pasted:
+        err_console.print(
+            Text(
+                f"This is {found.source} board {found.target}, not one offer. Follow it with "
+                f"`jaa jobs follow {address}`, fetch it once with "
+                f"`jaa jobs fetch {found.source} {found.target}`, or give the link of one offer."
+            )
+        )
+        raise typer.Exit(code=1)
+    if title is None or company is None:
+        err_console.print(
+            Text(
+                f"Error: {_manual_only(found)} Paste the offer instead: give --title, "
+                "--company and its text with --description or --description-file.",
+                style="red",
+            )
+        )
+        raise typer.Exit(code=2)
     text = _description(description, description_file)
     with _database(ctx) as conn:
         added = add_manual_job(
             conn,
-            url=url,
+            url=address,
             title=title,
             company=company,
             location=location,

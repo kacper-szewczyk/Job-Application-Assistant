@@ -84,6 +84,10 @@ class SourceDataError(ConnectorError):
     """The source answered, but not with data the connector can use, or broke the policy limits."""
 
 
+class SourceNotFoundError(SourceDataError):
+    """The source answered 404: the board, feed or offer does not exist (any more)."""
+
+
 class DocumentError(JaaError):
     """A document (CV PDF) cannot be rendered or built."""
 
