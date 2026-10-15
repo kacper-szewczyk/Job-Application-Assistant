@@ -101,7 +101,7 @@ Salary and sponsorship answers are treated as sensitive: hidden in listings unle
 
 ```bash
 uv run jaa templates list               # shipped and added LaTeX templates, default marked
-uv run jaa templates show moderncv-banking --preview --open   # preview from sample data
+uv run jaa templates show jaa-minimal --preview --open   # preview from sample data
 uv run jaa templates add my-cv.zip --id mine   # check and add your own (see docs/templates.md)
 uv run jaa templates default user-mine   # use it when no --template is given
 uv run jaa cv preview --language pl      # what the CV will contain, no PDF

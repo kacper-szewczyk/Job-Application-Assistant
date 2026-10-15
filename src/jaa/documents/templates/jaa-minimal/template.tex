@@ -1,0 +1,106 @@
+% jaa CV template "jaa-minimal", version 1 (ADR 0030). License: MIT (this repository).
+% Lines of the form %%jaa:<slot>%% are replaced with LaTeX generated from confirmed profile
+% facts; every other line is copied as-is. Generated text is escaped, so facts cannot inject
+% LaTeX commands. This template does not use moderncv: it defines the contract's macros itself
+% (docs/templates.md).
+%
+% Paper: change a4paper to letterpaper below for US Letter; geometry follows the class option.
+\documentclass[10pt,a4paper]{article}
+%%jaa:babel%%
+\usepackage[margin=18mm]{geometry}
+\usepackage{fontspec}
+\usepackage{etoolbox}
+\usepackage{needspace}
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage{titlesec}
+
+% TeX Gyre Heros (GUST Font License, part of every TeX distribution) has the full Polish
+% alphabet. Loaded by file name, so no system font lookup is needed.
+% Kerning is off: strong kerns ("Te", "To") make text extraction split words ("T est").
+\setmainfont{texgyreheros}[
+  Extension=.otf,
+  UprightFont=*-regular,
+  BoldFont=*-bold,
+  ItalicFont=*-italic,
+  BoldItalicFont=*-bolditalic,
+  Kerning=Off,
+]
+\definecolor{jaaaccent}{HTML}{1F3A5F}
+\definecolor{jaamuted}{HTML}{555555}
+
+% ATS-friendly output: no hyphenation (split words break keyword matching), ragged lines
+% instead of stretched spaces, one column, real text everywhere.
+\hyphenpenalty=10000
+\exhyphenpenalty=10000
+\setlength{\parindent}{0pt}
+\raggedright
+\pagestyle{empty}
+
+% Section headings: never last on a page (needspace keeps a heading with its first entry).
+\setcounter{secnumdepth}{0}
+\titleformat{\section}{\needspace{5\baselineskip}\large\bfseries\color{jaaaccent}}{}{0pt}{}
+  [{\color{jaaaccent!40}\titlerule}]
+\titlespacing*{\section}{0pt}{12pt}{5pt}
+
+% Header macros (same signatures as moderncv): they store values for \makecvtitle.
+\newcommand{\jaacontact}{}
+\newcommand{\jaaaddcontact}[1]{%
+  \ifdefempty{\jaacontact}{\appto{\jaacontact}{#1}}{\appto{\jaacontact}{\enspace|\enspace#1}}}
+\newcommand{\name}[2]{\def\jaafirst{#1}\def\jaalast{#2}}
+\renewcommand{\title}[1]{\def\jaaheadline{#1}}
+\newcommand{\address}[3]{\jaaaddcontact{#1}}
+\newcommand{\mobile}[1]{\jaaaddcontact{#1}}
+\newcommand{\email}[1]{\jaaaddcontact{#1}}
+\newcommand{\extrainfo}[1]{\def\jaaextra{#1}}
+\NewDocumentCommand{\photo}{O{64pt} O{0.4pt} m}{\def\jaaphoto{\includegraphics[width=#1]{#3}}}
+\renewcommand{\quote}[1]{\def\jaaquote{#1}}
+
+\newcommand{\jaaheadertext}{%
+  {\fontsize{22pt}{26pt}\selectfont\bfseries\jaafirst\ifdefempty{\jaalast}{}{\space\jaalast}\par}
+  \ifdefined\jaaheadline{\vspace{2pt}\large\color{jaaaccent}\jaaheadline\par}\fi
+  \vspace{5pt}
+  {\small\color{jaamuted}\jaacontact\par
+   \ifdefined\jaaextra\jaaextra\par\fi}}
+\newcommand{\makecvtitle}{%
+  \ifdefined\jaaphoto
+    \begin{minipage}[b]{\dimexpr\linewidth-80pt\relax}\raggedright\jaaheadertext\end{minipage}%
+    \hfill\jaaphoto\par
+  \else
+    \jaaheadertext
+  \fi
+  \ifdefined\jaaquote\vspace{8pt}\jaaquote\par\fi
+  \vspace{2pt}}
+
+% \cventry{dates}{title}{organization}{location}{}{description}: the title with the dates
+% flush right (they move to the next line when both do not fit), then organization and
+% location, then the description. needspace keeps an entry's first lines together. The
+% organization comes as \textsc{...}: TeX Gyre Heros has no real small caps, and faked ones
+% extract as capitals with stray spaces, so it is printed as written.
+\newcommand{\cventry}[6]{%
+  \par\begingroup\renewcommand{\textsc}[1]{##1}\needspace{3\baselineskip}\addvspace{5pt}%
+  {\bfseries #2}%
+  \ifblank{#1}{}{\unskip\nobreak\hfil\penalty50\hskip1em\hbox{}\nobreak\hfil
+    {\small\color{jaamuted}#1}}%
+  {\rightskip=0pt\parfillskip=0pt\par}%
+  \ifblank{#3#4}{}{%
+    {\color{jaamuted}#3\ifblank{#3}{}{\ifblank{#4}{}{, }}#4}\par}%
+  \ifblank{#6}{}{{\small #6}\par}\endgroup}
+\newcommand{\cvitem}[2]{%
+  \par\addvspace{2pt}\ifblank{#1}{}{\textbf{#1}: }#2\par}
+\newcommand{\cvlistitem}[1]{%
+  \par\addvspace{1pt}\leftskip=1em\hangindent=0.9em\hangafter=1
+  \makebox[0.9em][l]{\textbullet}#1\par\leftskip=0pt}
+\newcommand{\cvlanguage}[3]{%
+  \par\addvspace{2pt}\textbf{#1}\ifblank{#2}{}{ -- #2}\ifblank{#3}{}{ (#3)}\par}
+
+%%jaa:header%%
+
+\begin{document}
+\makecvtitle
+%%jaa:body%%
+\par\vfill
+\begingroup\footnotesize
+%%jaa:consent%%
+\endgroup
+\end{document}

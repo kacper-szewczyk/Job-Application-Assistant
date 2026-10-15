@@ -82,7 +82,11 @@ def sample_cv(language: CvLanguage) -> CvContent:
             CvLanguageSkill(name="English" if language is CvLanguage.EN else "Angielski", level=c1),
         ),
         certifications=(
-            CvCertification(name="Sample Cloud Data Engineer", date="2022-05", authority="Example"),
+            CvCertification(
+                name="Sample Cloud Data Engineer",
+                date={"start": "2022-05", "end": None, "current": False},
+                authority="Example",
+            ),
         ),
         certification_keys=("certifications.sample-cloud-data-engineer",),
     )

@@ -1,0 +1,9 @@
+{
+  "id": "jaa-compact",
+  "version": 1,
+  "name": "jaa compact",
+  "family": "custom",
+  "description": "Dense one-page CV for senior and lead profiles: name and headline beside a right-aligned contact block, one line per role with organization, location and dates, tight bullet points. TeX Gyre Heros Condensed, 10pt, narrow margins, A4 (US Letter: one class option).",
+  "requires": ["fontspec", "titlesec", "needspace", "etoolbox", "TeX Gyre fonts"],
+  "license": "MIT (this repository). Uses only packages and fonts from standard TeX distributions: titlesec, needspace, etoolbox (LPPL) and TeX Gyre Heros Condensed (GUST Font License)."
+}

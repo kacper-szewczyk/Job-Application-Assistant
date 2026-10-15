@@ -2,8 +2,6 @@
 
 import logging
 import stat
-import struct
-import zlib
 from dataclasses import replace
 from datetime import date
 from pathlib import Path
@@ -24,25 +22,9 @@ from jaa.documents.letter import LetterContent
 from jaa.documents.pipeline import BuildOptions, build_cover_letter, build_cv, extract_text
 from jaa.documents.sample import sample_cv, sample_letter
 from tests.fixtures.cv_profile import confirmed_facts
+from tests.fixtures.images import png
 
 pytestmark = pytest.mark.latex
-
-
-def _png(width: int = 60, height: int = 80) -> bytes:
-    """A valid grey RGB PNG, built here so its checksums are right (libpng aborts on bad ones)."""
-
-    def chunk(kind: bytes, data: bytes) -> bytes:
-        body = kind + data
-        return struct.pack(">I", len(data)) + body + struct.pack(">I", zlib.crc32(body))
-
-    rows = b"".join(b"\x00" + b"\x80\x80\x80" * width for _ in range(height))
-    header = struct.pack(">IIBBBBB", width, height, 8, 2, 0, 0, 0)
-    return (
-        b"\x89PNG\r\n\x1a\n"
-        + chunk(b"IHDR", header)
-        + chunk(b"IDAT", zlib.compress(rows))
-        + chunk(b"IEND", b"")
-    )
 
 
 @pytest.mark.parametrize("language", list(CvLanguage))
@@ -50,7 +32,7 @@ def test_pdf_text_matches_source_facts(
     latex_engine: Engine, tmp_path: Path, language: CvLanguage
 ) -> None:
     photo = tmp_path / "photo.png"
-    photo.write_bytes(_png())
+    photo.write_bytes(png())
     content = build_content(confirmed_facts()).content
     out = build_cv(
         content,
@@ -220,7 +202,7 @@ def test_a_template_that_reads_outside_its_folder_is_refused(
         source=shipped.source.replace(
             r"\makecvtitle", rf"\makecvtitle\csname input\endcsname{{{secret}}}"
         ),
-        assets={"img/logo.png": _png()},
+        assets={"img/logo.png": png()},
     )
     output = tmp_path / "out"
     with pytest.raises(DocumentError):

@@ -1,0 +1,75 @@
+% jaa cover letter template "jaa-minimal-letter", version 1 (ADR 0030). License: MIT (this
+% repository). Lines of the form %%jaa:<slot>%% are replaced with generated LaTeX: the sender
+% comes from confirmed profile facts, the recipient from the job or the user, and the
+% paragraphs from the checked tailoring plan. Generated text is escaped, so it cannot inject
+% LaTeX commands. This template defines the contract's letter macros itself (docs/templates.md).
+%
+% Paper: change a4paper to letterpaper below for US Letter; geometry follows the class option.
+\documentclass[11pt,a4paper]{article}
+%%jaa:babel%%
+\usepackage[margin=22mm]{geometry}
+\usepackage{fontspec}
+\usepackage{etoolbox}
+\usepackage{xcolor}
+
+% Same font and colours as jaa-minimal.
+% Kerning is off: strong kerns ("Te", "To") make text extraction split words ("T est").
+\setmainfont{texgyreheros}[
+  Extension=.otf,
+  UprightFont=*-regular,
+  BoldFont=*-bold,
+  ItalicFont=*-italic,
+  BoldItalicFont=*-bolditalic,
+  Kerning=Off,
+]
+\definecolor{jaaaccent}{HTML}{1F3A5F}
+\definecolor{jaamuted}{HTML}{555555}
+
+% Same ATS-friendly choices as jaa-minimal: no hyphenation, ragged lines.
+\hyphenpenalty=10000
+\exhyphenpenalty=10000
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.8em}
+\raggedright
+\pagestyle{empty}
+
+% Sender and letter macros (same signatures as moderncv): they store values for
+% \makelettertitle and \makeletterclosing.
+\newcommand{\jaacontact}{}
+\newcommand{\jaaaddcontact}[1]{%
+  \ifdefempty{\jaacontact}{\appto{\jaacontact}{#1}}{\appto{\jaacontact}{\enspace|\enspace#1}}}
+\newcommand{\name}[2]{\def\jaafirst{#1}\def\jaalast{#2}}
+\newcommand{\address}[3]{\jaaaddcontact{#1}}
+\newcommand{\mobile}[1]{\jaaaddcontact{#1}}
+\newcommand{\email}[1]{\jaaaddcontact{#1}}
+\newcommand{\extrainfo}[1]{\def\jaaextra{#1}}
+\newcommand{\recipient}[2]{\def\jaarecipient{#1}\def\jaarecipientaddress{#2}}
+\renewcommand{\date}[1]{\def\jaadate{#1}}
+\newcommand{\opening}[1]{\def\jaaopening{#1}}
+\newcommand{\closing}[1]{\def\jaaclosing{#1}}
+\newcommand{\jaasender}{\jaafirst\ifdefempty{\jaalast}{}{\space\jaalast}}
+
+\newcommand{\makelettertitle}{%
+  {\fontsize{20pt}{24pt}\selectfont\bfseries\jaasender\par}
+  \vspace{-0.4em}
+  {\small\color{jaamuted}\jaacontact\par
+   \ifdefined\jaaextra\vspace{-0.8em}\jaaextra\par\fi}
+  {\color{jaaaccent!40}\rule{\linewidth}{0.4pt}\par}
+  \vspace{1em}
+  {\jaarecipient\par\vspace{-0.8em}\jaarecipientaddress\par}
+  {\raggedleft\jaadate\par}
+  \vspace{0.5em}
+  \jaaopening\par}
+\newcommand{\makeletterclosing}{%
+  \par\vspace{0.5em}\jaaclosing\par
+  \vspace{1.5em}\jaasender\par}
+
+%%jaa:header%%
+%%jaa:letter%%
+
+\begin{document}
+\makelettertitle
+%%jaa:body%%
+
+\makeletterclosing
+\end{document}

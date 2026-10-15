@@ -1,0 +1,113 @@
+% jaa CV template "jaa-compact", version 1 (ADR 0030). License: MIT (this repository).
+% Lines of the form %%jaa:<slot>%% are replaced with LaTeX generated from confirmed profile
+% facts; every other line is copied as-is. Generated text is escaped, so facts cannot inject
+% LaTeX commands. This template does not use moderncv: it defines the contract's macros itself
+% (docs/templates.md).
+%
+% Paper: change a4paper to letterpaper below for US Letter; geometry follows the class option.
+\documentclass[10pt,a4paper]{article}
+%%jaa:babel%%
+\usepackage[margin=13mm,top=12mm,bottom=12mm]{geometry}
+\usepackage{fontspec}
+\usepackage{etoolbox}
+\usepackage{needspace}
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage{titlesec}
+
+% TeX Gyre Heros Condensed (GUST Font License, part of every TeX distribution): narrow enough
+% for a dense page, with the full Polish alphabet. Loaded by file name.
+% Kerning is off: strong kerns ("Te", "To") make text extraction split words ("T est").
+\setmainfont{texgyreheroscn}[
+  Extension=.otf,
+  UprightFont=*-regular,
+  BoldFont=*-bold,
+  ItalicFont=*-italic,
+  BoldItalicFont=*-bolditalic,
+  Kerning=Off,
+]
+\definecolor{jaaaccent}{HTML}{0F6A6A}
+\definecolor{jaamuted}{HTML}{4A4A4A}
+
+% ATS-friendly output: no hyphenation (split words break keyword matching), ragged lines
+% instead of stretched spaces, one column for the body, real text everywhere.
+\hyphenpenalty=10000
+\exhyphenpenalty=10000
+\setlength{\parindent}{0pt}
+\raggedright
+\pagestyle{empty}
+
+% Section headings: capitals in the accent colour with a rule filling the line. needspace
+% keeps a heading with its first entry.
+\setcounter{secnumdepth}{0}
+\newcommand{\jaaheading}[1]{%
+  \MakeUppercase{#1}\enspace{\color{jaaaccent!30}\leaders\hrule height 0.36em depth -0.3em\hfill}}
+\titleformat{\section}[hang]{\needspace{4\baselineskip}\bfseries\color{jaaaccent}}{}{0pt}
+  {\jaaheading}
+\titlespacing*{\section}{0pt}{8pt}{4pt}
+
+% Header macros (same signatures as moderncv): they store values for \makecvtitle.
+\newcommand{\jaacontact}{}
+\newcommand{\jaaaddcontact}[1]{\appto{\jaacontact}{#1\par}}
+\newcommand{\name}[2]{\def\jaafirst{#1}\def\jaalast{#2}}
+\renewcommand{\title}[1]{\def\jaaheadline{#1}}
+\newcommand{\address}[3]{\jaaaddcontact{#1}}
+\newcommand{\mobile}[1]{\jaaaddcontact{#1}}
+\newcommand{\email}[1]{\jaaaddcontact{#1}}
+\newcommand{\extrainfo}[1]{\jaaaddcontact{#1}}
+\NewDocumentCommand{\photo}{O{64pt} O{0.4pt} m}{\def\jaaphoto{\includegraphics[width=#1]{#3}}}
+\renewcommand{\quote}[1]{\def\jaaquote{#1}}
+
+% Name and headline on the left, contact details right-aligned beside them (and the photo, if
+% any, at the right edge). The left block comes first in the PDF, so text extraction reads the
+% name before the contact details.
+\newcommand{\makecvtitle}{%
+  \begin{minipage}[t]{0.55\linewidth}\raggedright
+    {\fontsize{24pt}{27pt}\selectfont\bfseries
+     \jaafirst\ifdefempty{\jaalast}{}{\space\jaalast}\par}
+    \ifdefined\jaaheadline\vspace{3pt}{\large\color{jaaaccent}\jaaheadline\par}\fi
+  \end{minipage}%
+  \hfill
+  \begin{minipage}[t]{\dimexpr0.45\linewidth\ifdefined\jaaphoto-72pt\fi\relax}
+    \raggedleft\small\color{jaamuted}\jaacontact
+  \end{minipage}%
+  \ifdefined\jaaphoto\hspace{8pt}\raisebox{\dimexpr-\height+\ht\strutbox\relax}{\jaaphoto}\fi
+  \par
+  \ifdefined\jaaquote\vspace{6pt}{\small\jaaquote\par}\fi}
+
+% \cventry{dates}{title}{organization}{location}{}{description}: one line with the title,
+% organization and location, and the dates flush right (on the next line when they do not
+% fit). The organization comes as \textsc{...}, printed as written: TeX Gyre has no real small
+% caps, and faked ones extract as capitals with stray spaces.
+\newcommand{\cventry}[6]{%
+  \par\needspace{2\baselineskip}\addvspace{4pt}%
+  \begingroup\renewcommand{\textsc}[1]{##1}%
+  {\bfseries #2}%
+  \ifblank{#3}{}{\ifblank{#2}{}{,\space}#3}%
+  \ifblank{#4}{}{\space{\color{jaamuted}\textendash\space#4}}%
+  \ifblank{#1}{}{\unskip\nobreak\hfil\penalty50\hskip1em\hbox{}\nobreak\hfil
+    {\color{jaamuted}#1}}%
+  {\rightskip=0pt\parfillskip=0pt\par}%
+  \ifblank{#6}{}{{\small\color{jaamuted}#6}\par}%
+  \endgroup}
+\newcommand{\cvitem}[2]{\par\addvspace{1pt}\ifblank{#1}{}{\textbf{#1}: }#2\par}
+\newcommand{\cvlistitem}[1]{%
+  \par\leftskip=0.8em\hangindent=0.8em\hangafter=1
+  \makebox[0.8em][l]{\textendash}#1\par\leftskip=0pt}
+% Languages run on in one paragraph: "English C1 | Polish native".
+\newcommand{\jaalangsep}{}
+\newcommand{\cvlanguage}[3]{%
+  \ifvmode\renewcommand{\jaalangsep}{}\fi%
+  \jaalangsep\mbox{\textbf{#1}\ifblank{#2}{}{ #2}\ifblank{#3}{}{ (#3)}}%
+  \renewcommand{\jaalangsep}{\enspace|\enspace}}
+
+%%jaa:header%%
+
+\begin{document}
+\makecvtitle
+%%jaa:body%%
+\par\vfill
+\begingroup\scriptsize
+%%jaa:consent%%
+\endgroup
+\end{document}

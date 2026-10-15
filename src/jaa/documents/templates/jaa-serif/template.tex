@@ -1,0 +1,110 @@
+% jaa CV template "jaa-serif", version 1 (ADR 0030). License: MIT (this repository).
+% Lines of the form %%jaa:<slot>%% are replaced with LaTeX generated from confirmed profile
+% facts; every other line is copied as-is. Generated text is escaped, so facts cannot inject
+% LaTeX commands. This template does not use moderncv: it defines the contract's macros itself
+% (docs/templates.md).
+%
+% Paper: change a4paper to letterpaper below for US Letter; geometry follows the class option.
+\documentclass[11pt,a4paper]{article}
+%%jaa:babel%%
+\usepackage[margin=20mm]{geometry}
+\usepackage{fontspec}
+\usepackage{etoolbox}
+\usepackage{needspace}
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage{titlesec}
+
+% TeX Gyre Pagella (GUST Font License, part of every TeX distribution) has the full Polish
+% alphabet. Loaded by file name, so no system font lookup is needed. Kerning is off: strong
+% kerns ("Te", "To") make text extraction split words ("T eam").
+\setmainfont{texgyrepagella}[
+  Extension=.otf,
+  UprightFont=*-regular,
+  BoldFont=*-bold,
+  ItalicFont=*-italic,
+  BoldItalicFont=*-bolditalic,
+  Kerning=Off,
+]
+\definecolor{jaaaccent}{HTML}{6B1E1E}
+\definecolor{jaamuted}{HTML}{505050}
+
+% ATS-friendly output: no hyphenation (split words break keyword matching), ragged lines
+% instead of stretched spaces, real text everywhere. The date column is part of each line's
+% paragraph, so text extraction reads an entry's dates right before its title.
+\hyphenpenalty=10000
+\exhyphenpenalty=10000
+\setlength{\parindent}{0pt}
+\raggedright
+\pagestyle{empty}
+\newlength{\jaadatecol}
+\setlength{\jaadatecol}{30mm}
+
+% Section headings: never last on a page (needspace keeps a heading with its first entry).
+\setcounter{secnumdepth}{0}
+\titleformat{\section}{\needspace{5\baselineskip}\Large\color{jaaaccent}}{}{0pt}{}
+  [{\color{jaaaccent!50}\titlerule[0.4pt]}]
+\titlespacing*{\section}{0pt}{14pt}{6pt}
+
+% Header macros (same signatures as moderncv): they store values for \makecvtitle.
+\newcommand{\jaacontact}{}
+\newcommand{\jaaaddcontact}[1]{%
+  \ifdefempty{\jaacontact}{\appto{\jaacontact}{#1}}%
+    {\appto{\jaacontact}{\unskip\enspace\textperiodcentered\enspace\mbox{#1}}}}
+\newcommand{\name}[2]{\def\jaafirst{#1}\def\jaalast{#2}}
+\renewcommand{\title}[1]{\def\jaaheadline{#1}}
+\newcommand{\address}[3]{\jaaaddcontact{#1}}
+\newcommand{\mobile}[1]{\jaaaddcontact{#1}}
+\newcommand{\email}[1]{\jaaaddcontact{#1}}
+\newcommand{\extrainfo}[1]{\def\jaaextra{#1}}
+\NewDocumentCommand{\photo}{O{64pt} O{0.4pt} m}{\def\jaaphoto{\includegraphics[width=#1]{#3}}}
+\renewcommand{\quote}[1]{\def\jaaquote{#1}}
+
+% Centred name, headline and contact lines; the photo, if any, centred above them.
+\newcommand{\makecvtitle}{%
+  \begingroup\centering
+  \ifdefined\jaaphoto\jaaphoto\par\vspace{6pt}\fi
+  {\fontsize{24pt}{28pt}\selectfont\jaafirst\ifdefempty{\jaalast}{}{\space\jaalast}\par}
+  \ifdefined\jaaheadline\vspace{3pt}{\large\itshape\color{jaaaccent}\jaaheadline\par}\fi
+  \vspace{6pt}
+  {\small\jaacontact\par\ifdefined\jaaextra\jaaextra\par\fi}
+  \ifdefined\jaaquote
+    \vspace{8pt}\begin{minipage}{0.8\linewidth}\centering\itshape\jaaquote\end{minipage}\par
+  \fi
+  \endgroup}
+
+% Text in the left margin column: dates of an entry, a language's name.
+\newcommand{\jaamargin}[1]{%
+  \noindent\llap{\parbox[t]{\jaadatecol}{\raggedright\small\leavevmode{\color{jaamuted}#1}}}}
+
+% \cventry{dates}{title}{organization}{location}{}{description}: dates in the margin column,
+% the title in bold, then organization and location in italics, then the description. The
+% body is indented by the column's width, so long entries break across pages like any text.
+% The organization comes as \textsc{...}, printed as written: small caps extract as capitals
+% with stray spaces.
+\newcommand{\cventry}[6]{%
+  \par\needspace{3\baselineskip}\addvspace{6pt}%
+  \begingroup\leftskip=\jaadatecol\renewcommand{\textsc}[1]{##1}
+  \jaamargin{#1}{\bfseries #2}\par
+  \ifblank{#3#4}{}{{\itshape #3\ifblank{#3}{}{\ifblank{#4}{}{, }}#4}\par}%
+  \ifblank{#6}{}{#6\par}%
+  \endgroup}
+\newcommand{\cvitem}[2]{%
+  \par\addvspace{2pt}\begingroup\leftskip=\jaadatecol\jaamargin{#1}#2\par\endgroup}
+\newcommand{\cvlistitem}[1]{%
+  \par\addvspace{1pt}\begingroup\leftskip=\dimexpr\jaadatecol+1em\relax
+  \hangindent=0.8em\hangafter=1\makebox[0.8em][l]{\textbullet}#1\par\endgroup}
+\newcommand{\cvlanguage}[3]{%
+  \par\addvspace{2pt}\begingroup\leftskip=\jaadatecol
+  \jaamargin{#1}#2\ifblank{#3}{}{ (#3)}\par\endgroup}
+
+%%jaa:header%%
+
+\begin{document}
+\makecvtitle
+%%jaa:body%%
+\par\vfill
+\begingroup\footnotesize
+%%jaa:consent%%
+\endgroup
+\end{document}
