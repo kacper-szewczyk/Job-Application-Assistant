@@ -1,6 +1,6 @@
 # 0012 — CV PDF pipeline: LaTeX templates, engine and manifests
 
-- **Status:** Accepted
+- **Status:** Accepted; templates extended by ADR 0029
 - **Date:** 2026-10-14
 - **Issue:** #9
 

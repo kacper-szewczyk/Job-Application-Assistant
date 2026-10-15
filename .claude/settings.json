@@ -50,6 +50,10 @@
       "Bash(uv run jaa ui:*)",
       "Bash(jaa import linkedin-api:*)",
       "Bash(uv run jaa import linkedin-api:*)",
+      "Bash(jaa templates default:*)",
+      "Bash(uv run jaa templates default:*)",
+      "Bash(jaa templates delete:*)",
+      "Bash(uv run jaa templates delete:*)",
       "WebFetch(domain:linkedin.com)",
       "WebFetch(domain:www.linkedin.com)"
     ]

@@ -41,6 +41,11 @@ def test_shipped_templates_load() -> None:
         get_template("nope")
 
 
+_PREAMBLE = "\\documentclass{moderncv}\n%%jaa:babel%%\n%%jaa:header%%\n\\begin{document}\n"
+_END = "\\end{document}\n"
+_VALID = _PREAMBLE + "%%jaa:body%%\n%%jaa:consent%%\n" + _END
+
+
 def _template_dir(tmp_path: Path, tex: str, family: str = "moderncv") -> Path:
     folder = tmp_path / "broken"
     folder.mkdir()
@@ -54,13 +59,22 @@ def _template_dir(tmp_path: Path, tex: str, family: str = "moderncv") -> Path:
 @pytest.mark.parametrize(
     ("tex", "family", "message"),
     [
-        ("%%jaa:babel%%\n%%jaa:header%%\n%%jaa:body%%\n", "moderncv", "missing \\['consent'\\]"),
+        (_PREAMBLE + "%%jaa:body%%\n" + _END, "moderncv", "missing slot line %%jaa:consent%%"),
+        (_VALID + "%%jaa:x%%\n", "moderncv", "unknown slot line %%jaa:x%%"),
+        (_VALID, "awesome", "TemplateFamily"),
+        (_VALID, "custom", "family is moderncv"),
+        (_VALID.replace("{moderncv}", "{article}"), "custom", r"nor defines \\name"),
         (
-            "%%jaa:babel%%\n%%jaa:header%%\n%%jaa:body%%\n%%jaa:consent%%\n%%jaa:x%%\n",
+            _PREAMBLE + "%%jaa:body%%\n%%jaa:consent%%\n%%jaa:body%%\n" + _END,
             "moderncv",
-            "unknown \\['x'\\]",
+            "appears 2 times",
         ),
-        ("%%jaa:babel%%\n%%jaa:header%%\n%%jaa:body%%\n%%jaa:consent%%\n", "awesome", "family"),
+        (
+            "\\documentclass{moderncv}\n%%jaa:babel%%\n\\begin{document}\n%%jaa:header%%\n"
+            "%%jaa:body%%\n%%jaa:consent%%\n" + _END,
+            "moderncv",
+            r"header%% must come before",
+        ),
     ],
 )
 def test_template_validation(tmp_path: Path, tex: str, family: str, message: str) -> None:

@@ -114,6 +114,25 @@ class FetchRunOutcome(StrEnum):
     FAILED = "failed"
 
 
+class TemplateKind(StrEnum):
+    CV = "cv"
+    COVER_LETTER = "cover_letter"
+
+
+class TemplateFamily(StrEnum):
+    # moderncv: the template uses the moderncv class, which provides the contract's macros.
+    MODERNCV = "moderncv"
+    # custom: the template defines the contract's macros itself (ADR 0029).
+    CUSTOM = "custom"
+
+
+class TemplateOrigin(StrEnum):
+    FILE = "file"
+    FOLDER = "folder"
+    ZIP = "zip"
+    CANDIDATE = "candidate"
+
+
 class ArtifactKind(StrEnum):
     CV_PDF = "cv_pdf"
     CV_SOURCE = "cv_source"
@@ -466,6 +485,43 @@ class TemplateCandidate:
     packages: JsonArray = field(default_factory=list[JsonValue])
     content_sha256: str
     registered_at: datetime
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class UserTemplate:
+    """A CV or cover letter template the user added (ADR 0029). Immutable; changes are versions.
+
+    `template_id` always starts with `user-`, so it can never shadow a shipped template.
+    """
+
+    id: int | None = None
+    template_id: str
+    version: int
+    kind: TemplateKind
+    name: str
+    description: str = ""
+    family: TemplateFamily
+    main_file: str
+    # {POSIX path: {"text": source} | {"base64": data}}. May hold the user's own CV text.
+    files: JsonObject = field(repr=False)
+    content_sha256: str
+    origin: TemplateOrigin
+    template_candidate_id: int | None = None
+    created_at: datetime
+
+    @property
+    def version_label(self) -> str:
+        return f"{self.template_id}@{self.version}"
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class TemplateDefault:
+    """The template used when none is named; the newest row per kind wins (ADR 0029)."""
+
+    id: int | None = None
+    kind: TemplateKind
+    template_id: str
+    set_at: datetime
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

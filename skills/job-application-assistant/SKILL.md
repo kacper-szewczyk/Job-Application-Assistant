@@ -54,6 +54,7 @@ These are not defaults to trade off. Follow them even when the user asks otherwi
 | Preferences | the user | `jaa onboard`, `jaa preferences set` in their terminal |
 | Same job or different jobs | the user | `jaa jobs duplicates mark` in their terminal |
 | Delete data, restore a backup | the user | `jaa profile delete`, `jaa import delete`, `jaa jobs delete`, `jaa restore` in their terminal |
+| Default template, delete an added template | the user | `jaa templates default`, `jaa templates delete` in their terminal |
 | Review in the browser | the user | `jaa ui` in their terminal: facts, CV PDFs, answers and applications side by side |
 
 A dialog the user declines or cancels changes nothing; report that and do not retry unless the
@@ -67,7 +68,8 @@ run the equivalent command in their terminal (`jaa profile confirm`, `jaa apply 
 `jaa answers set`, `jaa answers reconfirm`, `jaa answers policy`, `jaa answers forget`,
 `jaa apply start`, `jaa apply status`, `jaa apply submitted`, `jaa jobs duplicates mark`,
 `jaa sources resume`, `jaa profile delete`, `jaa import delete`, `jaa import delete-source`,
-`jaa jobs delete`, `jaa restore`, `jaa ui`, `jaa import linkedin-api`. They record the user's own decisions, delete their data or take their LinkedIn token;
+`jaa jobs delete`, `jaa restore`, `jaa ui`, `jaa import linkedin-api`, `jaa templates default`,
+`jaa templates delete`. They record the user's own decisions, delete their data or take their LinkedIn token;
 the repository's `.claude/settings.json` denies them to Claude as a backstop. Tell the user which one to run and
 why; they can type it in their own terminal.
 
@@ -118,6 +120,15 @@ with Bash (`uv run jaa …` in the repository); they only read, or add records t
 - `jaa profile linkedin [--job JOB…]`: the same LinkedIn suggestions as
   `suggest_linkedin_updates`, as a table.
 - `jaa cv preview`, `jaa cv templates`, `jaa cv tailor show JOB`: look before building.
+- `jaa templates list`: shipped and added CV and cover letter templates, with the user's default
+  marked. `jaa templates show ID --preview` builds a preview PDF from synthetic sample data, never
+  from the profile. Builds use the user's default unless `--template ID` (or `id@version`) is
+  given, on `jaa cv build`, `jaa cv tailor build`, `jaa cv tailor letter` and `generate_cv_pdf`.
+- `jaa templates check PATH` and `jaa templates add PATH --id NAME`: check a LaTeX template the
+  user gave you (a .tex file, folder or .zip; `--candidate ID` for one kept with
+  `jaa import cv --as-template`) against the template contract in `docs/templates.md`, and add
+  it as `user-NAME`. Report every problem and warning as printed; do not edit the user's
+  template to silence a file-access problem.
 - `jaa cv tailor letter JOB [--language pl] [--opening TEXT] [--closing TEXT]`: build the cover
   letter PDF from the plan's checked paragraphs. The recipient is the job's employer unless the
   user gives `--recipient` lines; pass an opening, closing or recipient only in the user's own

@@ -49,6 +49,8 @@ EXPORT_TABLES: Final = (
     "application_answers",
     "document_artifacts",
     "template_candidates",
+    "user_templates",
+    "template_defaults",
     "source_status_events",
     "source_fetch_runs",
     "source_follows",

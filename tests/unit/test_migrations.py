@@ -32,6 +32,8 @@ EXPECTED_TABLES = {
     "application_answers",
     "document_artifacts",
     "template_candidates",
+    "user_templates",
+    "template_defaults",
     "source_status_events",
     "source_fetch_runs",
     "source_follows",
@@ -115,6 +117,10 @@ ENUM_COLUMNS: list[tuple[str, str, type[StrEnum]]] = [
     ("job_duplicates", "reason", m.DuplicateReason),
     ("job_duplicate_reviews", "verdict", m.DuplicateVerdict),
     ("cv_tailorings", "origin", m.TailoringOrigin),
+    ("user_templates", "kind", m.TemplateKind),
+    ("user_templates", "family", m.TemplateFamily),
+    ("user_templates", "origin", m.TemplateOrigin),
+    ("template_defaults", "kind", m.TemplateKind),
 ]
 
 

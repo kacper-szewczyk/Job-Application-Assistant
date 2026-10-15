@@ -1,35 +1,24 @@
-"""Rendering a `CvContent` into LaTeX source with a shipped template (ADR 0012).
+"""Rendering a `CvContent` into LaTeX source with a template (ADR 0012, ADR 0029).
 
-A template is a folder in `jaa/documents/templates/` with `template.json` (metadata) and
-`template.tex`. Lines `%%jaa:<slot>%%` in the .tex are replaced with generated LaTeX. All fact
-text goes through `escape`, so a fact can never become a LaTeX command.
+A shipped template is a folder in `jaa/documents/templates/` with `template.json` (metadata)
+and `template.tex`; uploaded templates come from `jaa.storage.templates`. Lines
+`%%jaa:<slot>%%` in the .tex are replaced with generated LaTeX. All fact text goes through
+`escape`, so a fact can never become a LaTeX command.
 """
 
 import hashlib
 import json
 import re
-from dataclasses import dataclass
-from enum import StrEnum
+from collections.abc import Mapping
+from dataclasses import dataclass, field
 from importlib import resources
 from importlib.resources.abc import Traversable
 from typing import Final, cast
 
 from jaa.core.errors import TemplateError
-from jaa.core.models import JsonValue
+from jaa.core.models import JsonValue, TemplateFamily, TemplateKind
 from jaa.documents.content import LABELS, CvContent, CvEntry, CvLanguage, format_period
-
-
-class TemplateKind(StrEnum):
-    CV = "cv"
-    COVER_LETTER = "cover_letter"
-
-
-SLOTS: Final = ("babel", "header", "body", "consent")
-# A cover letter's `letter` slot sets the recipient, date, opening and closing (ADR 0024).
-LETTER_SLOTS: Final = ("babel", "header", "letter", "body")
-_KIND_SLOTS: Final = {TemplateKind.CV: SLOTS, TemplateKind.COVER_LETTER: LETTER_SLOTS}
-_SLOT_LINE: Final = re.compile(r"^%%jaa:([a-z_]+)%%[ \t]*$", re.MULTILINE)
-_FAMILIES: Final = frozenset({"moderncv"})
+from jaa.documents.contract import SLOT_LINE, check_template
 
 _SPECIAL: Final = {
     "\\": r"\textbackslash{}",
@@ -60,13 +49,19 @@ class CvTemplate:
     id: str
     version: int
     name: str
-    family: str
+    family: TemplateFamily
     description: str
     license: str
     kind: TemplateKind = TemplateKind.CV
-    source: str
-    # sha256 of template.tex, recorded in each manifest.
+    # The main .tex file with its slot lines.
+    source: str = field(repr=False)
+    # Recorded in each manifest: sha256 of template.tex for a shipped template, of all its
+    # files for an uploaded one (ADR 0029).
     sha256: str
+    # Uploaded templates only: the other files (classes, packages, images, fonts) by POSIX
+    # path, copied next to the .tex before compiling.
+    assets: Mapping[str, bytes] = field(default_factory=dict[str, bytes], repr=False)
+    uploaded: bool = False
 
     @property
     def version_label(self) -> str:
@@ -91,7 +86,7 @@ def _load(folder: Traversable) -> CvTemplate:
             id=str(data["id"]),
             version=int(cast(int, data["version"])),
             name=str(data["name"]),
-            family=str(data["family"]),
+            family=TemplateFamily(str(data["family"])),
             description=str(data.get("description", "")),
             license=str(data["license"]),
             kind=TemplateKind(str(data.get("kind", TemplateKind.CV))),
@@ -102,17 +97,12 @@ def _load(folder: Traversable) -> CvTemplate:
         raise TemplateError(f"template {folder.name}: missing or invalid {exc}") from exc
     if template.id != folder.name:
         raise TemplateError(f"template {folder.name}: id {template.id!r} must match its folder")
-    if template.family not in _FAMILIES:
-        raise TemplateError(f"template {template.id}: unsupported family {template.family!r}")
-    slots = _KIND_SLOTS[template.kind]
-    found = _SLOT_LINE.findall(source)
-    unknown = sorted(set(found) - set(slots))
-    missing = [s for s in slots if s not in found]
-    if unknown or missing or len(found) != len(set(found)):
-        raise TemplateError(
-            f"template {template.id}: slots must appear once each; "
-            f"missing {missing}, unknown {unknown}"
-        )
+    check = check_template(
+        "template.tex", {"template.tex": source}, {}, template.kind, uploaded=False
+    )
+    if not check.ok or check.family is not template.family:
+        problems = list(check.problems) or [f"family is {check.family.value}"]
+        raise TemplateError(f"template {template.id}: " + "; ".join(problems))
     return template
 
 
@@ -129,12 +119,16 @@ DEFAULT_LETTER_TEMPLATE: Final = "moderncv-letter"
 
 
 def get_template(template_id: str, kind: TemplateKind = TemplateKind.CV) -> CvTemplate:
-    """The shipped template `template_id`, which must be a `kind` template."""
+    """The shipped template `template_id` (or `id@version`), which must be a `kind` template."""
+    template_id, _, version = template_id.partition("@")
     templates = available_templates(kind)
     if template_id not in templates:
         known = ", ".join(sorted(templates))
         raise TemplateError(f"unknown {kind.value} template {template_id!r}; available: {known}")
-    return templates[template_id]
+    template = templates[template_id]
+    if version and version != str(template.version):
+        raise TemplateError(f"{template_id} has version {template.version} only, not {version}")
+    return template
 
 
 # moderncv rendering ------------------------------------------------------------------------
@@ -300,4 +294,4 @@ def babel(language: CvLanguage) -> str:
 
 def fill_slots(template: CvTemplate, slots: dict[str, str]) -> str:
     """The template's source with each slot line replaced by generated LaTeX."""
-    return _SLOT_LINE.sub(lambda m: slots[m.group(1)], template.source)
+    return SLOT_LINE.sub(lambda m: slots[m.group(1)], template.source)

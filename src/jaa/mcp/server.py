@@ -54,7 +54,6 @@ from jaa.documents import linkedin_suggestions as linkedin_text
 from jaa.documents import tailoring as tailor
 from jaa.documents.content import CvLanguage
 from jaa.documents.engine import find_engine
-from jaa.documents.latex import DEFAULT_TEMPLATE, get_template
 from jaa.documents.pipeline import BuildOptions
 from jaa.importers.base import read_source
 from jaa.importers.cv_file import prepare_cv_import
@@ -74,6 +73,7 @@ from jaa.storage.db import open_database
 from jaa.storage.profile import active_version_id
 from jaa.storage.repository import jobs as jobs_table
 from jaa.storage.repository import profile_facts
+from jaa.storage.templates import resolve_template
 
 log = logging.getLogger(__name__)
 
@@ -904,7 +904,12 @@ def build_server(settings: Settings) -> MCPServer:
         revision: Annotated[
             int | None, Field(description="Tailoring revision; the latest when omitted.", ge=1)
         ] = None,
-        template: Annotated[str, Field(description="CV template id.")] = DEFAULT_TEMPLATE,
+        template: Annotated[
+            str | None,
+            Field(
+                description="CV template id (`jaa templates list`); the user's default if omitted."
+            ),
+        ] = None,
         language: Annotated[
             CvLanguage, Field(description="Language of headings and dates.")
         ] = CvLanguage.EN,
@@ -925,7 +930,7 @@ def build_server(settings: Settings) -> MCPServer:
         consent = None if consent_file is None else _read_text_file(consent_file, "consent_file")
         options = BuildOptions(language=language, photo=photo, consent_text=consent)
         with _database(settings, "generate_cv_pdf") as conn:
-            chosen = get_template(template)
+            chosen = resolve_template(conn, template)
             engine = find_engine()
             if job_id is None:
                 built = artifacts.build_profile_cv(

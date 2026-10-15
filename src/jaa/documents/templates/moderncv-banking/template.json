@@ -1,0 +1,9 @@
+{
+  "id": "moderncv-banking",
+  "version": 1,
+  "name": "moderncv banking (blue)",
+  "family": "moderncv",
+  "description": "Single-column CV with a centred name and contact header and full-width sections: employer first, then title and dates on the right. moderncv 'banking' style, blue, 10pt, A4, sans-serif.",
+  "requires": ["moderncv >= 2.3"],
+  "license": "Template file: MIT (this repository). It uses the moderncv class (LPPL 1.3c), which is installed with the TeX distribution and not shipped with jaa."
+}
