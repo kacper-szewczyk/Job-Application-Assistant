@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.20.0](https://github.com/kacper-szewczyk/Job-Application-Assistant/compare/jaa-v0.19.0...jaa-v0.20.0) (2026-10-15)
+
+
+### Features
+
+* **connectors:** follow company career boards and add offers by link ([#77](https://github.com/kacper-szewczyk/Job-Application-Assistant/issues/77)) ([ee74074](https://github.com/kacper-szewczyk/Job-Application-Assistant/commit/ee7407432ea3b56a9de485940705e7cbf6471663)), closes [#71](https://github.com/kacper-szewczyk/Job-Application-Assistant/issues/71)
+
 ## [0.19.0](https://github.com/kacper-szewczyk/Job-Application-Assistant/compare/jaa-v0.18.0...jaa-v0.19.0) (2026-10-15)
 
 
