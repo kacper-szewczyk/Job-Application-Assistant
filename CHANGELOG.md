@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.24.0](https://github.com/kacper-szewczyk/Job-Application-Assistant/compare/jaa-v0.23.0...jaa-v0.24.0) (2026-10-15)
+
+
+### Features
+
+* **documents:** choose, upload and manage CV templates ([#85](https://github.com/kacper-szewczyk/Job-Application-Assistant/issues/85)) ([fcf4faa](https://github.com/kacper-szewczyk/Job-Application-Assistant/commit/fcf4faa6310398155537add075e772565c47a77f)), closes [#40](https://github.com/kacper-szewczyk/Job-Application-Assistant/issues/40)
+
 ## [0.23.0](https://github.com/kacper-szewczyk/Job-Application-Assistant/compare/jaa-v0.22.0...jaa-v0.23.0) (2026-10-15)
 
 
