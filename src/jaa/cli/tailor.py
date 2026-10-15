@@ -29,17 +29,16 @@ from jaa.cli.cv import (
     report_build,
 )
 from jaa.core.errors import TailoringError
-from jaa.core.models import FactState, JsonObject, JsonValue
+from jaa.core.models import JsonObject, JsonValue
 from jaa.documents.content import CvLanguage
 from jaa.documents.engine import find_engine
 from jaa.documents.latex import DEFAULT_TEMPLATE, get_template
-from jaa.documents.pipeline import BuildOptions, build_cv
+from jaa.documents.pipeline import BuildOptions
 from jaa.documents.tailoring import Change, Check, EditKind, plan_from_json
 from jaa.storage import applications as tracker
 from jaa.storage import documents as artifacts
 from jaa.storage import tailoring as service
 from jaa.storage.profile import active_version_id
-from jaa.storage.repository import profile_facts
 
 tailor_app = typer.Typer(
     help="Tailor your CV for one job: review each change and its evidence, then build it.",
@@ -306,22 +305,7 @@ def build(
     settings = settings_from(ctx)
     consent = read_consent(consent_file) if consent_file else None
     with database(ctx) as conn:
-        evaluated = service.evaluate(conn, job_id, revision)
-        row, result = evaluated.row, evaluated.result
-        if result.blocked:
-            blocked = [
-                f"{kind} {c.number}"
-                for kind, checks in (
-                    ("edit", result.edit_checks),
-                    ("paragraph", result.paragraph_checks),
-                )
-                for c in checks
-                if c.blocked
-            ]
-            raise TailoringError(
-                f"blocked: {', '.join(blocked)}; see `jaa cv tailor show {job_id}`, then edit "
-                "or approve them"
-            )
+        row = service.get_revision(conn, job_id, revision)
         if active_version_id(conn) != row.profile_version_id:
             console.print(
                 f"[yellow]Building from profile version {row.profile_version_id}, "
@@ -329,50 +313,23 @@ def build(
             )
         chosen_template = get_template(template)
         engine = find_engine()
-        cited = {i for c in result.edit_checks for i in c.fact_ids}
-        left_out = tuple(
-            f.id
-            for f in profile_facts.list(conn, state=FactState.UNREVIEWED)
-            if f.id is not None and f.id not in cited
-        )
-        tailoring: JsonObject = {
-            "tailoring_id": row.id,
-            "revision": row.revision,
-            "method": row.method,
-            "job_match_id": row.job_match_id,
-            "changes": [c.to_json() for c in result.changes],
-            "approved": [c.number for c in result.edit_checks if c.issues and c.approved],
-        }
         console.print(
             f"Building revision {row.revision} for job #{job_id} with "
-            f"{chosen_template.version_label} and {engine.name} "
-            f"({len(result.changes)} change(s))…"
+            f"{chosen_template.version_label} and {engine.name}…"
         )
-        out = build_cv(
-            result.content,
+        built = artifacts.build_tailored_cv(
+            conn,
+            job_id,
+            revision=row.revision,
             template=chosen_template,
             engine=engine,
             output_dir=output or settings.documents_dir,
             options=BuildOptions(language=language, photo=photo, consent_text=consent),
-            profile_version_id=row.profile_version_id,
-            excluded_fact_ids=left_out,
-            job_id=job_id,
-            tailoring=tailoring,
         )
-        pdf, _ = artifacts.record_cv(
-            conn,
-            pdf_path=str(out.pdf),
-            pdf_sha256=out.pdf_sha256,
-            tex_path=str(out.tex),
-            tex_sha256=out.tex_sha256,
-            template_version=chosen_template.version_label,
-            profile_version_id=row.profile_version_id,
-            manifest=out.manifest,
-            job_id=job_id,
-        )
-    report_build(out, pdf.id)
+    console.print(f"{built.changes} change(s) applied.")
+    report_build(built.output, built.pdf.id)
     if open_pdf:
-        typer.launch(str(out.pdf))
+        typer.launch(str(built.output.pdf))
 
 
 @tailor_app.command("list")

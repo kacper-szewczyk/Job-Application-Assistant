@@ -20,13 +20,12 @@ from jaa.cli.common import console, err_console, open_existing, settings_from
 from jaa.core.clock import utcnow
 from jaa.core.errors import ImportSourceError, JaaError
 from jaa.core.models import FactCandidate, ImportRun, ImportStatus, JsonValue, RetentionChoice
-from jaa.core.review import find_conflicts
 from jaa.importers.base import read_source
 from jaa.importers.cv_file import prepare_cv_import
 from jaa.importers.linkedin import INSTRUCTIONS, delete_sources, prepare_linkedin_import
 from jaa.importers.text import prepare_text_import
-from jaa.storage.profile import ImportResult, add_imported_facts
-from jaa.storage.repository import import_runs, profile_facts
+from jaa.storage.profile import ImportResult, store_import
+from jaa.storage.repository import import_runs
 from jaa.storage.templates import list_template_candidates, register_template_candidate
 
 import_app = typer.Typer(
@@ -127,11 +126,8 @@ def _store(
     conn: sqlite3.Connection, run: ImportRun, candidates: Sequence[FactCandidate]
 ) -> tuple[ImportResult, list[ImportRun], int]:
     """Store the run and facts; return the result, earlier runs of the source and conflicts."""
-    earlier = import_runs.list(conn, source_sha256=run.source_sha256) if run.source_sha256 else []
-    result = add_imported_facts(conn, run, candidates)
-    added_keys = {f.field_key for f in result.added}
-    conflicts = [c for c in find_conflicts(profile_facts.list(conn)) if c.field_key in added_keys]
-    return result, earlier, len(conflicts)
+    stored = store_import(conn, run, candidates)
+    return stored.result, list(stored.earlier), len(stored.conflicts)
 
 
 def _report(
