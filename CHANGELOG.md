@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.22.0](https://github.com/kacper-szewczyk/Job-Application-Assistant/compare/jaa-v0.21.0...jaa-v0.22.0) (2026-10-15)
+
+
+### Features
+
+* **profile:** suggest LinkedIn profile updates from confirmed facts ([#81](https://github.com/kacper-szewczyk/Job-Application-Assistant/issues/81)) ([8276fb1](https://github.com/kacper-szewczyk/Job-Application-Assistant/commit/8276fb106a9317bcef0f2666abd00eb59f4cffed)), closes [#73](https://github.com/kacper-szewczyk/Job-Application-Assistant/issues/73)
+
 ## [0.21.0](https://github.com/kacper-szewczyk/Job-Application-Assistant/compare/jaa-v0.20.0...jaa-v0.21.0) (2026-10-15)
 
 
