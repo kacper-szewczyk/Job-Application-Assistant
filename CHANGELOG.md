@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.18.0](https://github.com/kacper-szewczyk/Job-Application-Assistant/compare/jaa-v0.17.0...jaa-v0.18.0) (2026-10-15)
+
+
+### Features
+
+* **jobs:** add jobs by hand from pasted text ([#68](https://github.com/kacper-szewczyk/Job-Application-Assistant/issues/68)) ([41c44a4](https://github.com/kacper-szewczyk/Job-Application-Assistant/commit/41c44a4b7a71be3a2972f22a65212e77fd0c0d86)), closes [#46](https://github.com/kacper-szewczyk/Job-Application-Assistant/issues/46)
+
 ## [0.17.0](https://github.com/kacper-szewczyk/Job-Application-Assistant/compare/jaa-v0.16.0...jaa-v0.17.0) (2026-10-15)
 
 
