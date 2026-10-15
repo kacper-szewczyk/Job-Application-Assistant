@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.14.0](https://github.com/kacper-szewczyk/Job-Application-Assistant/compare/jaa-v0.13.0...jaa-v0.14.0) (2026-10-15)
+
+
+### Features
+
+* **mcp:** expose core operations to Claude Code through an MCP server ([#60](https://github.com/kacper-szewczyk/Job-Application-Assistant/issues/60)) ([49de689](https://github.com/kacper-szewczyk/Job-Application-Assistant/commit/49de689c59054443580183d07b68cf3d7c101e7d)), closes [#17](https://github.com/kacper-szewczyk/Job-Application-Assistant/issues/17)
+
 ## [0.13.0](https://github.com/kacper-szewczyk/Job-Application-Assistant/compare/jaa-v0.12.0...jaa-v0.13.0) (2026-10-15)
 
 
