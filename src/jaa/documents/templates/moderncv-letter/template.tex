@@ -1,0 +1,29 @@
+% jaa cover letter template "moderncv-letter", version 1 (ADR 0024).
+% Lines of the form %%jaa:<slot>%% are replaced with generated LaTeX: the sender comes from
+% confirmed profile facts, the recipient from the job or the user, and the paragraphs from the
+% checked tailoring plan. Generated text is escaped, so it cannot inject LaTeX commands.
+\documentclass[11pt,a4paper,sans]{moderncv}
+\moderncvstyle{classic}
+\moderncvcolor{blue}
+%%jaa:babel%%
+\usepackage[scale=0.75]{geometry}
+
+% Same ATS-friendly choices as moderncv-classic: no hyphenation, no icon glyphs.
+\hyphenpenalty=10000
+\exhyphenpenalty=10000
+\renewcommand*{\mobilephonesymbol}{}
+\renewcommand*{\fixedphonesymbol}{}
+\renewcommand*{\faxphonesymbol}{}
+\renewcommand*{\emailsymbol}{}
+\renewcommand*{\homepagesymbol}{}
+\setlength{\parskip}{0.8em}
+
+%%jaa:header%%
+%%jaa:letter%%
+
+\begin{document}
+\makelettertitle
+%%jaa:body%%
+
+\makeletterclosing
+\end{document}

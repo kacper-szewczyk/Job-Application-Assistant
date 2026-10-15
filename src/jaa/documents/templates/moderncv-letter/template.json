@@ -1,0 +1,10 @@
+{
+  "id": "moderncv-letter",
+  "version": 1,
+  "kind": "cover_letter",
+  "name": "moderncv classic letter (blue)",
+  "family": "moderncv",
+  "description": "Cover letter matching moderncv-classic: sender's name and contact details, recipient, date, the letter's paragraphs and the sender's name. moderncv 'classic' style, blue, 11pt, A4, sans-serif.",
+  "requires": ["moderncv >= 2.3"],
+  "license": "Template file: MIT (this repository). It uses the moderncv class (LPPL 1.3c), which is installed with the TeX distribution and not shipped with jaa."
+}

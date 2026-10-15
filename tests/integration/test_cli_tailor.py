@@ -10,10 +10,11 @@ from typer.testing import CliRunner
 from jaa.cli import app
 from jaa.connectors.base import JobListing
 from jaa.core.job_details import JobDetails, ListedSkill
-from jaa.core.models import JsonValue
+from jaa.core.models import ArtifactKind, FactState, JsonValue
 from jaa.documents.engine import Engine
 from jaa.storage import documents, listings
 from jaa.storage.db import open_database
+from jaa.storage.repository import document_artifacts, profile_facts
 from tests.fixtures.cv_profile import store_profile
 
 runner = CliRunner()
@@ -139,3 +140,76 @@ def test_build_links_pdf_to_job_and_records_changes(
     assert cv.manifest["job_id"] == 1
     listed = _run(env, "cv", "list")
     assert " 1 " in listed
+
+
+PARAGRAPH = "I led the migration of widget pipelines to event streaming at Example Co."
+
+
+def _with_letter(env: dict[str, str], tmp_path: Path, *paragraphs: dict[str, JsonValue]) -> None:
+    plan_file = tmp_path / "letter-plan.json"
+    plan_file.write_text(
+        json.dumps({"edits": [], "cover_letter": list(paragraphs)}), encoding="utf-8"
+    )
+    _run(env, "cv", "tailor", "edit", "1", "-f", str(plan_file))
+
+
+def _fact_ids(env: dict[str, str], *keys: str) -> list[int]:
+    conn = open_database(Path(env["JAA_DATA_DIR"]) / "jaa.sqlite3")
+    try:
+        facts = profile_facts.list(conn, state=FactState.CONFIRMED)
+    finally:
+        conn.close()
+    return sorted(f.id for f in facts if f.field_key in keys and f.id is not None)
+
+
+def test_letter_needs_unblocked_paragraphs(env: dict[str, str], tmp_path: Path) -> None:
+    _run(env, "cv", "tailor", "propose", "1")
+    out = _run(env, "cv", "tailor", "letter", "1", code=1)
+    assert "no cover letter paragraphs" in out
+    _with_letter(env, tmp_path, {"text": "I ran Kubernetes at Example Co.", "fact_ids": []})
+    out = _run(env, "cv", "tailor", "letter", "1", code=1)
+    assert "blocked: paragraph 1" in out
+    out = _run(env, "cv", "tailor", "letter", "1", "--template", "moderncv-classic", code=1)
+    assert "unknown cover_letter template" in out
+
+
+@pytest.mark.latex
+def test_letter_builds_and_links_pdf_to_job(
+    env: dict[str, str], latex_engine: Engine, tmp_path: Path
+) -> None:
+    cited = _fact_ids(env, "experience.example-co.employer", "experience.example-co.description")
+    _with_letter(env, tmp_path, {"text": PARAGRAPH, "fact_ids": cast(list[JsonValue], cited)})
+    assert "jaa cv tailor letter 1" in _run(env, "cv", "tailor", "show", "1")
+    out = _run(
+        env,
+        "cv",
+        "tailor",
+        "letter",
+        "1",
+        "--closing",
+        "Kind regards,",
+        "--output",
+        str(tmp_path / "letters"),
+    )
+    assert "Cover letter written:" in out
+    assert "Not found in the PDF" not in out
+    conn = open_database(Path(env["JAA_DATA_DIR"]) / "jaa.sqlite3")
+    try:
+        [pdf] = document_artifacts.list(conn, kind=ArtifactKind.COVER_LETTER_PDF)
+        [tex] = document_artifacts.list(conn, kind=ArtifactKind.COVER_LETTER_SOURCE)
+        assert documents.list_cvs(conn) == []
+    finally:
+        conn.close()
+    assert pdf.job_id == tex.job_id == 1
+    assert pdf.template_version == "moderncv-letter@1"
+    assert Path(pdf.path).name.startswith("cover-letter-") and "-job1-" in pdf.path
+    manifest = pdf.manifest
+    assert manifest["kind"] == "cover_letter"
+    assert manifest["closing"] is True and manifest["opening"] is False
+    assert set(cited) <= set(cast(list[int], manifest["fact_ids"]))
+    letter = cast(dict[str, JsonValue], manifest["tailoring"])
+    assert letter["recipient_from"] == "job"
+    assert letter["paragraphs"] == [{"number": 1, "fact_ids": cited, "approved": False}]
+    assert cast(dict[str, int], manifest["text_check"])["missing"] == 0
+    listed = _run(env, "cv", "list")
+    assert "cover letter" in listed

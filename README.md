@@ -146,10 +146,13 @@ uv run jaa cv tailor edit <job>          # hide, move, emphasize, reword; cover 
 uv run jaa cv tailor edit <job> -f plan.json   # …or save a plan file (`show --json` prints one)
 uv run jaa cv tailor approve <job> --edit 3    # approve an edit whose wording facts do not back
 uv run jaa cv tailor build <job>         # the tailored PDF, linked to the job and profile version
+uv run jaa cv tailor letter <job> --closing "Kind regards,"   # the cover letter PDF from its paragraphs
 uv run jaa cv tailor list <job>          # revisions
 ```
 
 Tailoring can only hide, reorder, emphasize (bold) and reword what your CV already says. Names, employers, titles, schools and dates cannot be edited. Every edit is linked to the confirmed facts behind it. A rewording, or a cover letter paragraph, is blocked when it adds numbers, names, technologies or job keywords that its target and cited facts do not contain; you can approve a blocked edit explicitly, and the approval is lost when the edit changes. Each change is a new revision checked against one profile version, and a build records the job, the profile version and the list of changes in its manifest. See [ADR 0016](docs/decisions/0016-tailored-cvs.md).
+
+`jaa cv tailor letter` sets the plan's cover letter paragraphs as a letter (`moderncv-letter`, matching the CV), in English or Polish (`--language pl`). It builds only when every paragraph is backed or approved. The sender comes from your confirmed name and contact details, and the recipient is the job's employer and location unless you give `--recipient` lines. jaa adds no greeting or closing of its own: pass `--opening` and `--closing` in your own words, or leave them out. The PDF is linked to the job and profile version, and its manifest lists each paragraph's facts. See [ADR 0024](docs/decisions/0024-cover-letters.md).
 
 ### Application questions and saved answers
 

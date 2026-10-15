@@ -1,4 +1,4 @@
-"""Building a CV PDF: render, compile in a private build directory, verify, and describe it.
+"""Building CV and cover letter PDFs: render, compile privately, verify, and describe them.
 
 Returns data (paths, hashes, manifest, warnings); the CLI records `DocumentArtifact`s. Output
 files hold the CV, so they are created owner-only. Logging records counts and ids only.
@@ -25,7 +25,8 @@ from jaa.core.errors import DocumentError
 from jaa.core.models import JsonObject, JsonValue
 from jaa.documents.content import CvContent, CvLanguage, format_period
 from jaa.documents.engine import CompileResult, Engine, compile_tex
-from jaa.documents.latex import CvTemplate, render
+from jaa.documents.latex import CvTemplate, TemplateKind, render
+from jaa.documents.letter import LetterContent, expected_letter_text, render_letter
 
 log = logging.getLogger(__name__)
 
@@ -130,7 +131,96 @@ def missing_from(text: str, expected: list[str]) -> list[str]:
 
 def _stem(template: CvTemplate, language: CvLanguage, at: datetime, job_id: int | None) -> str:
     job = f"-job{job_id}" if job_id is not None else ""
-    return f"cv-{at:%Y%m%d-%H%M%S}{job}-{template.id}-{language.value}"
+    prefix = "cover-letter" if template.kind is TemplateKind.COVER_LETTER else "cv"
+    return f"{prefix}-{at:%Y%m%d-%H%M%S}{job}-{template.id}-{language.value}"
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class _Compiled:
+    pdf: Path
+    tex: Path
+    pdf_sha256: str
+    tex_sha256: str
+    result: CompileResult
+
+
+def _compile_into(
+    source: str,
+    *,
+    stem: str,
+    engine: Engine,
+    output_dir: Path,
+    compiler: Compiler,
+    extra_files: dict[str, Path] | None = None,
+) -> _Compiled:
+    """Compile `source` in a private build folder; write `<stem>.pdf` and `<stem>.tex`."""
+    if (output_dir / f"{stem}.pdf").exists():
+        raise DocumentError(f"{output_dir / stem}.pdf already exists; try again in a second")
+    tex_bytes = source.encode()
+    build_dir = Path(tempfile.mkdtemp(prefix=".build-", dir=output_dir))
+    try:
+        tex = build_dir / "document.tex"
+        _write_private(tex, tex_bytes)
+        for name, path in (extra_files or {}).items():
+            shutil.copyfile(path, build_dir / name)
+        try:
+            result = compiler(engine, tex)
+        except DocumentError:
+            log_file = tex.with_suffix(".log")
+            if log_file.is_file():
+                # Kept for the user to inspect; it quotes the document, so it stays owner-only.
+                kept = output_dir / f"{stem}.log"
+                shutil.copyfile(log_file, kept)
+                kept.chmod(FILE_MODE)
+            raise
+        pdf_bytes = result.pdf.read_bytes()
+        pdf_out = output_dir / f"{stem}.pdf"
+        tex_out = output_dir / f"{stem}.tex"
+        _write_private(pdf_out, pdf_bytes)
+        _write_private(tex_out, tex_bytes)
+    finally:
+        shutil.rmtree(build_dir, ignore_errors=True)
+    return _Compiled(
+        pdf=pdf_out,
+        tex=tex_out,
+        pdf_sha256=_sha256(pdf_bytes),
+        tex_sha256=_sha256(tex_bytes),
+        result=result,
+    )
+
+
+def _manifest(
+    kind: str,
+    at: datetime,
+    template: CvTemplate,
+    engine: Engine,
+    language: CvLanguage,
+    compiled: _Compiled,
+    pages: int,
+    checked: tuple[int, int],
+) -> JsonObject:
+    """The manifest fields every built document shares."""
+    expected, missing = checked
+    return {
+        "kind": kind,
+        "generated_at": at.isoformat(),
+        "template": {
+            "id": template.id,
+            "version": template.version,
+            "sha256": template.sha256,
+        },
+        "engine": {"name": engine.name, "version": engine.version},
+        "language": language.value,
+        "source": {"path": str(compiled.tex), "sha256": compiled.tex_sha256},
+        "pdf": {"path": str(compiled.pdf), "sha256": compiled.pdf_sha256, "pages": pages},
+        "text_check": {"expected": expected, "missing": missing},
+    }
+
+
+def _prepare(output_dir: Path) -> Path:
+    output_dir = output_dir.expanduser().resolve()
+    output_dir.mkdir(parents=True, exist_ok=True, mode=DIR_MODE)
+    return output_dir
 
 
 def build_cv(
@@ -153,14 +243,11 @@ def build_cv(
     revision and changes (ADR 0016), which go into the manifest too. Raises `DocumentError`
     (or a subclass) on any failure.
     """
-    output_dir = output_dir.expanduser().resolve()
-    output_dir.mkdir(parents=True, exist_ok=True, mode=DIR_MODE)
+    if template.kind is not TemplateKind.CV:
+        raise DocumentError(f"{template.version_label} is not a CV template")
+    output_dir = _prepare(output_dir)
     photo = _photo(options.photo) if options.photo else None
     at = utcnow()
-    stem = _stem(template, options.language, at, job_id)
-    if (output_dir / f"{stem}.pdf").exists():
-        raise DocumentError(f"{output_dir / stem}.pdf already exists; try again in a second")
-
     photo_name = f"photo{photo[1]}" if photo else None
     source = render(
         template,
@@ -169,56 +256,30 @@ def build_cv(
         consent_text=options.consent_text,
         photo_file=photo_name,
     )
-    tex_bytes = source.encode()
-    build_dir = Path(tempfile.mkdtemp(prefix=".build-", dir=output_dir))
-    try:
-        tex = build_dir / "cv.tex"
-        _write_private(tex, tex_bytes)
-        if photo and photo_name:
-            shutil.copyfile(photo[0], build_dir / photo_name)
-        try:
-            result = compiler(engine, tex)
-        except DocumentError:
-            log_file = tex.with_suffix(".log")
-            if log_file.is_file():
-                # Kept for the user to inspect; it quotes the CV, so it stays owner-only.
-                kept = output_dir / f"{stem}.log"
-                shutil.copyfile(log_file, kept)
-                kept.chmod(FILE_MODE)
-            raise
-        pdf_bytes = result.pdf.read_bytes()
-        pdf_out = output_dir / f"{stem}.pdf"
-        tex_out = output_dir / f"{stem}.tex"
-        _write_private(pdf_out, pdf_bytes)
-        _write_private(tex_out, tex_bytes)
-    finally:
-        shutil.rmtree(build_dir, ignore_errors=True)
+    compiled = _compile_into(
+        source,
+        stem=_stem(template, options.language, at, job_id),
+        engine=engine,
+        output_dir=output_dir,
+        compiler=compiler,
+        extra_files={photo_name: photo[0]} if photo and photo_name else None,
+    )
 
-    text, pages = extract_text(pdf_out)
+    text, pages = extract_text(compiled.pdf)
     expected = expected_text(content, options.language)
     missing = missing_from(text, expected)
-    warnings = [p.describe() for p in result.warnings]
+    warnings = [p.describe() for p in compiled.result.warnings]
     if pages > PAGE_WARNING:
         warnings.append(f"the CV is {pages} pages long; recruiters usually expect 1-2")
-    pdf_sha, tex_sha = _sha256(pdf_bytes), _sha256(tex_bytes)
-    manifest: JsonObject = {
-        "kind": "cv",
-        "generated_at": at.isoformat(),
-        "template": {
-            "id": template.id,
-            "version": template.version,
-            "sha256": template.sha256,
-        },
-        "engine": {"name": engine.name, "version": engine.version},
-        "language": options.language.value,
+    manifest = _manifest(
+        "cv", at, template, engine, options.language, compiled, pages, (len(expected), len(missing))
+    )
+    manifest |= {
         "profile_version_id": profile_version_id,
         "fact_ids": list[JsonValue](content.fact_ids),
         "excluded_unreviewed_fact_ids": list[JsonValue](excluded_fact_ids),
         "photo": photo is not None,
         "consent_clause": bool(options.consent_text),
-        "source": {"path": str(tex_out), "sha256": tex_sha},
-        "pdf": {"path": str(pdf_out), "sha256": pdf_sha, "pages": pages},
-        "text_check": {"expected": len(expected), "missing": len(missing)},
     }
     if job_id is not None:
         manifest["job_id"] = job_id
@@ -232,10 +293,85 @@ def build_cv(
         len(missing),
     )
     return BuildOutput(
-        pdf=pdf_out,
-        tex=tex_out,
-        pdf_sha256=pdf_sha,
-        tex_sha256=tex_sha,
+        pdf=compiled.pdf,
+        tex=compiled.tex,
+        pdf_sha256=compiled.pdf_sha256,
+        tex_sha256=compiled.tex_sha256,
+        pages=pages,
+        manifest=manifest,
+        warnings=tuple(warnings),
+        missing_text=tuple(missing),
+    )
+
+
+def build_cover_letter(
+    letter: LetterContent,
+    *,
+    template: CvTemplate,
+    engine: Engine,
+    output_dir: Path,
+    language: CvLanguage,
+    profile_version_id: int,
+    job_id: int,
+    fact_ids: tuple[int, ...],
+    tailoring: JsonObject,
+    compiler: Compiler = compile_tex,
+) -> BuildOutput:
+    """Render, compile and verify a cover letter for a job (ADR 0024).
+
+    `fact_ids` are the sender's facts plus the facts the paragraphs cite; `tailoring` holds the
+    revision and each paragraph's facts for the manifest. Raises `DocumentError` on failure.
+    """
+    if template.kind is not TemplateKind.COVER_LETTER:
+        raise DocumentError(f"{template.version_label} is not a cover letter template")
+    output_dir = _prepare(output_dir)
+    at = utcnow()
+    source = render_letter(template, letter, language)
+    compiled = _compile_into(
+        source,
+        stem=_stem(template, language, at, job_id),
+        engine=engine,
+        output_dir=output_dir,
+        compiler=compiler,
+    )
+    text, pages = extract_text(compiled.pdf)
+    expected = expected_letter_text(letter, language)
+    missing = missing_from(text, expected)
+    warnings = [p.describe() for p in compiled.result.warnings]
+    if pages > 1:
+        warnings.append(f"the cover letter is {pages} pages long; one page is usual")
+    manifest = _manifest(
+        "cover_letter",
+        at,
+        template,
+        engine,
+        language,
+        compiled,
+        pages,
+        (len(expected), len(missing)),
+    )
+    manifest |= {
+        "profile_version_id": profile_version_id,
+        "job_id": job_id,
+        "fact_ids": list[JsonValue](fact_ids),
+        "letter_date": letter.date.isoformat(),
+        "opening": bool(letter.opening),
+        "closing": bool(letter.closing),
+        "tailoring": tailoring,
+    }
+    log.info(
+        "built cover letter template=%s job=%s paragraphs=%s pages=%s missing_text=%s",
+        template.version_label,
+        job_id,
+        len(letter.paragraphs),
+        pages,
+        len(missing),
+    )
+    return BuildOutput(
+        pdf=compiled.pdf,
+        tex=compiled.tex,
+        pdf_sha256=compiled.pdf_sha256,
+        tex_sha256=compiled.tex_sha256,
         pages=pages,
         manifest=manifest,
         warnings=tuple(warnings),

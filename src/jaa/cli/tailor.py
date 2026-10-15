@@ -32,7 +32,12 @@ from jaa.core.errors import TailoringError
 from jaa.core.models import JsonObject, JsonValue
 from jaa.documents.content import CvLanguage
 from jaa.documents.engine import find_engine
-from jaa.documents.latex import DEFAULT_TEMPLATE, get_template
+from jaa.documents.latex import (
+    DEFAULT_LETTER_TEMPLATE,
+    DEFAULT_TEMPLATE,
+    TemplateKind,
+    get_template,
+)
 from jaa.documents.pipeline import BuildOptions
 from jaa.documents.tailoring import Change, Check, EditKind, plan_from_json
 from jaa.storage import applications as tracker
@@ -134,6 +139,8 @@ def _show(evaluated: service.Evaluated, active_version: int | None, *, full: boo
         )
     else:
         console.print(f"Build it with `jaa cv tailor build {job.id}`.")
+        if plan.cover_letter:
+            console.print(f"Build the cover letter with `jaa cv tailor letter {job.id}`.")
 
 
 @tailor_app.command()
@@ -328,6 +335,71 @@ def build(
         )
     console.print(f"{built.changes} change(s) applied.")
     report_build(built.output, built.pdf.id)
+    if open_pdf:
+        typer.launch(str(built.output.pdf))
+
+
+@tailor_app.command()
+def letter(
+    ctx: typer.Context,
+    job_id: JobArg,
+    revision: RevisionOpt = None,
+    template: Annotated[
+        str,
+        typer.Option("--template", "-t", help="Cover letter template id, see `jaa cv templates`."),
+    ] = DEFAULT_LETTER_TEMPLATE,
+    language: LanguageOption = CvLanguage.EN,
+    recipient: Annotated[
+        list[str] | None,
+        typer.Option(
+            "--recipient",
+            help="A recipient line, repeated for each line: name first, then the address "
+            "(default: the job's employer and location).",
+        ),
+    ] = None,
+    opening: Annotated[
+        str | None,
+        typer.Option("--opening", help='Your greeting, e.g. "Dear Hiring Team," (default: none).'),
+    ] = None,
+    closing: Annotated[
+        str | None,
+        typer.Option("--closing", help='Your closing, e.g. "Kind regards," (default: none).'),
+    ] = None,
+    output: Annotated[
+        Path | None,
+        typer.Option("--output", "-o", help="Folder for the PDF (default: data dir/documents)."),
+    ] = None,
+    open_pdf: Annotated[bool, typer.Option("--open", help="Open the PDF when done.")] = False,
+) -> None:
+    """Build the cover letter PDF for a job from the plan's checked paragraphs."""
+    settings = settings_from(ctx)
+    with database(ctx) as conn:
+        row = service.get_revision(conn, job_id, revision)
+        if active_version_id(conn) != row.profile_version_id:
+            console.print(
+                f"[yellow]Building from profile version {row.profile_version_id}, "
+                "not your current profile.[/yellow]"
+            )
+        chosen_template = get_template(template, TemplateKind.COVER_LETTER)
+        engine = find_engine()
+        console.print(
+            f"Building the cover letter of revision {row.revision} for job #{job_id} with "
+            f"{chosen_template.version_label} and {engine.name}…"
+        )
+        built = artifacts.build_cover_letter(
+            conn,
+            job_id,
+            revision=row.revision,
+            template=chosen_template,
+            engine=engine,
+            output_dir=output or settings.documents_dir,
+            language=language,
+            recipient=tuple(recipient or ()),
+            opening=opening,
+            closing=closing,
+        )
+    console.print(f"{built.paragraphs} paragraph(s).")
+    report_build(built.output, built.pdf.id, "Cover letter")
     if open_pdf:
         typer.launch(str(built.output.pdf))
 

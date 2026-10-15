@@ -37,7 +37,7 @@ def test_shipped_templates_load() -> None:
     template = templates[DEFAULT_TEMPLATE]
     assert template.version_label == "moderncv-classic@1"
     assert len(template.sha256) == 64
-    with pytest.raises(TemplateError, match="unknown template"):
+    with pytest.raises(TemplateError, match="unknown cv template"):
         get_template("nope")
 
 

@@ -107,6 +107,10 @@ with Bash (`uv run jaa …` in the repository); they only read, or add records t
 - `jaa apply handoff JOB`: the link, documents and answers to take to the employer's page.
 - `jaa apply show JOB`: an application's history, documents and answers used.
 - `jaa cv preview`, `jaa cv templates`, `jaa cv tailor show JOB`: look before building.
+- `jaa cv tailor letter JOB [--language pl] [--opening TEXT] [--closing TEXT]`: build the cover
+  letter PDF from the plan's checked paragraphs. The recipient is the job's employer unless the
+  user gives `--recipient` lines; pass an opening, closing or recipient only in the user's own
+  words.
 
 ## Workflows
 
@@ -168,6 +172,9 @@ not fill in a missing company, location or requirement, and do not open or fetch
 5. When nothing is blocked, `generate_cv_pdf` with `job_id` (and `language`, e.g. `pl` for a
    Polish employer, if the user wants it). Report `pdf_path`, `pages`, `changes_applied`, and
    any `layout_warnings` or `text_missing_from_pdf`, and ask the user to look at the PDF.
+6. If the plan has cover letter paragraphs and none is blocked, offer the cover letter: ask the
+   user how to open and close it (or to leave both out) and who it is addressed to, then run
+   `jaa cv tailor letter JOB` with their words. Never make up a recipient's name or a greeting.
 
 ### 4. Answers: application questions
 
