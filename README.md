@@ -176,6 +176,25 @@ uv run jaa apply show <job>              # status history, submission, documents
 
 jaa never submits an application. `handoff` shows everything to take to the employer's page and can open it in your browser; you fill in the form and submit it. Only `jaa apply submitted`, which asks you every time, marks an application submitted. It stores the time, the link, the documents and the saved answer versions used, and that record cannot be edited afterwards. Starting or submitting is refused while another prepared or submitted job has the same link or the same employer and role, until you mark the pair as different jobs or pass `--allow-duplicate`. See [ADR 0018](docs/decisions/0018-application-tracker.md).
 
+### Using jaa from Claude Code (MCP)
+
+jaa ships an MCP server, so Claude Code can call it with typed tools. Inside this repository the server is already registered in [`.mcp.json`](.mcp.json); Claude Code asks you to approve it the first time. Elsewhere, register it yourself:
+
+```bash
+claude mcp add --scope user jaa -- uv run --project /path/to/Job-Application-Assistant jaa mcp serve
+```
+
+| Tool | Effect |
+|---|---|
+| `review_facts`, `search_jobs`, `get_job`, `get_tailored_cv`, `list_applications` | Read only. |
+| `import_profile` | Adds **unreviewed** facts from a CV, LinkedIn archive or pasted text. |
+| `draft_tailored_cv` | Adds a tailoring revision; unbacked wording is blocked by the checks. |
+| `generate_cv_pdf` | Builds a CV PDF from confirmed facts into the data directory. |
+| `decide_facts` | Confirms, rejects or corrects facts: **asks you in a dialog first**. |
+| `update_application_status` | Starts an application or changes its status, including recording your submission: **asks you in a dialog first**. |
+
+The two confirmation dialogs are answered by you, not by Claude. A client that cannot show them gets an error, and nothing changes. Blocked tailoring edits can only be approved in the terminal (`jaa cv tailor approve`). Sensitive fact values are not returned to Claude. See [ADR 0019](docs/decisions/0019-mcp-server.md).
+
 ### Configuration
 
 | Variable | Default | Purpose |

@@ -27,7 +27,7 @@ from jaa.core.models import (
     ProfileFactEvent,
     ProfileVersion,
 )
-from jaa.core.review import check_transition, same_value, value_key
+from jaa.core.review import check_transition, find_conflicts, same_value, value_key
 from jaa.core.sensitivity import is_sensitive_key
 from jaa.storage.repository import (
     import_runs,
@@ -119,6 +119,26 @@ def add_imported_facts(
         duplicates,
     )
     return ImportResult(stored_run, tuple(added), duplicates)
+
+
+@dataclass(frozen=True, slots=True)
+class StoredImport:
+    result: ImportResult
+    # Earlier runs of the same source file, whose known values were skipped.
+    earlier: tuple[ImportRun, ...]
+    # Field keys of the added facts that now have competing values.
+    conflicts: tuple[str, ...]
+
+
+def store_import(
+    conn: sqlite3.Connection, run: ImportRun, candidates: Sequence[FactCandidate]
+) -> StoredImport:
+    """Store an importer's run and candidates, and report earlier runs and new conflicts."""
+    earlier = import_runs.list(conn, source_sha256=run.source_sha256) if run.source_sha256 else []
+    result = add_imported_facts(conn, run, candidates)
+    added_keys = {f.field_key for f in result.added}
+    conflicts = [c.field_key for c in find_conflicts(profile_facts.list(conn))]
+    return StoredImport(result, tuple(earlier), tuple(k for k in conflicts if k in added_keys))
 
 
 def _confirmed_for_key(conn: sqlite3.Connection, field_key: str) -> ProfileFact | None:

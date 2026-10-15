@@ -22,7 +22,7 @@ from jaa.core.models import FactState, ProfileFact
 from jaa.documents.content import CvContent, CvLanguage, build_content, format_period
 from jaa.documents.engine import find_engine
 from jaa.documents.latex import DEFAULT_TEMPLATE, available_templates, get_template
-from jaa.documents.pipeline import BuildOptions, BuildOutput, build_cv
+from jaa.documents.pipeline import BuildOptions, BuildOutput
 from jaa.storage import documents as artifacts
 from jaa.storage import profile as service
 from jaa.storage.repository import profile_facts
@@ -220,46 +220,28 @@ def build(
     with database(ctx) as conn:
         chosen_template = get_template(template)
         engine = find_engine()
-        if confirmed_only:
-            left_out = profile_facts.list(conn, state=FactState.UNREVIEWED)
-        else:
-            left_out = _review_unreviewed(conn)
-        version, facts = _confirmed(conn)
-        if not facts:
+        if not confirmed_only:
+            _review_unreviewed(conn)
+        if not _confirmed(conn)[1]:
             err_console.print(
                 "No confirmed facts yet. Import a CV and confirm facts with `jaa profile`."
             )
             raise typer.Exit(code=1)
-        result = build_content(facts)
-        console.print(
-            f"Building with {chosen_template.version_label} and {engine.name} "
-            f"({len(result.content.fact_ids)} facts, profile version {version})…"
-        )
-        out = build_cv(
-            result.content,
+        console.print(f"Building with {chosen_template.version_label} and {engine.name}…")
+        built = artifacts.build_profile_cv(
+            conn,
             template=chosen_template,
             engine=engine,
             output_dir=output or settings.documents_dir,
             options=BuildOptions(language=language, photo=photo, consent_text=consent),
-            profile_version_id=version,
-            excluded_fact_ids=tuple(f.id for f in left_out if f.id is not None),
         )
-        pdf, _ = artifacts.record_cv(
-            conn,
-            pdf_path=str(out.pdf),
-            pdf_sha256=out.pdf_sha256,
-            tex_path=str(out.tex),
-            tex_sha256=out.tex_sha256,
-            template_version=chosen_template.version_label,
-            profile_version_id=version,
-            manifest=out.manifest,
-        )
-    report_build(out, pdf.id)
-    report_unused(result.unused)
-    if left_out:
-        console.print(f"{len(left_out)} unreviewed fact(s) were left out.")
+    console.print(f"{built.facts_used} facts used, profile version {built.profile_version_id}.")
+    report_build(built.output, built.pdf.id)
+    report_unused(built.unused)
+    if built.left_out:
+        console.print(f"{len(built.left_out)} unreviewed fact(s) were left out.")
     if open_pdf:
-        typer.launch(str(out.pdf))
+        typer.launch(str(built.output.pdf))
 
 
 def report_build(out: BuildOutput, document_id: int | None) -> None:

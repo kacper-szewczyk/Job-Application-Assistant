@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "jaa": {
+      "command": "uv",
+      "args": ["run", "jaa", "mcp", "serve"]
+    }
+  }
+}

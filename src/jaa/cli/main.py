@@ -11,6 +11,7 @@ from jaa.cli.common import console, err_console, open_existing, settings_from
 from jaa.cli.cv import cv_app
 from jaa.cli.imports import import_app
 from jaa.cli.jobs import jobs_app
+from jaa.cli.mcp import mcp_app
 from jaa.cli.preferences import onboard, preferences_app
 from jaa.cli.profile import profile_app
 from jaa.cli.sources import sources_app
@@ -38,6 +39,7 @@ cv_app.add_typer(tailor_app, name="tailor")
 app.add_typer(cv_app, name="cv")
 app.add_typer(answers_app, name="answers")
 app.add_typer(apply_app, name="apply")
+app.add_typer(mcp_app, name="mcp")
 app.command()(onboard)
 
 
