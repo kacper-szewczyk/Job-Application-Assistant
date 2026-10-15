@@ -1,0 +1,8 @@
+[mcp_servers.jaa]
+command = "uv"
+args = [
+    "run",
+    "jaa",
+    "mcp",
+    "serve",
+]

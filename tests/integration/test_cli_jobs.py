@@ -287,3 +287,105 @@ def test_unreviewed_evidence_is_labeled(
     assert "? [required] Go: Go (fact" in out and "unreviewed)" in out
     assert "- [required] Haskell: no confirmed fact mentions it" in out
     assert "Required: 2 of 4 backed by confirmed facts" in out
+
+
+class _NoNetwork:
+    """A transport that fails the test on any request."""
+
+    def send(self, request: object, *, timeout: float, max_bytes: int) -> HttpResponse:
+        raise AssertionError(f"jaa made a request: {request}")
+
+
+def _block_network(monkeypatch: pytest.MonkeyPatch) -> None:
+    import socket
+    import urllib.request
+
+    def refuse(*args: object, **kwargs: object) -> None:
+        raise AssertionError("jaa opened a network connection")
+
+    monkeypatch.setattr(jobs_cli, "make_transport", _NoNetwork)
+    monkeypatch.setattr(urllib.request, "urlopen", refuse)
+    monkeypatch.setattr(socket, "create_connection", refuse)
+    monkeypatch.setattr(socket.socket, "connect", refuse)
+
+
+MANUAL_OFFER = """Synthetic gadget team.
+
+Requirements:
+- Python
+- Kubernetes
+"""
+
+
+def test_add_a_job_by_hand_without_fetching_it(
+    env: dict[str, str], monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    _block_network(monkeypatch)
+    offer = tmp_path / "offer.txt"
+    offer.write_text(MANUAL_OFFER, encoding="utf-8")
+    out = _run(
+        env,
+        "jobs",
+        "add",
+        "--url",
+        "https://nofluffjobs.example/job/gadget-engineer",
+        "--title",
+        "Gadget Engineer",
+        "--company",
+        "Example Gadgets",
+        "--location",
+        "Gdańsk",
+        "--description-file",
+        str(offer),
+    )
+    assert "Added job 1: Gadget Engineer at Example Gadgets." in out
+
+    listed = _run(env, "jobs", "list", "--source", "manual")
+    assert "Gadget Engineer" in listed and "manual" in listed
+    shown = _run(env, "jobs", "show", "1")
+    assert "manual: https://nofluffjobs.example/job/gadget-engineer" in shown
+    assert "- Kubernetes" in shown
+
+    again = _run(
+        env,
+        "jobs",
+        "add",
+        "--url",
+        "https://nofluffjobs.example/job/gadget-engineer?utm_campaign=x",
+        "--title",
+        "Gadget Engineer",
+        "--company",
+        "Example Gadgets",
+        code=1,
+    )
+    assert "already added as job 1" in again
+
+
+def test_add_reads_the_description_from_standard_input(
+    env: dict[str, str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _block_network(monkeypatch)
+    args = ["jobs", "add", "--url", "https://bulldogjob.example/companies/jobs/1"]
+    args += ["--title", "Gadget Engineer", "--company", "Example Gadgets"]
+    result = runner.invoke(app, [*args, "--description-file", "-"], input=MANUAL_OFFER, env=env)
+    assert result.exit_code == 0, result.output
+    assert "- Python" in _run(env, "jobs", "show", "1")
+
+    out = _run(env, *args, "--description", "x", "--description-file", "-", code=2)
+    assert "not both" in out
+
+
+def test_add_refuses_bad_input(
+    env: dict[str, str], monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    _block_network(monkeypatch)
+    base = ["jobs", "add", "--title", "Gadget Engineer", "--company", "Example Gadgets"]
+    assert "must be a web address" in _run(env, *base, "--url", "nofluff.example/1", code=1)
+    url = ["--url", "https://nofluffjobs.example/job/2"]
+    missing = tmp_path / "missing.txt"
+    assert "file not found" in _run(env, *base, *url, "--description-file", str(missing), code=2)
+    binary = tmp_path / "offer.bin"
+    binary.write_bytes(b"\xff\xfe\x00bad")
+    assert "not UTF-8" in _run(env, *base, *url, "--description-file", str(binary), code=2)
+    no_text = _run(env, *base, *url)
+    assert "No description given" in no_text

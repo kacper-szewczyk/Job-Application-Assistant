@@ -33,7 +33,8 @@ These are not defaults to trade off. Follow them even when the user asks otherwi
    from guesses, earlier conversations or "typical" values. Point the user to
    `jaa answers review JOB`, where they answer in their terminal.
 6. **No working around access controls.** Fetch jobs only with `jaa jobs fetch` from sources
-   jaa lists as active. Do not scrape job boards, bypass login walls or CAPTCHAs, or resume a
+   jaa lists as active; offers from other boards come in only as text the user pastes
+   (`jaa jobs add`). Do not scrape job boards, bypass login walls or CAPTCHAs, or resume a
    source jaa paused for policy reasons.
 7. **Keep personal values out of logs and files.** Do not write CV contents, answers or profile
    values into repository files, commit messages, issues or shell history. Never pass
@@ -95,6 +96,8 @@ with Bash (`uv run jaa …` in the repository); they only read, or add records t
 - `jaa preferences list`: the user's saved preferences.
 - `jaa sources list`: which job sources are active.
 - `jaa jobs fetch SOURCE TARGET…`: fetch listings, e.g. `uv run jaa jobs fetch solid_jobs IT`.
+- `jaa jobs add --url URL --title TITLE --company COMPANY [--location PLACE]
+  --description-file -`: add an offer the user pasted (source `manual`; the link is never fetched).
 - `jaa jobs match JOB…` or `jaa jobs match --all`: compare jobs with the confirmed profile.
 - `jaa jobs matches`: rank jobs by their latest match.
 - `jaa jobs duplicates list`: jobs that may be the same job.
@@ -142,8 +145,10 @@ with Bash (`uv run jaa …` in the repository); they only read, or add records t
    verdict on the user, and never suggest adding a skill they did not claim.
 5. If `get_job` lists possible duplicates, point the user to `jaa jobs duplicates mark`.
 
-For jobs from boards without a permitted API (justjoin.it, bulldogjob, nofluffjobs), jaa cannot
-add them yet (issue #46). Do not fetch those pages.
+For jobs from boards without a permitted API (justjoin.it, bulldogjob, nofluffjobs), ask the
+user to paste the offer's text, link, title and company, then add it with `jaa jobs add`
+(description on standard input with `--description-file -`). Use only what the user pasted: do
+not fill in a missing company, location or requirement, and do not open or fetch the link.
 
 ### 3. Tailoring: a CV for one job
 

@@ -115,6 +115,10 @@ class SearchError(JaaError):
     """A job search or saved search is invalid or unknown."""
 
 
+class JobEntryError(JaaError):
+    """A job the user adds by hand is incomplete or was already added (#46)."""
+
+
 class MatchError(JaaError):
     """A job cannot be matched, e.g. because no profile facts are confirmed yet."""
 
