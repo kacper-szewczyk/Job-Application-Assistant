@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.19.0](https://github.com/kacper-szewczyk/Job-Application-Assistant/compare/jaa-v0.18.0...jaa-v0.19.0) (2026-10-15)
+
+
+### Features
+
+* **documents:** build cover letter PDFs from checked tailoring paragraphs ([#70](https://github.com/kacper-szewczyk/Job-Application-Assistant/issues/70)) ([6606127](https://github.com/kacper-szewczyk/Job-Application-Assistant/commit/6606127cbcea278a82c9243dbd80828c39024a4f)), closes [#53](https://github.com/kacper-szewczyk/Job-Application-Assistant/issues/53)
+
 ## [0.18.0](https://github.com/kacper-szewczyk/Job-Application-Assistant/compare/jaa-v0.17.0...jaa-v0.18.0) (2026-10-15)
 
 
