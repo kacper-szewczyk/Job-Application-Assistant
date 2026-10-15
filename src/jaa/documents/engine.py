@@ -169,6 +169,12 @@ def parse_log(text: str) -> list[LatexProblem]:
 class CompileResult:
     pdf: Path
     warnings: tuple[LatexProblem, ...]
+    # Absolute paths Tectonic reports reading. Fonts and packages come from its bundle, so any
+    # path here was asked for by the document itself (ADR 0029).
+    absolute_reads: tuple[str, ...] = ()
+
+
+_ABSOLUTE_READ: Final = re.compile(r"warning: accessing absolute path `([^`]+)`")
 
 
 def _command(engine: Engine, tex: Path) -> list[str]:
@@ -240,5 +246,11 @@ def compile_tex(
     if not pdf.is_file():
         raise LatexCompileError(f"{engine.name} finished but wrote no PDF")
     warnings = tuple(p for p in parse_log(output) if p.severity is Severity.WARNING)
-    log.info("latex engine=%s built pdf warnings=%s", engine.name, len(warnings))
-    return CompileResult(pdf=pdf, warnings=warnings)
+    absolute = tuple(dict.fromkeys(_ABSOLUTE_READ.findall(output)))
+    log.info(
+        "latex engine=%s built pdf warnings=%s absolute_reads=%s",
+        engine.name,
+        len(warnings),
+        len(absolute),
+    )
+    return CompileResult(pdf=pdf, warnings=warnings, absolute_reads=absolute)

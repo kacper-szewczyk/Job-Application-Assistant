@@ -16,6 +16,7 @@ from jaa.cli.preferences import onboard, preferences_app
 from jaa.cli.profile import profile_app
 from jaa.cli.sources import sources_app
 from jaa.cli.tailor import tailor_app
+from jaa.cli.templates import templates_app
 from jaa.cli.ui import ui
 from jaa.config import ensure_data_dir, load_settings
 from jaa.core.errors import DatabaseNotEmptyError, JaaError
@@ -38,6 +39,7 @@ app.add_typer(sources_app, name="sources")
 app.add_typer(jobs_app, name="jobs")
 cv_app.add_typer(tailor_app, name="tailor")
 app.add_typer(cv_app, name="cv")
+app.add_typer(templates_app, name="templates")
 app.add_typer(answers_app, name="answers")
 app.add_typer(apply_app, name="apply")
 app.add_typer(mcp_app, name="mcp")

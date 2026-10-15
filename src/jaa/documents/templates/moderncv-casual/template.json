@@ -1,0 +1,9 @@
+{
+  "id": "moderncv-casual",
+  "version": 1,
+  "name": "moderncv casual (blue)",
+  "family": "moderncv",
+  "description": "Single-column CV with a large right-aligned name, dates in a left column and contact details in the page footer. moderncv 'casual' style, blue, 10pt, A4, sans-serif.",
+  "requires": ["moderncv >= 2.3"],
+  "license": "Template file: MIT (this repository). It uses the moderncv class (LPPL 1.3c), which is installed with the TeX distribution and not shipped with jaa."
+}

@@ -17,15 +17,16 @@ from rich.table import Table
 from rich.text import Text
 
 from jaa.cli.common import MASK, console, err_console, open_existing, settings_from
+from jaa.cli.templates import list_all, template_database
 from jaa.core.errors import FactConflictError, JaaError, LatexCompileError, ReviewError
 from jaa.core.models import ArtifactKind, FactState, ProfileFact
 from jaa.documents.content import CvContent, CvLanguage, build_content, format_period
 from jaa.documents.engine import find_engine
-from jaa.documents.latex import DEFAULT_TEMPLATE, available_templates, get_template
 from jaa.documents.pipeline import BuildOptions, BuildOutput
 from jaa.storage import documents as artifacts
 from jaa.storage import profile as service
 from jaa.storage.repository import profile_facts
+from jaa.storage.templates import resolve_template
 
 cv_app = typer.Typer(
     help="Preview and build CV PDFs from your confirmed profile.",
@@ -190,8 +191,13 @@ def read_consent(path: Path) -> str:
 def build(
     ctx: typer.Context,
     template: Annotated[
-        str, typer.Option("--template", "-t", help="Template id, see `jaa cv templates`.")
-    ] = DEFAULT_TEMPLATE,
+        str | None,
+        typer.Option(
+            "--template",
+            "-t",
+            help="Template id (default: your default), see `jaa templates list`.",
+        ),
+    ] = None,
     language: LanguageOption = CvLanguage.EN,
     photo: Annotated[
         Path | None, typer.Option("--photo", help="JPEG or PNG photo to show in the header.")
@@ -218,7 +224,7 @@ def build(
     settings = settings_from(ctx)
     consent = read_consent(consent_file) if consent_file else None
     with database(ctx) as conn:
-        chosen_template = get_template(template)
+        chosen_template = resolve_template(conn, template)
         engine = find_engine()
         if not confirmed_only:
             _review_unreviewed(conn)
@@ -284,15 +290,7 @@ def list_cvs(ctx: typer.Context) -> None:
 
 
 @cv_app.command()
-def templates() -> None:
-    """List the CV and cover letter templates that ship with jaa."""
-    table = Table("ID", "Version", "Kind", "Description", "License")
-    for template in available_templates().values():
-        table.add_row(
-            template.id,
-            str(template.version),
-            template.kind.value.replace("_", " "),
-            Text(template.description),
-            Text(template.license),
-        )
-    console.print(table)
+def templates(ctx: typer.Context) -> None:
+    """List CV and cover letter templates (same as `jaa templates list`)."""
+    with template_database(ctx, required=False) as conn:
+        list_all(conn)

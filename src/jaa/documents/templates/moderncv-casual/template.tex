@@ -1,0 +1,28 @@
+% jaa CV template "moderncv-casual", version 1 (ADR 0012).
+% Lines of the form %%jaa:<slot>%% are replaced with LaTeX generated from confirmed profile
+% facts; every other line is copied as-is. Generated text is escaped, so facts cannot inject
+% LaTeX commands.
+\documentclass[10pt,a4paper,sans]{moderncv}
+\moderncvstyle{casual}
+\moderncvcolor{blue}
+%%jaa:babel%%
+\usepackage[scale=0.75]{geometry}
+
+% ATS-friendly output: no hyphenation (split words break keyword matching), and plain text
+% labels instead of icon glyphs, which text extraction turns into stray characters.
+\hyphenpenalty=10000
+\exhyphenpenalty=10000
+\renewcommand*{\mobilephonesymbol}{}
+\renewcommand*{\fixedphonesymbol}{}
+\renewcommand*{\faxphonesymbol}{}
+\renewcommand*{\emailsymbol}{}
+\renewcommand*{\homepagesymbol}{}
+\renewcommand*{\listitemsymbol}{\textbullet~}
+
+%%jaa:header%%
+
+\begin{document}
+\makecvtitle
+%%jaa:body%%
+%%jaa:consent%%
+\end{document}

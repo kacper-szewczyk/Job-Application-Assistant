@@ -10,17 +10,19 @@ from pathlib import Path
 
 import pytest
 
-from jaa.core.errors import LatexCompileError
+from jaa.core.errors import DocumentError, LatexCompileError
 from jaa.documents.content import CvLanguage, build_content
 from jaa.documents.engine import Engine
 from jaa.documents.latex import (
     DEFAULT_LETTER_TEMPLATE,
     DEFAULT_TEMPLATE,
     TemplateKind,
+    available_templates,
     get_template,
 )
 from jaa.documents.letter import LetterContent
 from jaa.documents.pipeline import BuildOptions, build_cover_letter, build_cv, extract_text
+from jaa.documents.sample import sample_cv, sample_letter
 from tests.fixtures.cv_profile import confirmed_facts
 
 pytestmark = pytest.mark.latex
@@ -78,6 +80,7 @@ def test_pdf_text_matches_source_facts(
         "id": "moderncv-classic",
         "version": 1,
         "sha256": get_template(DEFAULT_TEMPLATE).sha256,
+        "uploaded": False,
     }
     assert manifest["profile_version_id"] == 7
     assert manifest["fact_ids"] == list(content.fact_ids)
@@ -140,3 +143,93 @@ def test_cover_letter_text_matches_its_sources(
     assert out.manifest["letter_date"] == "2026-10-15"
     for value in ("Zarządzałam", "Gadgets", "Avery", "poważaniem"):
         assert value not in caplog.text
+
+
+CV_TEMPLATES = sorted(available_templates(TemplateKind.CV))
+
+
+def test_at_least_three_cv_templates_ship() -> None:
+    assert len(CV_TEMPLATES) >= 3
+
+
+@pytest.mark.parametrize("template_id", CV_TEMPLATES)
+@pytest.mark.parametrize("language", list(CvLanguage))
+def test_every_cv_template_renders_the_same_profile(
+    latex_engine: Engine, tmp_path: Path, template_id: str, language: CvLanguage
+) -> None:
+    content = build_content(confirmed_facts()).content
+    out = build_cv(
+        content,
+        template=get_template(template_id),
+        engine=latex_engine,
+        output_dir=tmp_path,
+        options=BuildOptions(language=language),
+        profile_version_id=1,
+    )
+    assert out.missing_text == ()
+    assert out.warnings == ()
+    assert out.pages == 1
+    text, _ = extract_text(out.pdf)
+    # Reading order: the experience entries keep their order in the extracted text.
+    assert text.index("Senior Widget Engineer") < text.index("Built gadget inventory APIs.")
+
+
+@pytest.mark.parametrize("template_id", sorted(available_templates()))
+@pytest.mark.parametrize("language", list(CvLanguage))
+def test_previews_from_sample_data(
+    latex_engine: Engine, tmp_path: Path, template_id: str, language: CvLanguage
+) -> None:
+    template = get_template(template_id, available_templates()[template_id].kind)
+    if template.kind is TemplateKind.CV:
+        out = build_cv(
+            sample_cv(language),
+            template=template,
+            engine=latex_engine,
+            output_dir=tmp_path,
+            options=BuildOptions(language=language),
+            profile_version_id=None,
+        )
+    else:
+        out = build_cover_letter(
+            sample_letter(language),
+            template=template,
+            engine=latex_engine,
+            output_dir=tmp_path,
+            language=language,
+            profile_version_id=None,
+            job_id=None,
+            fact_ids=(),
+            tailoring=None,
+        )
+    assert out.missing_text == ()
+    assert out.warnings == ()
+    assert out.pages == 1
+
+
+def test_a_template_that_reads_outside_its_folder_is_refused(
+    latex_engine: Engine, tmp_path: Path
+) -> None:
+    secret = tmp_path / "secret.tex"
+    secret.write_text("SECRET-CONTENT")
+    shipped = get_template(DEFAULT_TEMPLATE)
+    # \csname hides the \input from the static check; the build must still refuse it.
+    sneaky = replace(
+        shipped,
+        id="user-sneaky",
+        uploaded=True,
+        source=shipped.source.replace(
+            r"\makecvtitle", rf"\makecvtitle\csname input\endcsname{{{secret}}}"
+        ),
+        assets={"img/logo.png": _png()},
+    )
+    output = tmp_path / "out"
+    with pytest.raises(DocumentError):
+        build_cv(
+            build_content(confirmed_facts()).content,
+            template=sneaky,
+            engine=latex_engine,
+            output_dir=output,
+            options=BuildOptions(),
+            profile_version_id=None,
+        )
+    assert not list(output.glob("*.pdf"))

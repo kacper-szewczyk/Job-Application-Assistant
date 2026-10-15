@@ -29,21 +29,16 @@ from jaa.cli.cv import (
     report_build,
 )
 from jaa.core.errors import TailoringError
-from jaa.core.models import JsonObject, JsonValue
+from jaa.core.models import JsonObject, JsonValue, TemplateKind
 from jaa.documents.content import CvLanguage
 from jaa.documents.engine import find_engine
-from jaa.documents.latex import (
-    DEFAULT_LETTER_TEMPLATE,
-    DEFAULT_TEMPLATE,
-    TemplateKind,
-    get_template,
-)
 from jaa.documents.pipeline import BuildOptions
 from jaa.documents.tailoring import Change, Check, EditKind, plan_from_json
 from jaa.storage import applications as tracker
 from jaa.storage import documents as artifacts
 from jaa.storage import tailoring as service
 from jaa.storage.profile import active_version_id
+from jaa.storage.templates import resolve_template
 
 tailor_app = typer.Typer(
     help="Tailor your CV for one job: review each change and its evidence, then build it.",
@@ -292,8 +287,13 @@ def build(
     job_id: JobArg,
     revision: RevisionOpt = None,
     template: Annotated[
-        str, typer.Option("--template", "-t", help="Template id, see `jaa cv templates`.")
-    ] = DEFAULT_TEMPLATE,
+        str | None,
+        typer.Option(
+            "--template",
+            "-t",
+            help="Template id (default: your default), see `jaa templates list`.",
+        ),
+    ] = None,
     language: LanguageOption = CvLanguage.EN,
     photo: Annotated[
         Path | None, typer.Option("--photo", help="JPEG or PNG photo to show in the header.")
@@ -318,7 +318,7 @@ def build(
                 f"[yellow]Building from profile version {row.profile_version_id}, "
                 "not your current profile.[/yellow]"
             )
-        chosen_template = get_template(template)
+        chosen_template = resolve_template(conn, template)
         engine = find_engine()
         console.print(
             f"Building revision {row.revision} for job #{job_id} with "
@@ -345,9 +345,13 @@ def letter(
     job_id: JobArg,
     revision: RevisionOpt = None,
     template: Annotated[
-        str,
-        typer.Option("--template", "-t", help="Cover letter template id, see `jaa cv templates`."),
-    ] = DEFAULT_LETTER_TEMPLATE,
+        str | None,
+        typer.Option(
+            "--template",
+            "-t",
+            help="Cover letter template id (default: your default), see `jaa templates list`.",
+        ),
+    ] = None,
     language: LanguageOption = CvLanguage.EN,
     recipient: Annotated[
         list[str] | None,
@@ -380,7 +384,7 @@ def letter(
                 f"[yellow]Building from profile version {row.profile_version_id}, "
                 "not your current profile.[/yellow]"
             )
-        chosen_template = get_template(template, TemplateKind.COVER_LETTER)
+        chosen_template = resolve_template(conn, template, TemplateKind.COVER_LETTER)
         engine = find_engine()
         console.print(
             f"Building the cover letter of revision {row.revision} for job #{job_id} with "

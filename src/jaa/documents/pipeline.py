@@ -11,7 +11,7 @@ import re
 import shutil
 import tempfile
 import unicodedata
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
@@ -135,6 +135,16 @@ def _stem(template: CvTemplate, language: CvLanguage, at: datetime, job_id: int 
     return f"{prefix}-{at:%Y%m%d-%H%M%S}{job}-{template.id}-{language.value}"
 
 
+def _write_assets(build_dir: Path, assets: Mapping[str, bytes]) -> None:
+    for name, data in assets.items():
+        target = (build_dir / name).resolve()
+        # Paths were checked when the template was added; check again before writing.
+        if not target.is_relative_to(build_dir.resolve()) or target == build_dir.resolve():
+            raise DocumentError(f"template file {name!r} would be written outside the build")
+        target.parent.mkdir(parents=True, exist_ok=True, mode=DIR_MODE)
+        _write_private(target, data)
+
+
 @dataclass(frozen=True, slots=True, kw_only=True)
 class _Compiled:
     pdf: Path
@@ -151,9 +161,13 @@ def _compile_into(
     engine: Engine,
     output_dir: Path,
     compiler: Compiler,
+    assets: Mapping[str, bytes] | None = None,
     extra_files: dict[str, Path] | None = None,
 ) -> _Compiled:
-    """Compile `source` in a private build folder; write `<stem>.pdf` and `<stem>.tex`."""
+    """Compile `source` in a private build folder; write `<stem>.pdf` and `<stem>.tex`.
+
+    `assets` are the template's own files (uploaded templates), `extra_files` the user's photo.
+    """
     if (output_dir / f"{stem}.pdf").exists():
         raise DocumentError(f"{output_dir / stem}.pdf already exists; try again in a second")
     tex_bytes = source.encode()
@@ -161,6 +175,7 @@ def _compile_into(
     try:
         tex = build_dir / "document.tex"
         _write_private(tex, tex_bytes)
+        _write_assets(build_dir, assets or {})
         for name, path in (extra_files or {}).items():
             shutil.copyfile(path, build_dir / name)
         try:
@@ -173,6 +188,12 @@ def _compile_into(
                 shutil.copyfile(log_file, kept)
                 kept.chmod(FILE_MODE)
             raise
+        if result.absolute_reads:
+            # TeX engines can read any file the user can; a template must not (ADR 0029).
+            raise DocumentError(
+                "the template read files outside its folder, so the PDF was not saved: "
+                + ", ".join(result.absolute_reads)
+            )
         pdf_bytes = result.pdf.read_bytes()
         pdf_out = output_dir / f"{stem}.pdf"
         tex_out = output_dir / f"{stem}.tex"
@@ -208,6 +229,7 @@ def _manifest(
             "id": template.id,
             "version": template.version,
             "sha256": template.sha256,
+            "uploaded": template.uploaded,
         },
         "engine": {"name": engine.name, "version": engine.version},
         "language": language.value,
@@ -262,6 +284,7 @@ def build_cv(
         engine=engine,
         output_dir=output_dir,
         compiler=compiler,
+        assets=template.assets,
         extra_files={photo_name: photo[0]} if photo and photo_name else None,
     )
 
@@ -311,16 +334,17 @@ def build_cover_letter(
     engine: Engine,
     output_dir: Path,
     language: CvLanguage,
-    profile_version_id: int,
-    job_id: int,
+    profile_version_id: int | None,
+    job_id: int | None,
     fact_ids: tuple[int, ...],
-    tailoring: JsonObject,
+    tailoring: JsonObject | None,
     compiler: Compiler = compile_tex,
 ) -> BuildOutput:
     """Render, compile and verify a cover letter for a job (ADR 0024).
 
     `fact_ids` are the sender's facts plus the facts the paragraphs cite; `tailoring` holds the
-    revision and each paragraph's facts for the manifest. Raises `DocumentError` on failure.
+    revision and each paragraph's facts for the manifest. A template preview (ADR 0029) has no
+    profile version, job or tailoring. Raises `DocumentError` on failure.
     """
     if template.kind is not TemplateKind.COVER_LETTER:
         raise DocumentError(f"{template.version_label} is not a cover letter template")
@@ -333,6 +357,7 @@ def build_cover_letter(
         engine=engine,
         output_dir=output_dir,
         compiler=compiler,
+        assets=template.assets,
     )
     text, pages = extract_text(compiled.pdf)
     expected = expected_letter_text(letter, language)

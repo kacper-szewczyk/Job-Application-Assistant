@@ -271,6 +271,25 @@ def populate(conn: sqlite3.Connection) -> Sample:
             registered_at=T0,
         ),
     )
+    repo.user_templates.insert(
+        conn,
+        m.UserTemplate(
+            template_id="user-sample",
+            version=1,
+            kind=m.TemplateKind.CV,
+            name="Sample",
+            family=m.TemplateFamily.MODERNCV,
+            main_file="cv.tex",
+            files={"cv.tex": {"text": "\\documentclass{moderncv}\n"}, "logo.png": {"base64": ""}},
+            content_sha256="d" * 64,
+            origin=m.TemplateOrigin.ZIP,
+            created_at=T0,
+        ),
+    )
+    repo.template_defaults.insert(
+        conn,
+        m.TemplateDefault(kind=m.TemplateKind.CV, template_id="moderncv-banking", set_at=T0),
+    )
     repo.source_status_events.insert(
         conn,
         m.SourceStatusEvent(
