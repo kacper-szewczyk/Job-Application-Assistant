@@ -36,6 +36,7 @@ from jaa.core.errors import (
     NotFoundError,
     SourceAccessDeniedError,
     SourcePausedError,
+    SourceQuotaError,
 )
 from jaa.core.models import DuplicateVerdict, Job, JobMatch, JobStatus
 from jaa.core.search import JobQuery
@@ -170,7 +171,14 @@ def fetch(
             key = connector.policy.key
             if key in paused:
                 continue
-            report = service.fetch_and_store(conn, connector, target, transport=transport)
+            try:
+                report = service.fetch_and_store(conn, connector, target, transport=transport)
+            except SourceQuotaError as exc:
+                # Later targets of the same source would hit the same allowance.
+                err_console.print(f"[yellow]{escape(str(exc))}[/yellow]")
+                failed = True
+                paused.add(key)
+                continue
             _report(key, report)
             if report.error is not None:
                 failed = True

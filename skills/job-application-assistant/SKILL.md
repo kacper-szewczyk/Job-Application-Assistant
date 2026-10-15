@@ -152,7 +152,11 @@ with Bash (`uv run jaa …` in the repository); they only read, or add records t
 ### 2. Search: find and rank jobs
 
 1. `jaa sources list`, then `jaa jobs fetch SOURCE TARGET…` for active sources only. For
-   solid.jobs the targets are divisions such as `IT`, `Engineering` or `HR`.
+   solid.jobs the targets are divisions such as `IT`, `Engineering` or `HR`. For remote jobs:
+   `remotive` (a category such as `software-dev`, or `all`; at most 4 requests a day, so fetch
+   it only when the user asks and say jobs appear 24 hours late) and `arbeitnow` (`all` or
+   `remote`; mostly jobs in Germany). When showing a Remotive job, name Remotive and give its
+   link. `weworkremotely` stays paused until its terms are confirmed.
 2. `search_jobs` with the user's words, company or location. It searches stored listings; fetch
    first when the user wants new ones (`jobs_last_fetched` says when that last happened).
 3. `jaa jobs match --all` (or specific ids), then `jaa jobs matches` to rank them.

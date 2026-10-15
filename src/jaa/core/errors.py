@@ -65,6 +65,10 @@ class SourcePausedError(ConnectorError):
     """The source is paused, by its policy or by the user, so nothing may be fetched."""
 
 
+class SourceQuotaError(ConnectorError):
+    """The source's daily request allowance is used up (ADR 0028). Nothing was sent."""
+
+
 class SourceAccessDeniedError(ConnectorError):
     """The source refused access (login wall, bot check, 401/403). Never retried or worked around.
 
