@@ -409,6 +409,10 @@ class Application:
     submission_confirmed_by: SubmissionConfirmation | None = None
     external_reference: str | None = None
     notes: str | None = field(default=None, repr=False)
+    # T15 (ADR 0018): the link the user applied at, and what was used when they submitted:
+    # question keys with how each was answered and its provenance, and document ids.
+    source_url: str | None = None
+    handoff: JsonObject = field(default_factory=dict[str, JsonValue], repr=False)
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

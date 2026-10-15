@@ -19,6 +19,7 @@ from rich.markup import escape
 from rich.table import Table
 from rich.text import Text
 
+from jaa.cli.apply import print_conflicts
 from jaa.cli.common import console, err_console, settings_from
 from jaa.cli.cv import (
     LanguageOption,
@@ -34,6 +35,7 @@ from jaa.documents.engine import find_engine
 from jaa.documents.latex import DEFAULT_TEMPLATE, get_template
 from jaa.documents.pipeline import BuildOptions, build_cv
 from jaa.documents.tailoring import Change, Check, EditKind, plan_from_json
+from jaa.storage import applications as tracker
 from jaa.storage import documents as artifacts
 from jaa.storage import tailoring as service
 from jaa.storage.profile import active_version_id
@@ -141,7 +143,9 @@ def propose(ctx: typer.Context, job_id: JobArg) -> None:
     with database(ctx) as conn:
         evaluated = service.propose(conn, job_id)
         active = active_version_id(conn)
+        conflicts = tracker.find_application_conflicts(conn, job_id)
     _show(evaluated, active, full=False)
+    print_conflicts(conflicts)
 
 
 @tailor_app.command()

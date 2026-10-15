@@ -109,3 +109,18 @@ class MatchError(JaaError):
 
 class AnswerError(JaaError):
     """An application answer cannot be saved or used, e.g. an empty value or an unknown key."""
+
+
+class ApplicationError(JaaError):
+    """An application status change or submission record is not allowed (ADR 0018)."""
+
+
+class DuplicateApplicationError(ApplicationError):
+    """Another job that looks like the same role was already prepared or submitted.
+
+    `job_ids` are the other jobs; the caller shows them and may retry with an override.
+    """
+
+    def __init__(self, message: str, job_ids: tuple[int, ...]) -> None:
+        super().__init__(message)
+        self.job_ids = job_ids

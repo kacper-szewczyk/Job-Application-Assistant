@@ -22,6 +22,7 @@ from jaa.core.models import DuplicateVerdict, Job, JobMatch, JobStatus
 from jaa.core.search import JobQuery
 from jaa.matching.match import Outcome, PreferenceOutcome
 from jaa.matching.requirements import JobRequirements, RequirementOrigin, extract_requirements
+from jaa.storage import applications as tracker
 from jaa.storage import duplicates as dupes
 from jaa.storage import listings as service
 from jaa.storage import matches as matching
@@ -239,9 +240,14 @@ def show(
         flags = dupes.flags_for_job(conn, job_id)
         latest = matching.latest_match(conn, job_id)
         active = active_version_id(conn)
+        application = tracker.get_application(conn, job_id)
     console.print(Text(job.title, style="bold"))
     console.print(Text(f"{job.employer}  ·  {job.location or 'location not given'}"))
     console.print(f"Status: {job.status.value}")
+    if application is not None:
+        submitted = application.submitted_at
+        state = "started" if submitted is None else f"submitted {_when(submitted)}"
+        console.print(f"Application: {state}; details with `jaa apply show {job_id}`.")
     seen = f"First seen {_when(job.first_seen_at)}, last seen {_when(job.last_seen_at)}"
     if job.removed_at:
         seen += f", no longer listed since {_when(job.removed_at)}"
