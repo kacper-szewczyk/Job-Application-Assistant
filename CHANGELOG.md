@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.0](https://github.com/kacper-szewczyk/Job-Application-Assistant/compare/jaa-v0.10.0...jaa-v0.11.0) (2026-10-15)
+
+
+### Features
+
+* **documents:** tailor CVs per job with evidence-checked edits and approvals ([#54](https://github.com/kacper-szewczyk/Job-Application-Assistant/issues/54)) ([e348120](https://github.com/kacper-szewczyk/Job-Application-Assistant/commit/e34812057137e34c3584df0c3b3b250df1895174)), closes [#14](https://github.com/kacper-szewczyk/Job-Application-Assistant/issues/14)
+
 ## [0.10.0](https://github.com/kacper-szewczyk/Job-Application-Assistant/compare/jaa-v0.9.0...jaa-v0.10.0) (2026-10-14)
 
 
