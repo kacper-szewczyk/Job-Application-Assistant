@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.0](https://github.com/kacper-szewczyk/Job-Application-Assistant/compare/jaa-v0.11.0...jaa-v0.12.0) (2026-10-15)
+
+
+### Features
+
+* **answers:** classify application questions and reuse saved answers ([#56](https://github.com/kacper-szewczyk/Job-Application-Assistant/issues/56)) ([7cb383b](https://github.com/kacper-szewczyk/Job-Application-Assistant/commit/7cb383b18cd263b1076583d9bde3604a7aaa1a14)), closes [#15](https://github.com/kacper-szewczyk/Job-Application-Assistant/issues/15)
+
 ## [0.11.0](https://github.com/kacper-szewczyk/Job-Application-Assistant/compare/jaa-v0.10.0...jaa-v0.11.0) (2026-10-15)
 
 
