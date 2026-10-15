@@ -128,8 +128,9 @@ def missing_from(text: str, expected: list[str]) -> list[str]:
     return [t for t in expected if _normalize(t) not in haystack]
 
 
-def _stem(template: CvTemplate, language: CvLanguage, at: datetime) -> str:
-    return f"cv-{at:%Y%m%d-%H%M%S}-{template.id}-{language.value}"
+def _stem(template: CvTemplate, language: CvLanguage, at: datetime, job_id: int | None) -> str:
+    job = f"-job{job_id}" if job_id is not None else ""
+    return f"cv-{at:%Y%m%d-%H%M%S}{job}-{template.id}-{language.value}"
 
 
 def build_cv(
@@ -141,18 +142,22 @@ def build_cv(
     options: BuildOptions,
     profile_version_id: int | None,
     excluded_fact_ids: tuple[int, ...] = (),
+    job_id: int | None = None,
+    tailoring: JsonObject | None = None,
     compiler: Compiler = compile_tex,
 ) -> BuildOutput:
     """Render, compile and verify a CV; write `<stem>.pdf` and `<stem>.tex` into `output_dir`.
 
     `excluded_fact_ids` are unreviewed facts the user did not approve; the manifest records
-    that they were left out. Raises `DocumentError` (or a subclass) on any failure.
+    that they were left out. A CV tailored for a job passes the job id and the tailoring's
+    revision and changes (ADR 0016), which go into the manifest too. Raises `DocumentError`
+    (or a subclass) on any failure.
     """
     output_dir = output_dir.expanduser().resolve()
     output_dir.mkdir(parents=True, exist_ok=True, mode=DIR_MODE)
     photo = _photo(options.photo) if options.photo else None
     at = utcnow()
-    stem = _stem(template, options.language, at)
+    stem = _stem(template, options.language, at, job_id)
     if (output_dir / f"{stem}.pdf").exists():
         raise DocumentError(f"{output_dir / stem}.pdf already exists; try again in a second")
 
@@ -215,6 +220,10 @@ def build_cv(
         "pdf": {"path": str(pdf_out), "sha256": pdf_sha, "pages": pages},
         "text_check": {"expected": len(expected), "missing": len(missing)},
     }
+    if job_id is not None:
+        manifest["job_id"] = job_id
+    if tailoring is not None:
+        manifest["tailoring"] = tailoring
     log.info(
         "built cv template=%s facts=%s pages=%s missing_text=%s",
         template.version_label,

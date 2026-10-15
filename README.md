@@ -134,6 +134,20 @@ Search matches whole words and ignores case, Polish diacritics and punctuation, 
 
 Matching reads a job's requirements from the skills and languages the source lists and from the requirements and nice-to-have sections of its description (English and Polish headings). Each requirement is backed by your confirmed facts, shown as backed only by unreviewed facts (which do not count until you confirm them), or listed as a gap. Seniority, work arrangement, location, salary and target roles are compared with your preferences when both sides are known. Every match records the profile version it used, explains its score and says what it could not judge. Scores are advisory. See [ADR 0015](docs/decisions/0015-requirements-and-match-explanations.md).
 
+### Tailoring a CV for a job
+
+```bash
+uv run jaa cv tailor propose <job>       # reorder and emphasize what the job's match found
+uv run jaa cv tailor show <job> --full   # every change vs. your baseline CV, its facts and status
+uv run jaa cv tailor edit <job>          # hide, move, emphasize, reword; cover letter paragraphs
+uv run jaa cv tailor edit <job> -f plan.json   # …or save a plan file (`show --json` prints one)
+uv run jaa cv tailor approve <job> --edit 3    # approve an edit whose wording facts do not back
+uv run jaa cv tailor build <job>         # the tailored PDF, linked to the job and profile version
+uv run jaa cv tailor list <job>          # revisions
+```
+
+Tailoring can only hide, reorder, emphasize (bold) and reword what your CV already says. Names, employers, titles, schools and dates cannot be edited. Every edit is linked to the confirmed facts behind it. A rewording, or a cover letter paragraph, is blocked when it adds numbers, names, technologies or job keywords that its target and cited facts do not contain; you can approve a blocked edit explicitly, and the approval is lost when the edit changes. Each change is a new revision checked against one profile version, and a build records the job, the profile version and the list of changes in its manifest. See [ADR 0016](docs/decisions/0016-tailored-cvs.md).
+
 ### Configuration
 
 | Variable | Default | Purpose |

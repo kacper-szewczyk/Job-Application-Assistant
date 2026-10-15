@@ -80,6 +80,10 @@ class TemplateError(DocumentError):
     """A CV template is unknown, malformed, or does not provide what the renderer needs."""
 
 
+class TailoringError(DocumentError):
+    """A tailoring plan is malformed, blocked by its checks, or missing for a job (ADR 0016)."""
+
+
 class LatexEngineNotFoundError(DocumentError):
     """No supported LaTeX engine is installed or configured."""
 

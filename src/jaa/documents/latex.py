@@ -190,7 +190,12 @@ def _entry(entry: CvEntry, language: CvLanguage, *, bold_org: bool) -> list[str]
         )
         return lines
     lines.append(f"\\cventry{{{period}}}{_arg(entry.role)}{{{org}}}{_arg(entry.location)}{{}}{{}}")
-    lines.extend(f"\\cvlistitem{_arg(item)}" for item in entry.items)
+    lines.extend(
+        f"\\cvlistitem{{\\textbf{_arg(item)}}}"
+        if i in entry.emphasized
+        else f"\\cvlistitem{_arg(item)}"
+        for i, item in enumerate(entry.items)
+    )
     return lines
 
 
@@ -208,7 +213,11 @@ def _body(content: CvContent, language: CvLanguage) -> str:
             out.extend(_entry(entry, language, bold_org=False))
     if content.skills:
         out.append(f"\\section{_arg(labels.skills)}")
-        out.append(f"\\cvitem{{}}{_arg(', '.join(content.skills))}")
+        skills = (
+            f"\\textbf{_arg(skill)}" if i in content.emphasized_skills else escape(skill)
+            for i, skill in enumerate(content.skills)
+        )
+        out.append(f"\\cvitem{{}}{{{', '.join(skills)}}}")
     if content.certifications:
         out.append(f"\\section{_arg(labels.certifications)}")
         for cert in content.certifications:

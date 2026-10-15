@@ -210,6 +210,19 @@ def populate(conn: sqlite3.Connection) -> Sample:
             created_at=T0,
         ),
     )
+    repo.cv_tailorings.insert(
+        conn,
+        m.CvTailoring(
+            job_id=ident(job.id),
+            revision=1,
+            profile_version_id=ident(version.id),
+            origin=m.TailoringOrigin.PROPOSED,
+            plan={"edits": [{"kind": "emphasize", "target": "skills.widgets", "fact_ids": []}]},
+            checks=[{"number": 1, "codes": [], "approved": False, "blocked": False}],
+            method="tailoring-v1",
+            created_at=T0,
+        ),
+    )
     application = repo.applications.insert(
         conn,
         m.Application(

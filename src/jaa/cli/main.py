@@ -12,6 +12,7 @@ from jaa.cli.jobs import jobs_app
 from jaa.cli.preferences import onboard, preferences_app
 from jaa.cli.profile import profile_app
 from jaa.cli.sources import sources_app
+from jaa.cli.tailor import tailor_app
 from jaa.config import ensure_data_dir, load_settings
 from jaa.core.errors import JaaError
 from jaa.logging import setup_logging
@@ -31,6 +32,7 @@ app.add_typer(preferences_app, name="preferences")
 app.add_typer(import_app, name="import")
 app.add_typer(sources_app, name="sources")
 app.add_typer(jobs_app, name="jobs")
+cv_app.add_typer(tailor_app, name="tailor")
 app.add_typer(cv_app, name="cv")
 app.command()(onboard)
 

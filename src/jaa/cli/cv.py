@@ -22,7 +22,7 @@ from jaa.core.models import FactState, ProfileFact
 from jaa.documents.content import CvContent, CvLanguage, build_content, format_period
 from jaa.documents.engine import find_engine
 from jaa.documents.latex import DEFAULT_TEMPLATE, available_templates, get_template
-from jaa.documents.pipeline import BuildOptions, build_cv
+from jaa.documents.pipeline import BuildOptions, BuildOutput, build_cv
 from jaa.storage import documents as artifacts
 from jaa.storage import profile as service
 from jaa.storage.repository import profile_facts
@@ -42,7 +42,7 @@ LanguageOption = Annotated[
 
 
 @contextmanager
-def _database(ctx: typer.Context) -> Generator[sqlite3.Connection]:
+def database(ctx: typer.Context) -> Generator[sqlite3.Connection]:
     conn = open_existing(settings_from(ctx))
     try:
         yield conn
@@ -123,7 +123,7 @@ def _review_unreviewed(conn: sqlite3.Connection) -> list[ProfileFact]:
     return profile_facts.list(conn, state=FactState.UNREVIEWED)
 
 
-def _outline(content: CvContent, language: CvLanguage) -> None:
+def outline(content: CvContent, language: CvLanguage) -> None:
     def line(label: str, value: str | None) -> None:
         if value:
             console.print(Text(f"{label}: {value}"))
@@ -150,7 +150,7 @@ def _outline(content: CvContent, language: CvLanguage) -> None:
     line("Certificates", ", ".join(c.name for c in content.certifications))
 
 
-def _report_unused(unused: tuple[ProfileFact, ...]) -> None:
+def report_unused(unused: tuple[ProfileFact, ...]) -> None:
     if unused:
         keys = ", ".join(sorted(f.field_key for f in unused))
         console.print(Text(f"Not shown by this template: {keys}", style="dim"))
@@ -159,7 +159,7 @@ def _report_unused(unused: tuple[ProfileFact, ...]) -> None:
 @cv_app.command()
 def preview(ctx: typer.Context, language: LanguageOption = CvLanguage.EN) -> None:
     """Show what a CV would contain, without building a PDF."""
-    with _database(ctx) as conn:
+    with database(ctx) as conn:
         version, facts = _confirmed(conn)
         pending = len(profile_facts.list(conn, state=FactState.UNREVIEWED))
     if not facts:
@@ -167,13 +167,13 @@ def preview(ctx: typer.Context, language: LanguageOption = CvLanguage.EN) -> Non
         return
     result = build_content(facts)
     console.print(f"Profile version {version}, {len(result.content.fact_ids)} facts used.")
-    _outline(result.content, language)
-    _report_unused(result.unused)
+    outline(result.content, language)
+    report_unused(result.unused)
     if pending:
         console.print(f"{pending} unreviewed fact(s) are left out; `jaa cv build` offers them.")
 
 
-def _read_consent(path: Path) -> str:
+def read_consent(path: Path) -> str:
     resolved = path.expanduser().resolve()
     if not resolved.is_file():
         raise typer.BadParameter(f"not a file: {resolved}", param_hint="--consent-file")
@@ -216,8 +216,8 @@ def build(
 ) -> None:
     """Build a CV PDF from confirmed facts and record it with its manifest."""
     settings = settings_from(ctx)
-    consent = _read_consent(consent_file) if consent_file else None
-    with _database(ctx) as conn:
+    consent = read_consent(consent_file) if consent_file else None
+    with database(ctx) as conn:
         chosen_template = get_template(template)
         engine = find_engine()
         if confirmed_only:
@@ -254,11 +254,20 @@ def build(
             profile_version_id=version,
             manifest=out.manifest,
         )
-    console.print(f"[green]CV written:[/green] {out.pdf} ({out.pages} page(s), document #{pdf.id})")
-    console.print(f"LaTeX source: {out.tex}")
-    _report_unused(result.unused)
+    report_build(out, pdf.id)
+    report_unused(result.unused)
     if left_out:
         console.print(f"{len(left_out)} unreviewed fact(s) were left out.")
+    if open_pdf:
+        typer.launch(str(out.pdf))
+
+
+def report_build(out: BuildOutput, document_id: int | None) -> None:
+    """Where the PDF went, and the layout and text-extraction warnings."""
+    console.print(
+        f"[green]CV written:[/green] {out.pdf} ({out.pages} page(s), document #{document_id})"
+    )
+    console.print(f"LaTeX source: {out.tex}")
     for warning in out.warnings:
         console.print(Text(f"Layout: {warning}", style="yellow"))
     if out.missing_text:
@@ -267,24 +276,23 @@ def build(
         )
         for text in out.missing_text:
             console.print(Text(f"  - {text}"))
-    if open_pdf:
-        typer.launch(str(out.pdf))
 
 
 @cv_app.command("list")
 def list_cvs(ctx: typer.Context) -> None:
     """List generated CVs with their template and profile version."""
-    with _database(ctx) as conn:
+    with database(ctx) as conn:
         cvs = artifacts.list_cvs(conn)
     if not cvs:
         console.print("No CVs built yet. Run `jaa cv build`.")
         return
-    table = Table("ID", "Created (UTC)", "Template", "Profile version", "File")
+    table = Table("ID", "Created (UTC)", "Job", "Template", "Profile version", "File")
     for doc in cvs:
         exists = "" if Path(doc.path).is_file() else " (missing)"
         table.add_row(
             str(doc.id),
             f"{doc.created_at:%Y-%m-%d %H:%M}",
+            str(doc.job_id or "-"),
             doc.template_version or "-",
             str(doc.profile_version_id or "-"),
             Text(doc.path + exists),
