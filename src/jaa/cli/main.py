@@ -5,6 +5,7 @@ from typing import Annotated
 import typer
 
 from jaa import __version__
+from jaa.cli.answers import answers_app
 from jaa.cli.common import console, err_console, open_existing, settings_from
 from jaa.cli.cv import cv_app
 from jaa.cli.imports import import_app
@@ -34,6 +35,7 @@ app.add_typer(sources_app, name="sources")
 app.add_typer(jobs_app, name="jobs")
 cv_app.add_typer(tailor_app, name="tailor")
 app.add_typer(cv_app, name="cv")
+app.add_typer(answers_app, name="answers")
 app.command()(onboard)
 
 

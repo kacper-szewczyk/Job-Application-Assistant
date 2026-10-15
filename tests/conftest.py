@@ -157,6 +157,12 @@ def populate(conn: sqlite3.Connection) -> Sample:
             status_changed_at=T0,
         ),
     )
+    repo.job_questions.insert(
+        conn,
+        m.JobQuestion(
+            job_id=ident(job.id), label="Do you require sponsorship?", required=True, created_at=T0
+        ),
+    )
     other_job = add_job(
         conn,
         m.Job(
