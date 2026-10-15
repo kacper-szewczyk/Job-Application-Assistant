@@ -81,7 +81,7 @@ A source is paused when its policy says so (`paused_reason`, unreviewed terms, r
 |---|---|---|---|
 | `solid_jobs` | [SOLID.Jobs](https://solid.jobs/api-ofert-pracy), Poland | Public offers API for integrators and aggregators, no key, `campaign=jaa`; 30 requests/min (the source allows 300) | Divisions: `IT`, `Engineering`, `Marketing`, `Sales`, `HR`, `Logistics`, `Finances`, `Other` |
 
-Checked and not used (#21): justjoin.it and bulldogjob.pl disallow their API and feeds in `robots.txt`; nofluffjobs.com blocks automated clients and documents no API. Offers from those boards can be added by hand from pasted text (#46).
+Checked and not used (#21): justjoin.it and bulldogjob.pl disallow their API and feeds in `robots.txt`; nofluffjobs.com blocks automated clients and documents no API. Add offers from those boards by hand from their pasted text with `jaa jobs add` (source `manual`, ADR 0023); jaa records the link and never fetches it.
 
 ## Adding a connector
 

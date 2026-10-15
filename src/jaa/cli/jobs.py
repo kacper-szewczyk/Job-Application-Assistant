@@ -1,11 +1,13 @@
-"""`jaa jobs …`: fetch listings from approved sources, then search, inspect, dedupe and match
-the stored jobs (T10 to T12, ADR 0013 to 0015)."""
+"""`jaa jobs …`: fetch listings from approved sources or add them by hand, then search, inspect,
+dedupe and match the stored jobs (T10 to T12, #46, ADR 0013 to 0015 and 0023)."""
 
 import sqlite3
+import sys
 from collections import Counter
 from collections.abc import Generator
 from contextlib import contextmanager
 from datetime import datetime
+from pathlib import Path
 from typing import Annotated
 
 import typer
@@ -25,9 +27,10 @@ from jaa.connectors import registry
 from jaa.connectors.http import Transport
 from jaa.connectors.urllib_transport import UrllibTransport
 from jaa.core.applications import is_archived
-from jaa.core.errors import JaaError, NotFoundError, SourceAccessDeniedError
+from jaa.core.errors import ImportSourceError, JaaError, NotFoundError, SourceAccessDeniedError
 from jaa.core.models import DuplicateVerdict, Job, JobMatch, JobStatus
 from jaa.core.search import JobQuery
+from jaa.importers.base import resolve_source
 from jaa.matching.match import Outcome, PreferenceOutcome
 from jaa.matching.requirements import JobRequirements, RequirementOrigin, extract_requirements
 from jaa.storage import applications as tracker
@@ -35,11 +38,12 @@ from jaa.storage import duplicates as dupes
 from jaa.storage import listings as service
 from jaa.storage import matches as matching
 from jaa.storage import privacy, searches
+from jaa.storage.manual_jobs import MAX_DESCRIPTION_CHARS, add_manual_job
 from jaa.storage.profile import active_version_id
 from jaa.storage.repository import jobs as jobs_table
 
 jobs_app = typer.Typer(
-    help="Fetch job listings from approved sources and list stored jobs.",
+    help="Fetch job listings from approved sources, add them by hand and list stored jobs.",
     no_args_is_help=True,
     pretty_exceptions_show_locals=False,
 )
@@ -129,6 +133,85 @@ def fetch(
                     break
     if failed:
         raise typer.Exit(code=1)
+
+
+def _description(text: str | None, path: Path | None) -> str | None:
+    if text is not None and path is not None:
+        err_console.print("[red]Error:[/red] give --description or --description-file, not both.")
+        raise typer.Exit(code=2)
+    if path is None:
+        return text
+    if str(path) == "-":
+        if sys.stdin.isatty():
+            err_console.print("Paste the job description, then press Ctrl-D on an empty line.")
+        return sys.stdin.read()
+    try:
+        # UTF-8 takes at most 4 bytes per character.
+        source = resolve_source(path, max_bytes=4 * MAX_DESCRIPTION_CHARS)
+        return source.read_bytes().decode("utf-8-sig")
+    except UnicodeDecodeError as exc:
+        err_console.print(f"[red]Error:[/red] not UTF-8 text: {escape(str(path))}")
+        raise typer.Exit(code=2) from exc
+    except ImportSourceError as exc:
+        err_console.print(f"[red]Error:[/red] {escape(str(exc))}")
+        raise typer.Exit(code=2) from exc
+
+
+@jobs_app.command("add")
+def add(
+    ctx: typer.Context,
+    url: Annotated[str, typer.Option("--url", help="The offer's page. Recorded, never opened.")],
+    title: Annotated[str, typer.Option("--title", help="Job title as the offer gives it.")],
+    company: Annotated[str, typer.Option("--company", help="Employer name.")],
+    location: Annotated[
+        str | None, typer.Option("--location", help="Location, e.g. `Kraków, hybrid`.")
+    ] = None,
+    description: Annotated[
+        str | None, typer.Option("--description", help="The offer text, pasted.")
+    ] = None,
+    description_file: Annotated[
+        Path | None,
+        typer.Option(
+            "--description-file",
+            help="A UTF-8 text file with the offer text; `-` reads it from standard input.",
+            show_default=False,
+        ),
+    ] = None,
+) -> None:
+    """Add a job by hand, e.g. an offer from justjoin.it, bulldogjob or nofluffjobs.
+
+    jaa does not read those boards; copy the offer's text instead. The job is stored with source
+    `manual` and is matched, tailored and tracked like a fetched job. jaa never opens the URL.
+    """
+    text = _description(description, description_file)
+    with _database(ctx) as conn:
+        added = add_manual_job(
+            conn,
+            url=url,
+            title=title,
+            company=company,
+            location=location,
+            description=text,
+        )
+    job = added.job
+    console.print(
+        Text(f"Added job {job.id}: {job.title} at {job.employer}. See `jaa jobs show {job.id}`.")
+    )
+    if job.description is None:
+        console.print(
+            Text(
+                "No description given, so there are no requirements to match against.",
+                style="yellow",
+            )
+        )
+    if added.flagged:
+        console.print(
+            Text(
+                f"{len(added.flagged)} possible duplicate(s) flagged; "
+                "see `jaa jobs duplicates list`.",
+                style="yellow",
+            )
+        )
 
 
 TextOpt = Annotated[
@@ -226,7 +309,10 @@ def list_jobs(
         partners = dupes.flagged_job_ids(conn)
         empty = not found and jobs_table.list(conn) == []
     if empty:
-        console.print("No jobs stored yet. Fetch some with `jaa jobs fetch <source> <target>`.")
+        console.print(
+            "No jobs stored yet. Fetch some with `jaa jobs fetch <source> <target>` "
+            "or add one with `jaa jobs add`."
+        )
         return
     if not found:
         console.print(f"No jobs match {escape(query.describe())}.")

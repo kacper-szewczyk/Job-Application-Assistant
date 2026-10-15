@@ -117,6 +117,8 @@ uv run jaa sources pause <key> --reason "terms changed"
 uv run jaa sources resume <key>
 
 uv run jaa jobs fetch solid_jobs IT      # every SOLID.Jobs IT offer; also Engineering, HR, …
+uv run jaa jobs add --url <link> --title "Data Engineer" --company "Example" \
+  --location Kraków --description-file offer.txt   # an offer you copied by hand; `-` reads stdin
 uv run jaa jobs list -q python --location krakow   # search; also --company, --source, --status, --include-removed
 uv run jaa jobs list -q python --save python-krk   # …and save the search
 uv run jaa jobs searches run python-krk  # rerun it; jobs found since the last run are marked new
@@ -129,7 +131,7 @@ uv run jaa jobs match --all              # match every listed job and rank them
 uv run jaa jobs matches                  # latest ranking; outdated matches are marked
 ```
 
-The first source is [SOLID.Jobs](https://solid.jobs/api-ofert-pracy), through its public API for aggregators. Fetching again reports new, changed and removed offers; a removed offer keeps your status for it. Connectors only use documented public APIs and feeds, within the rate limits in their source policy. If a source refuses access (login wall, bot check, HTTP 401/403), jaa pauses it instead of retrying. justjoin.it, bulldogjob.pl and nofluffjobs.com offer no permitted API, so jaa does not read them.
+The first source is [SOLID.Jobs](https://solid.jobs/api-ofert-pracy), through its public API for aggregators. Fetching again reports new, changed and removed offers; a removed offer keeps your status for it. Connectors only use documented public APIs and feeds, within the rate limits in their source policy. If a source refuses access (login wall, bot check, HTTP 401/403), jaa pauses it instead of retrying. justjoin.it, bulldogjob.pl and nofluffjobs.com offer no permitted API, so jaa does not read them: copy an offer's text and add it with `jaa jobs add`. It is stored with source `manual` and matched, tailored and tracked like a fetched job; jaa records its link but never opens it ([ADR 0023](docs/decisions/0023-manual-jobs.md)).
 
 Search matches whole words and ignores case, Polish diacritics and punctuation, so `-q lodz` finds Łódź. A job seen again is stored once. Jobs with the same link (ignoring tracking parameters), or with the same employer, title and location, are flagged as possible duplicates and never merged: you decide with `jaa jobs duplicates mark`, and a job marked the same as another shows both source links. A flag on a job you are already applying to is called out. See [docs/connectors.md](docs/connectors.md), [ADR 0011](docs/decisions/0011-connector-contract.md) and [ADR 0013](docs/decisions/0013-solid-jobs-and-listing-storage.md) and [ADR 0014](docs/decisions/0014-dedupe-and-search.md).
 
