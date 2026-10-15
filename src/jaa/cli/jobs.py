@@ -13,10 +13,18 @@ from rich.markup import escape
 from rich.table import Table
 from rich.text import Text
 
-from jaa.cli.common import console, err_console, open_existing, settings_from
+from jaa.cli.common import (
+    YesOpt,
+    confirm_or_exit,
+    console,
+    err_console,
+    open_existing,
+    settings_from,
+)
 from jaa.connectors import registry
 from jaa.connectors.http import Transport
 from jaa.connectors.urllib_transport import UrllibTransport
+from jaa.core.applications import is_archived
 from jaa.core.errors import JaaError, NotFoundError, SourceAccessDeniedError
 from jaa.core.models import DuplicateVerdict, Job, JobMatch, JobStatus
 from jaa.core.search import JobQuery
@@ -26,7 +34,7 @@ from jaa.storage import applications as tracker
 from jaa.storage import duplicates as dupes
 from jaa.storage import listings as service
 from jaa.storage import matches as matching
-from jaa.storage import searches
+from jaa.storage import privacy, searches
 from jaa.storage.profile import active_version_id
 from jaa.storage.repository import jobs as jobs_table
 
@@ -157,7 +165,8 @@ def _query(
 
 
 def _status_text(job: Job, partners: list[int]) -> str:
-    status = job.status.value + (" (removed)" if job.removed_at else "")
+    status = job.status.value + (" (archived)" if is_archived(job.status) else "")
+    status += " (removed)" if job.removed_at else ""
     if partners:
         status += "; duplicate? " + ", ".join(f"#{p}" for p in partners)
     return status
@@ -402,6 +411,35 @@ def run_search(
     )
     if result.jobs:
         _jobs_table(result.jobs, partners, limit, result.new_since_last)
+
+
+@jobs_app.command("delete")
+def delete_jobs(
+    ctx: typer.Context,
+    job_ids: Annotated[list[int], typer.Argument(help="Job IDs to delete.")],
+    yes: YesOpt = False,
+) -> None:
+    """Delete jobs for good, with their application, history and generated documents.
+
+    Rejected, withdrawn and closed jobs are kept as archived until you delete them here. Saved
+    answers stay; delete those with `jaa answers forget`. A job its source still lists comes
+    back as a new job the next time you fetch it.
+    """
+    confirm_or_exit(
+        f"Delete {len(job_ids)} job(s) with their applications, history and documents? "
+        "This cannot be undone",
+        yes=yes,
+    )
+    settings = settings_from(ctx)
+    with _database(ctx) as conn:
+        result = privacy.delete_jobs(conn, job_ids, settings.data_dir)
+    console.print(
+        f"Deleted {result.jobs} job(s) and {len(result.files_deleted)} generated file(s)."
+    )
+    for path in result.files_kept:
+        console.print(
+            Text(f"Kept {path}: outside the data directory or changed since.", style="yellow")
+        )
 
 
 @searches_app.command("delete")

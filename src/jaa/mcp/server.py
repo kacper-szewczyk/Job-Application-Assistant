@@ -29,7 +29,7 @@ from pydantic import JsonValue as PlainJson
 
 from jaa import __version__
 from jaa.config import Settings, load_settings
-from jaa.core.applications import check_transition
+from jaa.core.applications import check_transition, is_archived
 from jaa.core.errors import (
     DuplicateApplicationError,
     ImportSourceError,
@@ -300,6 +300,7 @@ def _summary(job: Job, partners: list[int], found: JobMatch | None) -> out.JobSu
         source=job.source,
         url=job.source_url or job.canonical_url,
         status=job.status,
+        archived=is_archived(job.status),
         first_seen_at=job.first_seen_at,
         no_longer_listed=job.removed_at is not None,
         possible_duplicates=partners,
@@ -345,6 +346,7 @@ def _application_out(job: Job, started: datetime, submitted: datetime | None) ->
         title=job.title,
         employer=job.employer,
         status=job.status,
+        archived=is_archived(job.status),
         status_changed_at=job.status_changed_at,
         started_at=started,
         submitted_at=submitted,

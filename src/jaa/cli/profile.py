@@ -15,7 +15,15 @@ from rich.markup import escape
 from rich.table import Table
 from rich.text import Text
 
-from jaa.cli.common import MASK, console, err_console, open_existing, settings_from
+from jaa.cli.common import (
+    MASK,
+    YesOpt,
+    confirm_or_exit,
+    console,
+    err_console,
+    open_existing,
+    settings_from,
+)
 from jaa.core.errors import FactConflictError, JaaError
 from jaa.core.models import FactOrigin, FactState, JsonValue, ProfileFact
 from jaa.core.review import find_conflicts
@@ -254,6 +262,26 @@ def edit(
     with _database(ctx) as conn:
         result = service.correct_fact(conn, fact_id, value, normalized, replace=replace)
     _report(result.changed, result.version.id if result.version else None)
+
+
+@profile_app.command("delete")
+def delete(
+    ctx: typer.Context,
+    fact_ids: Annotated[list[int], typer.Argument(help="Fact IDs to delete.")],
+    yes: YesOpt = False,
+) -> None:
+    """Delete facts for good: their values, review history and place in profile versions.
+
+    To mark a fact as wrong but keep a record of it, use `jaa profile reject` instead.
+    """
+    confirm_or_exit(
+        f"Delete {len(fact_ids)} fact(s) and their history? This cannot be undone", yes=yes
+    )
+    with _database(ctx) as conn:
+        result = service.delete_facts(conn, fact_ids)
+    console.print(f"Deleted {result.facts} fact(s).")
+    if result.version is not None:
+        console.print(f"Profile version {result.version.id} created and active.")
 
 
 @profile_app.command("versions")

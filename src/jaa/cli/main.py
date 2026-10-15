@@ -7,7 +7,7 @@ import typer
 from jaa import __version__
 from jaa.cli.answers import answers_app
 from jaa.cli.apply import apply_app
-from jaa.cli.common import console, err_console, open_existing, settings_from
+from jaa.cli.common import YesOpt, console, err_console, open_existing, settings_from
 from jaa.cli.cv import cv_app
 from jaa.cli.imports import import_app
 from jaa.cli.jobs import jobs_app
@@ -17,10 +17,10 @@ from jaa.cli.profile import profile_app
 from jaa.cli.sources import sources_app
 from jaa.cli.tailor import tailor_app
 from jaa.config import ensure_data_dir, load_settings
-from jaa.core.errors import JaaError
+from jaa.core.errors import DatabaseNotEmptyError, JaaError
 from jaa.logging import setup_logging
 from jaa.storage.db import connect, open_database, schema_version
-from jaa.storage.export import backup_database, export_json
+from jaa.storage.export import backup_database, export_json, restore
 
 log = logging.getLogger(__name__)
 
@@ -143,3 +143,41 @@ def export(
         conn.close()
     console.print(f"Export written: {path}")
     console.print("It contains your personal data. Store it somewhere private.")
+
+
+@app.command("restore")
+def restore_command(
+    ctx: typer.Context,
+    src: Annotated[Path, typer.Argument(help="A file written by `jaa backup` or `jaa export`.")],
+    force: Annotated[
+        bool, typer.Option("--force", help="Replace a database that already has records.")
+    ] = False,
+    yes: YesOpt = False,
+) -> None:
+    """Restore the database from a backup or export.
+
+    A database that has records is replaced only with --force, and a copy of it is written to
+    the `backups` folder in the data directory first. Stop `jaa mcp serve` before restoring.
+    """
+    settings = settings_from(ctx)
+    if (
+        force
+        and not yes
+        and not typer.confirm(
+            "Replace your current records with the ones in this file? A copy is kept first",
+            default=False,
+        )
+    ):
+        console.print("Nothing restored.")
+        raise typer.Exit(code=1)
+    try:
+        ensure_data_dir(settings)
+        result = restore(settings.database_path, src, replace=force)
+    except JaaError as exc:
+        err_console.print(f"[red]Restore failed:[/red] {exc}")
+        if isinstance(exc, DatabaseNotEmptyError):
+            err_console.print("Pass --force to replace them.")
+        raise typer.Exit(code=1) from exc
+    console.print(f"Restored {result.rows} record(s) from the {result.kind}.")
+    if result.previous is not None:
+        console.print(f"Your previous database was saved to {result.previous}.")
