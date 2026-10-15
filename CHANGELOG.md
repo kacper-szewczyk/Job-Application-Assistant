@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.21.0](https://github.com/kacper-szewczyk/Job-Application-Assistant/compare/jaa-v0.20.0...jaa-v0.21.0) (2026-10-15)
+
+
+### Features
+
+* **importers:** import LinkedIn profile and job activity through the portability API ([#79](https://github.com/kacper-szewczyk/Job-Application-Assistant/issues/79)) ([d5dc7f6](https://github.com/kacper-szewczyk/Job-Application-Assistant/commit/d5dc7f6caf64952cb1ce68b00c4fc6ef9b63ad1d)), closes [#72](https://github.com/kacper-szewczyk/Job-Application-Assistant/issues/72)
+
 ## [0.20.0](https://github.com/kacper-szewczyk/Job-Application-Assistant/compare/jaa-v0.19.0...jaa-v0.20.0) (2026-10-15)
 
 
