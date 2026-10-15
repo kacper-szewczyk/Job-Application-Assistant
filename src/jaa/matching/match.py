@@ -27,6 +27,7 @@ from typing import Final, cast
 
 from jaa.core.dedupe import fold, plain
 from jaa.core.job_details import SalaryRange, WorkArrangement
+from jaa.core.languages import LANGUAGES, language_name
 from jaa.core.models import FactState, JsonObject, JsonValue, ProfileFact
 from jaa.documents.content import text_of
 from jaa.matching.requirements import (
@@ -157,41 +158,6 @@ def _contains(haystack: Sequence[str], needle: Sequence[str]) -> bool:
     return any(tuple(haystack[i : i + n]) == tuple(needle) for i in range(len(haystack) - n + 1))
 
 
-# Language names as English words; Polish names and the stems of their inflected forms
-# ("języka angielskiego") map to the same name.
-_LANGUAGES: Final[dict[str, tuple[str, ...]]] = {
-    "english": ("english", "angielsk"),
-    "polish": ("polish", "polsk"),
-    "german": ("german", "niemieck"),
-    "french": ("french", "francusk"),
-    "spanish": ("spanish", "hiszpansk"),
-    "italian": ("italian", "wlosk"),
-    "russian": ("russian", "rosyjsk"),
-    "ukrainian": ("ukrainian", "ukrainsk"),
-    "czech": ("czech", "czesk"),
-    "slovak": ("slovak", "slowack"),
-    "dutch": ("dutch", "niderlandzk", "holendersk"),
-    "swedish": ("swedish", "szwedzk"),
-    "norwegian": ("norwegian", "norwesk"),
-    "danish": ("danish", "dunsk"),
-    "finnish": ("finnish", "finsk"),
-    "portuguese": ("portuguese", "portugalsk"),
-    "japanese": ("japanese", "japonsk"),
-    "chinese": ("chinese", "chinsk"),
-    "hungarian": ("hungarian", "wegiersk"),
-    "romanian": ("romanian", "rumunsk"),
-}
-
-
-def language_name(text: str) -> str | None:
-    """The English name of the language `text` names, or None."""
-    words = fold(text).split()
-    for name, stems in _LANGUAGES.items():
-        if any(w.startswith(stem) for w in words for stem in stems):
-            return name
-    return None
-
-
 @dataclass(frozen=True, slots=True)
 class _Term:
     fact: ProfileFact
@@ -268,7 +234,7 @@ def _find(requirement: Requirement, index: _Index) -> list[Evidence]:
     found += [
         _evidence(f, n)
         for f, n in index.languages
-        if any(w.startswith(stem) for w in words for stem in _LANGUAGES[n])
+        if any(w.startswith(stem) for w in words for stem in LANGUAGES[n])
     ]
     return found
 

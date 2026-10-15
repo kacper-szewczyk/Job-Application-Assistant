@@ -42,6 +42,37 @@ SAMPLE_CV: Final[tuple[tuple[str, str | None, bool], ...]] = (
 )
 
 
+# The same kinds of content in Polish, with Polish headings, dates and a RODO consent clause.
+SAMPLE_CV_PL: Final[tuple[tuple[str, str | None, bool], ...]] = (
+    ("Żaneta Przykładowa", "Title", False),
+    ("zaneta.przykladowa@example.test | +48 600 100 200 | github.com/zaneta-przyklad", None, False),
+    ("Podsumowanie", "Heading1", False),
+    ("Inżynierka backendu budująca niezawodne platformy widżetów.", None, False),
+    ("Doświadczenie zawodowe", "Heading1", False),
+    ("Starsza programistka w Przykładowe Widżety sp. z o.o.", None, False),
+    ("styczeń 2021 – obecnie", None, False),
+    ("Prowadziłam migrację potoków widżetów na strumienie zdarzeń.", None, True),
+    ("Gadżety Łódź S.A. | Inżynier oprogramowania | 03.2017 - 12.2020", None, False),
+    ("Zbudowałam API do ewidencji gadżetów.", None, True),
+    ("Wykształcenie", "Heading1", False),
+    ("Magister informatyki, Politechnika Przykładowa", None, False),
+    ("2013 – 2016", None, False),
+    ("Umiejętności", "Heading1", False),
+    ("Języki programowania: Python, Go, C++", None, False),
+    ("Narzędzia: Docker, PostgreSQL (replikacja, strojenie)", None, False),
+    ("Języki obce", "Heading1", False),
+    ("polski (ojczysty), angielski – C1", None, False),
+    ("Wolontariat", "Heading1", False),
+    ("Mentorka w syntetycznym klubie programowania", None, False),
+    (
+        "Wyrażam zgodę na przetwarzanie moich danych osobowych dla potrzeb niezbędnych do "
+        "realizacji procesu rekrutacji.",
+        None,
+        False,
+    ),
+)
+
+
 def sample_lines() -> list[str]:
     return [text for text, _, _ in SAMPLE_CV]
 
@@ -49,8 +80,40 @@ def sample_lines() -> list[str]:
 # --- PDF -----------------------------------------------------------------------------------
 
 
+# Polish letters missing from WinAnsi, placed on codes the font's /Differences renames.
+_EXTRA_GLYPHS: Final = {
+    "ą": "aogonek",
+    "ć": "cacute",
+    "ę": "eogonek",
+    "ł": "lslash",
+    "ń": "nacute",
+    "ś": "sacute",
+    "ź": "zacute",
+    "ż": "zdotaccent",
+    "Ą": "Aogonek",
+    "Ć": "Cacute",
+    "Ę": "Eogonek",
+    "Ł": "Lslash",
+    "Ń": "Nacute",
+    "Ś": "Sacute",
+    "Ź": "Zacute",
+    "Ż": "Zdotaccent",
+}
+_FIRST_EXTRA: Final = 0x80
+_EXTRA_CODES: Final = {char: _FIRST_EXTRA + i for i, char in enumerate(_EXTRA_GLYPHS)}
+
+
+def _encode(char: str) -> bytes:
+    if char in _EXTRA_CODES:
+        return bytes([_EXTRA_CODES[char]])
+    code = char.encode("cp1252")
+    if _FIRST_EXTRA <= code[0] < _FIRST_EXTRA + len(_EXTRA_CODES):
+        raise ValueError(f"{char!r} would be read as a Polish letter in the test PDF")
+    return code
+
+
 def _pdf_string(text: str) -> bytes:
-    raw = text.encode("cp1252")
+    raw = b"".join(_encode(char) for char in text)
     return b"(" + raw.replace(b"\\", b"\\\\").replace(b"(", b"\\(").replace(b")", b"\\)") + b")"
 
 
@@ -63,7 +126,11 @@ def build_pdf(pages: Sequence[Sequence[str]]) -> bytes:
         return len(objects)
 
     catalog = add(b"")  # filled in once the page tree id is known
-    font = add(b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>")
+    differences = " ".join(f"/{name}" for name in _EXTRA_GLYPHS.values())
+    font = add(
+        b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding << /BaseEncoding "
+        + f"/WinAnsiEncoding /Differences [{_FIRST_EXTRA} {differences}] >> >>".encode()
+    )
     tree = add(b"")
     page_ids: list[int] = []
     for lines in pages:
@@ -105,7 +172,7 @@ def build_pdf(pages: Sequence[Sequence[str]]) -> bytes:
 def sample_pdf(cv: CvLines = SAMPLE_CV) -> bytes:
     # PDFs keep bullets as glyphs in the text, unlike DOCX numbering.
     lines = [f"• {text}" if bullet else text for text, _, bullet in cv]
-    split = lines.index("Education")
+    split = next(i for i, (_, style, _) in enumerate(cv) if style == "Heading1" and i > 4)
     return build_pdf([lines[:split], lines[split:]])
 
 
