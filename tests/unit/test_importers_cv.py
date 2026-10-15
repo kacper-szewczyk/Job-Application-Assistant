@@ -335,3 +335,173 @@ def test_named_entry_fields_are_used_as_given_and_extras_reported() -> None:
 def test_headings_list_every_section() -> None:
     parsed = parse_cv(lines("Avery Synthetic", "Skills", "Python", "Hobbies", "Chess"))
     assert parsed.headings == (("Skills", Section.SKILLS), ("Hobbies", Section.UNSUPPORTED))
+
+
+# --- Polish (ADR 0031) -------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("Doświadczenie zawodowe", Section.EXPERIENCE),
+        ("DOŚWIADCZENIE ZAWODOWE:", Section.EXPERIENCE),
+        ("Doswiadczenie zawodowe", Section.EXPERIENCE),
+        ("Wykształcenie", Section.EDUCATION),
+        ("Umiejętności", Section.SKILLS),
+        ("Języki obce", Section.LANGUAGES),
+        ("Certyfikaty", Section.CERTIFICATIONS),
+        ("O mnie", Section.SUMMARY),
+        ("Dane kontaktowe", Section.CONTACT),
+        ("Zainteresowania", Section.UNSUPPORTED),
+    ],
+)
+def test_polish_headings(text: str, expected: Section) -> None:
+    assert heading_section(text) is expected
+
+
+def test_slug_folds_polish_diacritics() -> None:
+    assert slug("Zażółć gęślą jaźń") == "zazolc-gesla-jazn"
+    assert slug("ĄĆĘŁŃÓŚŹŻ") == "acelnoszz"
+
+
+@pytest.mark.parametrize(
+    ("text", "dates"),
+    [
+        ("styczeń 2021 – obecnie", {"start": "2021-01", "end": None, "current": True}),
+        ("od stycznia 2020 do teraz", {"start": "2020-01", "end": None, "current": True}),
+        ("paź. 2019 – do dziś", {"start": "2019-10", "end": None, "current": True}),
+        ("wrzesień 2018 - czerwiec 2019", {"start": "2018-09", "end": "2019-06", "current": False}),
+        ("Wrz 2018 – Lut 2019", {"start": "2018-09", "end": "2019-02", "current": False}),
+        ("01.2020 – aktualnie", {"start": "2020-01", "end": None, "current": True}),
+        ("2015 do 2017", {"start": "2015", "end": "2017", "current": False}),
+    ],
+)
+def test_polish_date_ranges(text: str, dates: dict[str, object]) -> None:
+    parsed = parse_cv(lines("Doświadczenie", f"Programista, Example Widgets | {text}"))
+    facts = by_key(parsed)
+    assert facts["experience.example-widgets.dates"].value_normalized == dates
+    # The dates are cut out of the heading as written, diacritics and all.
+    assert facts["experience.example-widgets.dates"].value_raw == text
+    assert facts["experience.example-widgets.employer"].value_raw == "Example Widgets"
+    assert facts["experience.example-widgets.title"].value_raw == "Programista"
+    assert codes(parsed) == []
+
+
+def test_polish_role_at_employer() -> None:
+    parsed = parse_cv(
+        lines(
+            "Doświadczenie zawodowe",
+            "Starsza programistka w Przykładowe Widżety sp. z o.o.",
+            "styczeń 2021 – obecnie",
+            "• Prowadziłam migrację potoków.",
+        )
+    )
+    facts = by_key(parsed)
+    entry = "experience.przykladowe-widzety-sp-z-o-dot-o"
+    assert facts[f"{entry}.title"].value_raw == "Starsza programistka"
+    assert facts[f"{entry}.employer"].value_raw == "Przykładowe Widżety sp. z o.o."
+    assert facts[f"{entry}.dates"].value_normalized == {
+        "start": "2021-01",
+        "end": None,
+        "current": True,
+    }
+
+
+def test_polish_w_is_not_split_without_a_role() -> None:
+    # "w" is also part of names ("Bank Spółdzielczy w Przykładowie"): no role, no split.
+    parsed = parse_cv(lines("Doświadczenie", "Bank Spółdzielczy w Przykładowie | 2019 - 2020"))
+    facts = by_key(parsed)
+    assert "experience.bank-spoldzielczy-w-przykladowie.heading" in facts
+    assert not any(k.endswith(".employer") for k in facts)
+
+
+def test_polish_education_keywords() -> None:
+    parsed = parse_cv(
+        lines(
+            "Wykształcenie",
+            "Politechnika Przykładowa | Inżynier, Informatyka | 2012 - 2016",
+            "Liceum Ogólnokształcące nr 1 | Matura | 2012",
+        )
+    )
+    facts = by_key(parsed)
+    assert facts["education.politechnika-przykladowa.degree"].value_raw == "Inżynier"
+    assert facts["education.liceum-ogolnoksztalcace-nr-1.degree"].value_raw == "Matura"
+    assert facts["education.liceum-ogolnoksztalcace-nr-1.dates"].value_normalized == {
+        "start": None,
+        "end": "2012",
+        "current": False,
+    }
+
+
+def test_language_keys_are_the_same_in_english_and_polish() -> None:
+    polish = by_key(parse_cv(lines("Języki", "Język angielski: C1, niemiecki (B2), polski")))
+    english = by_key(parse_cv(lines("Languages", "English: C1, German (B2), Polish")))
+    assert (
+        set(polish) == set(english) == {"languages.english", "languages.german", "languages.polish"}
+    )
+    assert polish["languages.english"].value_normalized == {
+        "language": "Język angielski",
+        "level": "C1",
+    }
+    # Only a bare language name is mapped; anything more keeps its own key.
+    assert "languages.business-english" in by_key(parse_cv(lines("Languages", "Business English")))
+
+
+@pytest.mark.parametrize("title", ["Życiorys", "CURRICULUM VITAE"])
+def test_document_title_is_skipped_and_the_name_still_found(title: str) -> None:
+    parsed = parse_cv(lines(title, "Żaneta Przykładowa", "Umiejętności", "Python"))
+    assert by_key(parsed)["identity.name"].value_raw == "Żaneta Przykładowa"
+    assert codes(parsed) == []
+
+
+def test_mixed_language_cv_keeps_every_section() -> None:
+    parsed = parse_cv(
+        lines(
+            "Avery Synthetic",
+            "Doświadczenie zawodowe",
+            "Senior Engineer at Example Widgets Ltd | Jan 2021 – obecnie",
+            "Education",
+            "Uniwersytet Przykładowy | Magister | 2014 - 2016",
+            "Umiejętności",
+            "Python, Go",
+            "Languages",
+            "angielski (C1)",
+        )
+    )
+    facts = by_key(parsed)
+    assert facts["experience.example-widgets-ltd.title"].value_raw == "Senior Engineer"
+    assert facts["experience.example-widgets-ltd.dates"].value_normalized == {
+        "start": "2021-01",
+        "end": None,
+        "current": True,
+    }
+    assert facts["education.uniwersytet-przykladowy.degree"].value_raw == "Magister"
+    assert {"skills.python", "skills.go", "languages.english"} <= set(facts)
+    assert codes(parsed) == []
+    assert [section for _, section in parsed.headings] == [
+        Section.EXPERIENCE,
+        Section.EDUCATION,
+        Section.SKILLS,
+        Section.LANGUAGES,
+    ]
+
+
+@pytest.mark.parametrize(
+    "clause",
+    [
+        ("Wyrażam zgodę na przetwarzanie moich danych osobowych w celu rekrutacji.",),
+        ("Klauzula informacyjna", "Zgodnie z art. 6 ust. 1 lit. a RODO wyrażam zgodę."),
+        ("I hereby consent to the processing of my personal data for recruitment.",),
+    ],
+)
+def test_consent_clause_is_reported_not_imported(clause: tuple[str, ...]) -> None:
+    parsed = parse_cv(lines("Umiejętności", "Python, Go", *clause))
+    facts = by_key(parsed)
+    assert set(facts) == {"skills.python", "skills.go"}
+    assert codes(parsed) == ["consent_clause_not_imported"]
+    assert parsed.headings == (("Umiejętności", Section.SKILLS),)
+
+
+def test_consent_clause_alone_is_not_a_section() -> None:
+    parsed = parse_cv(lines("Avery Synthetic", "Wyrażam zgodę na przetwarzanie danych."))
+    assert "no_sections" in codes(parsed)

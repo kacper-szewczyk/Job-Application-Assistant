@@ -315,3 +315,25 @@ def test_issue_and_line_reprs_never_show_cv_text() -> None:
     rendered = repr(result) + repr(project(FIXTURES / "moderncv.tex"))
     assert "Avery" not in rendered
     assert "example.test" not in rendered
+
+
+def test_polish_moderncv_sections_and_entries() -> None:
+    doc = (
+        "\\documentclass{moderncv}\n\\begin{document}\n"
+        "\\section{Do\\'swiadczenie zawodowe}\n"
+        "\\cventry{01.2021 -- obecnie}{Programistka}{Przyk\\l{}adowe Wid\\.zety sp. z o.o.}{}{}"
+        "{Prowadzi\\l{}am migracj\\k{e} potok\\'ow.}\n"
+        "\\section{J\\k{e}zyki}\n\\cvitem{angielski}{C1}\n"
+        "\\end{document}\n"
+    )
+    parsed = parse_cv(from_text(doc).extracted.lines)
+    facts = by_key(parsed)
+    entry = "experience.przykladowe-widzety-sp-z-o-dot-o"
+    assert facts[f"{entry}.title"].value_raw == "Programistka"
+    assert facts[f"{entry}.dates"].value_normalized == {
+        "start": "2021-01",
+        "end": None,
+        "current": True,
+    }
+    assert "languages.english" in facts
+    assert [section for _, section in parsed.headings] == [Section.EXPERIENCE, Section.LANGUAGES]

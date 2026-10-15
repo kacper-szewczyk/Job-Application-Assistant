@@ -1,12 +1,12 @@
 from collections.abc import Mapping, Sequence
 
 from jaa.core.job_details import SalaryRange, WorkArrangement
+from jaa.core.languages import language_name
 from jaa.core.models import FactOrigin, FactState, JsonValue, ProfileFact
 from jaa.matching.match import (
     MatchResult,
     Outcome,
     PreferenceOutcome,
-    language_name,
     match_job,
     tokens,
 )

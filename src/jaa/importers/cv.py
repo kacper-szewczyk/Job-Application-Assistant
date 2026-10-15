@@ -7,7 +7,9 @@ cannot be interpreted it is reported as an issue rather than guessed at or silen
 Field keys are stable per item (ADR 0006): `skills.<slug>`, `experience.<employer>.title`, …,
 so re-importing an edited CV yields duplicates or conflicts instead of new facts.
 
-Section headings and keywords are English only for now (the CV language decision is open, #1).
+Headings, keywords, month names and "present" words are English and Polish (ADR 0031). They
+are matched on folded text (lowercase, no diacritics), so `Doświadczenie` and `DOSWIADCZENIE`
+are the same heading, and a CV may mix the two languages.
 """
 
 import re
@@ -17,6 +19,7 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Final
 
+from jaa.core.languages import language_name
 from jaa.core.models import FactCandidate, JsonObject, JsonValue
 from jaa.core.review import same_value
 from jaa.importers.base import ImportIssue, IssueSeverity, SourceLine
@@ -106,7 +109,118 @@ _HEADINGS: Final[dict[Section, tuple[str, ...]]] = {
         "leadership",
     ),
 }
-_HEADING_LOOKUP: Final = {text: section for section, texts in _HEADINGS.items() for text in texts}
+_HEADINGS_PL: Final[dict[Section, tuple[str, ...]]] = {
+    Section.CONTACT: (
+        "kontakt",
+        "dane kontaktowe",
+        "informacje kontaktowe",
+        "dane osobowe",
+        "dane osobowe i kontaktowe",
+    ),
+    Section.SUMMARY: (
+        "podsumowanie",
+        "podsumowanie zawodowe",
+        "profil",
+        "profil zawodowy",
+        "o mnie",
+        "cel zawodowy",
+    ),
+    Section.EXPERIENCE: (
+        "doświadczenie",
+        "doświadczenie zawodowe",
+        "przebieg pracy zawodowej",
+        "przebieg kariery",
+        "historia zatrudnienia",
+        "zatrudnienie",
+    ),
+    Section.EDUCATION: (
+        "wykształcenie",
+        "edukacja",
+        "wykształcenie i szkolenia",
+        "edukacja i szkolenia",
+    ),
+    Section.SKILLS: (
+        "umiejętności",
+        "umiejętności techniczne",
+        "kluczowe umiejętności",
+        "umiejętności i narzędzia",
+        "kompetencje",
+        "kompetencje kluczowe",
+        "kluczowe kompetencje",
+        "technologie",
+        "stos technologiczny",
+    ),
+    Section.LANGUAGES: (
+        "języki",
+        "języki obce",
+        "znajomość języków",
+        "znajomość języków obcych",
+        "umiejętności językowe",
+    ),
+    Section.CERTIFICATIONS: (
+        "certyfikaty",
+        "certyfikacje",
+        "certyfikaty i licencje",
+        "licencje i certyfikaty",
+        "uprawnienia",
+    ),
+    Section.UNSUPPORTED: (
+        "projekty",
+        "projekty osobiste",
+        "wolontariat",
+        "zainteresowania",
+        "hobby",
+        "publikacje",
+        "nagrody",
+        "osiągnięcia",
+        "nagrody i osiągnięcia",
+        "referencje",
+        "kursy",
+        "szkolenia",
+        "kursy i szkolenia",
+        "działalność dodatkowa",
+        "aktywności",
+    ),
+}
+
+
+def _fold(text: str) -> str:
+    """Lowercase without diacritics (`Łódź` → `lodz`), one character for each character.
+
+    Keeping the length lets a match on the folded text be cut out of the original text.
+    """
+    out: list[str] = []
+    for char in text:
+        lower = char.lower()
+        if len(lower) != 1:
+            lower = char
+        lower = _FOLD_LETTERS.get(lower, lower)
+        decomposed = unicodedata.normalize("NFD", lower)
+        if len(decomposed) > 1 and all(unicodedata.combining(c) for c in decomposed[1:]):
+            lower = decomposed[0]
+        out.append(lower)
+    return "".join(out)
+
+
+# Letters with no Unicode decomposition to a base letter.
+_FOLD_LETTERS: Final = {"ł": "l", "ø": "o", "đ": "d"}
+
+_HEADING_LOOKUP: Final = {
+    _fold(text): section
+    for table in (_HEADINGS, _HEADINGS_PL)
+    for section, texts in table.items()
+    for text in texts
+}
+
+# The data-processing consent clause Polish CVs end with (RODO, "klauzula"). It is not a
+# profile fact; jaa adds the user's own clause to generated CVs.
+_CONSENT_HEADINGS: Final = frozenset(
+    {"klauzula", "klauzula informacyjna", "klauzula rodo", "rodo", "zgoda na przetwarzanie danych"}
+)
+_CONSENT_LINE: Final = re.compile(
+    r"^(?:wyrazam zgode na przetwarzanie|zgodnie z art\. ?6|"
+    r"i (?:hereby )?(?:agree|consent) to the processing of (?:my )?personal data)"
+)
 
 # --- patterns --------------------------------------------------------------------------------
 
@@ -119,6 +233,8 @@ _URL: Final = re.compile(
 _BULLET: Final = re.compile(r"^(?:[•·▪‣◦●○■□➢►✓*]|[-–—](?=\s))\s*")
 _PART_SEPARATOR: Final = re.compile(r"\s+[|•·]\s+|\s*\|\s*|\s+[-–—]\s+")
 _AT: Final = re.compile(r"\s+(?:at|@)\s+", re.IGNORECASE)
+# Polish "Programista w Example": only split when the part before "w" names a role.
+_AT_PL: Final = re.compile(r"\s+w\s+")
 _COMPANY_SUFFIX: Final = re.compile(
     r"(?i)^(?:inc|ltd|llc|llp|plc|gmbh|ag|s\.?a|b\.?v|sp\. z o\.o|co|corp|limited)\.?$"
 )
@@ -128,16 +244,31 @@ _TITLE_WORDS: Final = re.compile(
     r"|associate|assistant|technician|executive|founder|co-founder|owner|cto|ceo|cfo|coo|vp"
     r"|president|researcher|teacher|lecturer|professor|tester|devops|sre|accountant|advis[eo]r"
     r"|editor|writer|trainee|apprentice|contractor|freelancer|supervisor|strategist"
-    r"|product owner|scrum master|representative)\b"
+    r"|product owner|scrum master|representative"
+    # Polish, folded: stems cover feminine and inflected forms (programistka, kierownikiem).
+    r"|inzynier\w*|programist\w*|deweloper\w*|kierowni\w*|anality\w*|projektan\w*"
+    r"|konsultan\w*|dyrektor\w*|stazyst\w*|praktykan\w*|specjalist\w*|architekt\w*"
+    r"|administrator\w*|koordynator\w*|asystent\w*|technik|techniczka|tester\w*|ksiegow\w*"
+    r"|doradc\w*|prezes\w*|zalozyciel\w*|wspolzalozyciel\w*|wlasciciel\w*|nauczyciel\w*"
+    r"|wykladow\w*|badacz\w*|lider\w*|liderk\w*|menedzer\w*|menadzer\w*|redaktor\w*"
+    r"|przedstawiciel\w*|opiekun\w*|zastepc\w*|kontroler\w*|sprzedawc\w*)\b"
 )
 _DEGREE_WORDS: Final = re.compile(
     r"(?i)\b(?:b\.?sc|m\.?sc|b\.?eng|m\.?eng|b\.?a|m\.?a|ph\.?d|mba|llb|llm|bachelor|master"
-    r"|doctorate|diploma|degree|a-levels?|high school)\b\.?"
+    r"|doctorate|diploma|degree|a-levels?|high school"
+    r"|licencja\w*|magister\w*|mgr|inz|inzynier\w*|doktor\w*|dr|studia|dyplom\w*|matura"
+    r"|absolwent\w*)\b\.?"
 )
 _INSTITUTION_WORDS: Final = re.compile(
-    r"(?i)\b(?:university|college|institute|school|academy|polytechnic|conservatory)\b"
+    r"(?i)\b(?:university|college|institute|school|academy|polytechnic|conservatory"
+    r"|uniwersytet\w*|politechnik\w*|akademi\w*|szkol\w*|uczelni\w*|instytut\w*|liceum"
+    r"|technikum|kolegium)\b"
 )
-_NOT_A_NAME: Final = frozenset({"curriculum vitae", "resume", "résumé", "cv"})
+# Polish legal forms written after the name without a comma ("Example sp. z o.o.").
+_COMPANY_TAIL_PL: Final = re.compile(
+    r"(?i)\s(?:sp\.?\s*z\s*o\.?\s*o|s\.?\s*a|sp\.?\s*[jkp]|s\.?\s*k\.?\s*a)\.?$"
+)
+_NOT_A_NAME: Final = frozenset({"curriculum vitae", "resume", "cv", "zyciorys"})
 _NAME_TOKEN: Final = re.compile(r"^[^\W\d_][^\W\d_'’.-]*(?:['’.-][^\W\d_]+)*\.?$")
 
 _MONTH_NAMES: Final = (
@@ -154,17 +285,41 @@ _MONTH_NAMES: Final = (
     ("nov", "november"),
     ("dec", "december"),
 )
-_MONTHS: Final = {name: n for n, names in enumerate(_MONTH_NAMES, start=1) for name in names}
+# Polish, folded: abbreviation, nominative, genitive ("od stycznia") and locative ("w styczniu").
+_MONTH_NAMES_PL: Final = (
+    ("sty", "styczen", "stycznia", "styczniu"),
+    ("lut", "luty", "lutego", "lutym"),
+    ("mar", "marzec", "marca", "marcu"),
+    ("kwi", "kwiecien", "kwietnia", "kwietniu"),
+    ("maj", "maja", "maju"),
+    ("cze", "czerwiec", "czerwca", "czerwcu"),
+    ("lip", "lipiec", "lipca", "lipcu"),
+    ("sie", "sierpien", "sierpnia", "sierpniu"),
+    ("wrz", "wrzesien", "wrzesnia", "wrzesniu"),
+    ("paz", "pazdziernik", "pazdziernika", "pazdzierniku"),
+    ("lis", "listopad", "listopada", "listopadzie"),
+    ("gru", "grudzien", "grudnia", "grudniu"),
+)
+_MONTHS: Final = {
+    name: n
+    for table in (_MONTH_NAMES, _MONTH_NAMES_PL)
+    for n, names in enumerate(table, start=1)
+    for name in names
+}
 _MONTH_RE: Final = "|".join(sorted(_MONTHS, key=len, reverse=True))
 _MM: Final = r"(?:0?[1-9]|1[0-2])"
 _YEAR: Final = r"(?:19|20)\d{2}"
 _POINT: Final = (
     rf"(?:(?:{_MONTH_RE})\.?\s+{_YEAR}|{_MM}[/.]{_YEAR}|{_YEAR}[-/.]{_MM}(?!\d)|{_YEAR})"
 )
-_CURRENT: Final = r"(?:present|current|now|today|ongoing)"
+_CURRENT: Final = (
+    r"(?:present|current|now|today|ongoing"
+    r"|obecnie|aktualnie|nadal|teraz|do teraz|do dzisiaj|do dzis|dzisiaj|dzis|do chwili obecnej)"
+)
+# Date patterns run on folded text (`_fold`), so Polish month names are written without accents.
 _DATE_RANGE: Final = re.compile(
-    rf"(?i)(?<![\w/.])(?P<start>{_POINT})\s*(?:-|–|—|to|until)\s*(?P<end>{_POINT}|{_CURRENT})"
-    r"(?![\w/])"
+    rf"(?i)(?<![\w/.])(?:(?:from|od)\s+)?(?P<start>{_POINT})\s*(?:-|–|—|to|until|do)\s*"
+    rf"(?P<end>{_POINT}|{_CURRENT})(?![\w/])"
 )
 _SINGLE_DATE: Final = re.compile(rf"(?i)(?<![\w/.])(?P<point>{_POINT})(?![\w/])")
 
@@ -174,8 +329,11 @@ _SINGLE_DATE: Final = re.compile(rf"(?i)(?<![\w/.])(?P<point>{_POINT})(?![\w/])"
 
 def heading_section(text: str) -> Section | None:
     """The section a heading line starts, or None if the line is not a known heading."""
-    key = " ".join(text.lower().replace("&", "and").rstrip(":").split())
-    return _HEADING_LOOKUP.get(key)
+    return _HEADING_LOOKUP.get(_heading_key(text))
+
+
+def _heading_key(text: str) -> str:
+    return " ".join(_fold(text).replace("&", "and").rstrip(":").split())
 
 
 def slug(text: str) -> str:
@@ -190,7 +348,7 @@ def slug(text: str) -> str:
 
 
 def _normalize_point(text: str) -> str:
-    text = text.strip().lower().rstrip(".")
+    text = _fold(text.strip()).rstrip(".")
     if match := re.fullmatch(rf"({_MONTH_RE})\.?\s+(\d{{4}})", text):
         return f"{match.group(2)}-{_MONTHS[match.group(1)]:02d}"
     if match := re.fullmatch(r"(\d{1,2})[/.](\d{4})", text):
@@ -246,7 +404,11 @@ def _parts(text: str) -> list[str]:
 
 
 def _is_prose(text: str) -> bool:
-    return len(text) > 100 or (text.endswith(".") and len(text.split()) >= 6)
+    # A full stop that ends a legal form ("Example sp. z o.o.", "Example Ltd.") is not a sentence.
+    sentence = text.endswith(".") and not (
+        _COMPANY_TAIL_PL.search(text) or _COMPANY_SUFFIX.match(text.split()[-1])
+    )
+    return len(text) > 100 or (sentence and len(text.split()) >= 6)
 
 
 # --- result building -------------------------------------------------------------------------
@@ -258,6 +420,7 @@ class _Block:
     title: str  # the heading as written, or "header"
     lines: list[SourceLine]
     heading: SourceLine | None = None
+    consent: bool = False
 
 
 @dataclass(slots=True)
@@ -350,6 +513,19 @@ class ParsedCV:
 def _split_sections(lines: Iterable[SourceLine]) -> list[_Block]:
     blocks = [_Block(Section.HEADER, "header", [])]
     for line in lines:
+        if not blocks[-1].consent and _is_consent(line.text):
+            # The clause may come with or without a heading of its own.
+            heading = _heading_key(line.text) in _CONSENT_HEADINGS
+            blocks.append(
+                _Block(
+                    Section.UNSUPPORTED,
+                    "consent clause",
+                    [] if heading else [line],
+                    heading=line,
+                    consent=True,
+                )
+            )
+            continue
         section = heading_section(line.text)
         if section is None and line.is_heading and len(blocks) > 1:
             # A styled heading we do not know: keep its content out of the previous section.
@@ -359,6 +535,11 @@ def _split_sections(lines: Iterable[SourceLine]) -> list[_Block]:
         else:
             blocks.append(_Block(section, line.text.rstrip(": "), [], heading=line))
     return blocks
+
+
+def _is_consent(text: str) -> bool:
+    folded = _fold(text).strip()
+    return _heading_key(text) in _CONSENT_HEADINGS or _CONSENT_LINE.match(folded) is not None
 
 
 def _contact(block: _Block, out: _Collector, *, allow_name: bool) -> None:
@@ -390,14 +571,13 @@ def _contact(block: _Block, out: _Collector, *, allow_name: bool) -> None:
             plus = "+" if match.group().lstrip("(").startswith("+") else ""
             out.add(block, line, "contact.phone", match.group().strip(), plus + digits, 0.8)
             found = True
+        if not found and " ".join(_fold(text).split()) in _NOT_A_NAME:
+            # A document title, not content: the name may still follow it.
+            continue
         if not found and not name_done:
             name_done = True
             tokens = text.split()
-            if (
-                text.lower() not in _NOT_A_NAME
-                and 2 <= len(tokens) <= 5
-                and all(_NAME_TOKEN.match(t) for t in tokens)
-            ):
+            if 2 <= len(tokens) <= 5 and all(_NAME_TOKEN.match(t) for t in tokens):
                 out.add(block, line, "identity.name", text, text, 0.6)
                 continue
         if not found:
@@ -424,11 +604,13 @@ class _Entry:
 
 
 def _find_dates(text: str, *, allow_single: bool) -> tuple[JsonObject, str] | None:
-    if match := _DATE_RANGE.search(text):
-        return _date_range(match), match.group()
-    if allow_single and (match := _SINGLE_DATE.search(text)):
+    """The dates in `text` and the text they were written as."""
+    folded = _fold(text)
+    if match := _DATE_RANGE.search(folded):
+        return _date_range(match), text[match.start() : match.end()]
+    if allow_single and (match := _SINGLE_DATE.search(folded)):
         point = _normalize_point(match.group("point"))
-        return {"start": None, "end": point, "current": False}, match.group()
+        return {"start": None, "end": point, "current": False}, text[match.start() : match.end()]
     return None
 
 
@@ -494,15 +676,23 @@ def _classify(
 ) -> tuple[str | None, str | None, float, list[str]]:
     """Pick (primary, secondary, confidence, unused parts) from an entry heading's parts."""
     if kind.primary_words is not None:
-        primaries = [p for p in parts if kind.primary_words.search(p)]
-        secondaries = [p for p in parts if p not in primaries and kind.secondary_words.search(p)]
+        primaries = [p for p in parts if kind.primary_words.search(_fold(p))]
+        secondaries = [
+            p for p in parts if p not in primaries and kind.secondary_words.search(_fold(p))
+        ]
         primary = primaries[0] if primaries else None
         secondary = secondaries[0] if secondaries else None
         if primary is None and secondary is not None and len(parts) == 2:
             primary = next(p for p in parts if p != secondary)
     else:
-        with_suffix = [p for p in parts if _COMPANY_SUFFIX.search(p.split(",")[-1].strip())]
-        titled = [p for p in parts if kind.secondary_words.search(p) and p not in with_suffix]
+        with_suffix = [
+            p
+            for p in parts
+            if _COMPANY_SUFFIX.search(p.split(",")[-1].strip()) or _COMPANY_TAIL_PL.search(p)
+        ]
+        titled = [
+            p for p in parts if kind.secondary_words.search(_fold(p)) and p not in with_suffix
+        ]
         others = [p for p in parts if p not in titled]
         secondary = titled[0] if len(titled) == 1 else None
         primary = others[0] if secondary is not None and others else None
@@ -533,6 +723,10 @@ def _entries(block: _Block, out: _Collector, kind: _EntryKind) -> None:
             " ".join(t.split()).strip(" ,|-–—") for t in texts if t.strip(" ,|-–—")
         )
         at_split = _AT.split(heading, maxsplit=1) if kind is _EXPERIENCE else []
+        if kind is _EXPERIENCE and len(at_split) != 2:
+            at_split = _AT_PL.split(heading, maxsplit=1)
+            if len(at_split) != 2 or not _TITLE_WORDS.search(_fold(at_split[0])):
+                at_split = []
         if first.entry is not None:
             named = first.entry
             heading = first.text
@@ -668,7 +862,7 @@ def _languages(block: _Block, out: _Collector) -> None:
             out.add(
                 block,
                 line,
-                f"languages.{slug(language)}",
+                f"languages.{_language_key(language)}",
                 item,
                 {"language": language, "level": level},
                 0.7,
@@ -677,6 +871,15 @@ def _languages(block: _Block, out: _Collector) -> None:
         if matched < len(items) or not items:
             unused.append(line)
     out.unused(block, unused)
+
+
+def _language_key(language: str) -> str:
+    """`english` for "English", "angielski" and "Język angielski", so keys match across CVs."""
+    words = _fold(language).split()
+    if len(words) == 2 and words[0] in {"jezyk", "j."}:
+        words = words[1:]
+    name = language_name(words[0]) if len(words) == 1 else None
+    return name or slug(language)
 
 
 def _certifications(block: _Block, out: _Collector) -> None:
@@ -722,6 +925,17 @@ def parse_cv(lines: Sequence[SourceLine]) -> ParsedCV:
                 _languages(block, out)
             case Section.CERTIFICATIONS:
                 _certifications(block, out)
+            case Section.UNSUPPORTED if block.consent:
+                out.issues.append(
+                    ImportIssue(
+                        code="consent_clause_not_imported",
+                        severity=IssueSeverity.WARNING,
+                        message="The data-processing consent clause was not imported: it is "
+                        "not a profile fact. Generated CVs use the clause you give jaa "
+                        "(--consent-file).",
+                        location=(block.heading or block.lines[0]).location,
+                    )
+                )
             case Section.UNSUPPORTED:
                 if block.lines:
                     count = len(block.lines)
@@ -735,7 +949,8 @@ def parse_cv(lines: Sequence[SourceLine]) -> ParsedCV:
                             location=(block.heading or block.lines[0]).location,
                         )
                     )
-    if len(blocks) == 1 and lines:
+    sections = [block for block in blocks[1:] if not block.consent]
+    if not sections and lines:
         out.issues.append(
             ImportIssue(
                 code="no_sections",
@@ -748,5 +963,5 @@ def parse_cv(lines: Sequence[SourceLine]) -> ParsedCV:
         candidates=tuple(out.candidates),
         issues=tuple(out.issues),
         sections=dict(out.per_section),
-        headings=tuple((block.title, block.section) for block in blocks[1:]),
+        headings=tuple((block.title, block.section) for block in sections),
     )

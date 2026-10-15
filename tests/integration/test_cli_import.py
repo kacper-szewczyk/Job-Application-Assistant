@@ -14,6 +14,7 @@ from jaa.storage.profile import add_imported_facts
 from jaa.storage.repository import import_runs, profile_facts
 from tests.fixtures.cv_builders import (
     SAMPLE_CV,
+    SAMPLE_CV_PL,
     SAMPLE_EMAIL,
     SAMPLE_NAME,
     SAMPLE_PHONE,
@@ -121,6 +122,54 @@ def test_reimport_skips_known_values_and_never_touches_confirmed_facts(
     ]
     conflicts = runner.invoke(app, ["profile", "conflicts"], env=env)
     assert "Staff Widget Engineer" in conflicts.output
+
+
+def _kind(key: str) -> str:
+    """The key without its entry id: `experience.<employer>.title` → `experience.title`."""
+    parts = key.split(".")
+    return f"{parts[0]}.{parts[-1]}" if parts[0] in ("experience", "education") else parts[0]
+
+
+def test_import_polish_cv_yields_the_same_kinds_of_facts(
+    env: dict[str, str], db: sqlite3.Connection, cv_file: Path
+) -> None:
+    polish = cv_file.with_name(f"polish{cv_file.suffix}")
+    polish.write_bytes(
+        sample_pdf(SAMPLE_CV_PL) if cv_file.suffix == ".pdf" else sample_docx(SAMPLE_CV_PL)
+    )
+    result = runner.invoke(app, ["import", "cv", str(polish)], env=env)
+    assert result.exit_code == 0, result.output
+    assert "Wolontariat" in result.output
+    assert "consent clause" in result.output
+
+    english = prepare_cv_import(cv_file).candidates
+    facts = profile_facts.list(db)
+    assert len(facts) == len(english) == 23
+    assert sorted(_kind(f.field_key) for f in facts) == sorted(_kind(f.field_key) for f in english)
+    assert all(f.source_excerpt and f.source_location for f in facts)
+    # Language-independent keys are shared with the English CV.
+    shared = {f.field_key for f in facts} & {f.field_key for f in english}
+    assert {
+        "contact.email",
+        "languages.english",
+        "skills.python",
+        "skills.c-plus-plus",
+        "skills.postgresql",
+    } <= shared
+    by_key = {f.field_key: f for f in facts}
+    entry = "experience.przykladowe-widzety-sp-z-o-dot-o"
+    assert by_key[f"{entry}.title"].value_raw == "Starsza programistka"
+    assert by_key[f"{entry}.dates"].value_normalized == {
+        "start": "2021-01",
+        "end": None,
+        "current": True,
+    }
+    assert by_key["identity.name"].value_raw == "Żaneta Przykładowa"
+    errors = import_runs.get(db, 1).errors
+    assert {str(e["code"]) for e in errors if isinstance(e, dict)} == {
+        "section_not_imported",
+        "consent_clause_not_imported",
+    }
 
 
 def test_unreadable_file_is_recorded_as_a_failed_run(
