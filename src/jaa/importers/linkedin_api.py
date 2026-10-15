@@ -63,8 +63,9 @@ How to import from LinkedIn's Member Data Portability API (EEA and Switzerland)
 
 jaa uses the token for this one import and never stores or logs it. It asks LinkedIn only for
 the sections it imports (profile, contact details, positions, education, skills, languages,
-certifications, saved jobs, job applications, job alerts and job seeker preferences), never
-for messages, connections or other activity. Revoke the token in LinkedIn's settings when you
+certifications, projects, volunteering, publications, patents, honors, courses, saved jobs,
+job applications, job alerts and job seeker preferences), never for messages, connections or
+other activity. Revoke the token in LinkedIn's settings when you
 are done if you like.
 
 Docs: https://learn.microsoft.com/en-us/linkedin/dma/member-data-portability/member-data-portability-member
@@ -80,6 +81,12 @@ PROFILE_DOMAINS: Final[Mapping[str, str]] = {
     "SKILLS": "skills.csv",
     "LANGUAGES": "languages.csv",
     "CERTIFICATIONS": "certifications.csv",
+    "PROJECTS": "projects.csv",
+    "VOLUNTEERING_EXPERIENCES": "volunteering.csv",
+    "PUBLICATIONS": "publications.csv",
+    "PATENTS": "patents.csv",
+    "HONORS": "honors.csv",
+    "COURSES": "courses.csv",
 }
 SAVED_JOBS: Final = "SAVED_JOBS"
 JOB_APPLICATIONS: Final = "JOB_APPLICATIONS"

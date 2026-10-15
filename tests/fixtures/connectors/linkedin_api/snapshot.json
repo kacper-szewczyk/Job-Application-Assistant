@@ -21,47 +21,179 @@
   ],
   "EMAIL_ADDRESSES": [
     [
-      {"Email Address": "Avery.Synthetic@Example.test", "Confirmed": "Yes", "Primary": "Yes", "Updated On": "1/2/20, 10:00 AM"}
+      {
+        "Email Address": "Avery.Synthetic@Example.test",
+        "Confirmed": "Yes",
+        "Primary": "Yes",
+        "Updated On": "1/2/20, 10:00 AM"
+      }
     ]
   ],
   "POSITIONS": [
     [
-      {"Company Name": "Example Analytics", "Title": "Backend Engineer", "Description": "Built the ingestion service.", "Location": "Kraków", "Started On": "Mar 2021", "Finished On": ""}
+      {
+        "Company Name": "Example Analytics",
+        "Title": "Backend Engineer",
+        "Description": "Built the ingestion service.",
+        "Location": "Kraków",
+        "Started On": "Mar 2021",
+        "Finished On": ""
+      }
     ],
     [
-      {"Company Name": "Sample Systems", "Title": "Junior Developer", "Description": "", "Location": "Warsaw", "Started On": "Jul 2018", "Finished On": "Feb 2021"}
+      {
+        "Company Name": "Sample Systems",
+        "Title": "Junior Developer",
+        "Description": "",
+        "Location": "Warsaw",
+        "Started On": "Jul 2018",
+        "Finished On": "Feb 2021"
+      }
     ]
   ],
   "SKILLS": [
     [
-      {"Name": "Python"},
-      {"Name": "PostgreSQL"}
+      {
+        "Name": "Python"
+      },
+      {
+        "Name": "PostgreSQL"
+      }
     ]
   ],
   "LANGUAGES": [
     [
-      {"Name": "Polish", "Proficiency": "Native or bilingual proficiency"}
+      {
+        "Name": "Polish",
+        "Proficiency": "Native or bilingual proficiency"
+      }
+    ]
+  ],
+  "PROJECTS": [
+    [
+      {
+        "Title": "Widget Telemetry Toolkit",
+        "Description": "• Open-source collector for widget metrics.\n• Used by three example teams.",
+        "Url": "https://example.test/widget-telemetry",
+        "Started On": "Feb 2022",
+        "Finished On": "Nov 2022"
+      }
+    ],
+    [
+      {
+        "Title": "Synthetic Side Project",
+        "Description": "",
+        "Url": "",
+        "Started On": "",
+        "Finished On": ""
+      }
+    ]
+  ],
+  "VOLUNTEERING_EXPERIENCES": [
+    [
+      {
+        "Company Name": "Example Code Club",
+        "Role": "Mentor",
+        "Cause": "Synthetic Political Cause",
+        "Started On": "Sep 2019",
+        "Finished On": "",
+        "Description": "Weekly coding sessions."
+      }
+    ]
+  ],
+  "PUBLICATIONS": [
+    [
+      {
+        "Name": "Streaming Widgets at Scale",
+        "Published On": "Jun 2023",
+        "Description": "A synthetic conference paper.",
+        "Publisher": "Example Press",
+        "Url": "https://example.test/papers/widgets"
+      }
+    ]
+  ],
+  "PATENTS": [
+    [
+      {
+        "Title": "Self-balancing widget",
+        "Issued On": "Apr 2020",
+        "Description": "",
+        "Url": "",
+        "Patent Number": "EX-0000001",
+        "Application Number": "EX-APP-01"
+      }
+    ]
+  ],
+  "HONORS": [
+    [
+      {
+        "Title": "Example Widget Award",
+        "Description": "For reliability work.",
+        "Issued On": "Dec 2021"
+      }
+    ]
+  ],
+  "COURSES": [
+    [
+      {
+        "Name": "Distributed Systems",
+        "Number": "CS-401"
+      },
+      {
+        "Name": "Go",
+        "Number": ""
+      }
     ]
   ],
   "SAVED_JOBS": [
     [
-      {"Saved Date": "10/1/26, 9:00 AM", "Job Url": "https://www.linkedin.com/jobs/view/1000000001", "Job Title": "Data Engineer", "Company Name": "Fictional Freight"},
-      {"Saved Date": "10/2/26, 9:00 AM", "Job Url": "", "Job Title": "Platform Engineer", "Company Name": "Imaginary Insurance"}
+      {
+        "Saved Date": "10/1/26, 9:00 AM",
+        "Job Url": "https://www.linkedin.com/jobs/view/1000000001",
+        "Job Title": "Data Engineer",
+        "Company Name": "Fictional Freight"
+      },
+      {
+        "Saved Date": "10/2/26, 9:00 AM",
+        "Job Url": "",
+        "Job Title": "Platform Engineer",
+        "Company Name": "Imaginary Insurance"
+      }
     ]
   ],
   "JOB_APPLICATIONS": [
     [
-      {"Application Date": "9/20/26, 4:00 PM", "Contact Email": "Avery.Synthetic@Example.test", "Contact Phone Number": "+44 20 7946 0958", "Company Name": "Fictional Freight", "Job Title": "Data Engineer", "Job Url": "https://www.linkedin.com/jobs/view/1000000001", "Resume Name": "cv.pdf", "Question And Answers": "Are you authorized to work?:Yes"}
+      {
+        "Application Date": "9/20/26, 4:00 PM",
+        "Contact Email": "Avery.Synthetic@Example.test",
+        "Contact Phone Number": "+44 20 7946 0958",
+        "Company Name": "Fictional Freight",
+        "Job Title": "Data Engineer",
+        "Job Url": "https://www.linkedin.com/jobs/view/1000000001",
+        "Resume Name": "cv.pdf",
+        "Question And Answers": "Are you authorized to work?:Yes"
+      }
     ]
   ],
   "SAVED_JOB_ALERTS": [
     [
-      {"Saved Date": "8/1/26", "Alert Parameters": "keywords=python; location=Kraków", "Search Url": "https://www.linkedin.com/jobs/search/?keywords=python"}
+      {
+        "Saved Date": "8/1/26",
+        "Alert Parameters": "keywords=python; location=Kraków",
+        "Search Url": "https://www.linkedin.com/jobs/search/?keywords=python"
+      }
     ]
   ],
   "JOB_SEEKER_PREFERENCES": [
     [
-      {"Locations": "Kraków; Remote", "Job Titles": "Backend Engineer", "Preferred Job Types": "Full-time", "Phone Number": "+44 20 7946 0958", "Commute Preference Starting Address": "1 Synthetic Lane, Exampleton", "Open To Recruiters": "Yes"}
+      {
+        "Locations": "Kraków; Remote",
+        "Job Titles": "Backend Engineer",
+        "Preferred Job Types": "Full-time",
+        "Phone Number": "+44 20 7946 0958",
+        "Commute Preference Starting Address": "1 Synthetic Lane, Exampleton",
+        "Open To Recruiters": "Yes"
+      }
     ]
   ]
 }
