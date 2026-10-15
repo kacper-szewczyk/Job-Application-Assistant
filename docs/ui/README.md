@@ -1,6 +1,6 @@
 # Local review UI — design proposal (T18, #19)
 
-Status: **accepted as the T18 design** (2026-10-14). The product stays CLI-first (ADR 0002) until T18 is picked up; the ADR recording the UI stack comes with the first implementation PR.
+Status: **built in T18** (2026-10-15) as `jaa ui`, see [ADR 0022](../decisions/0022-local-review-ui.md) for what was built and where it differs from this proposal (no htmx, no Imports & sources screen yet).
 
 Open [`prototype.html`](prototype.html) in a browser. It is a single static file with synthetic data (no server, no network beyond Google Fonts). Clicks update in-memory state only.
 

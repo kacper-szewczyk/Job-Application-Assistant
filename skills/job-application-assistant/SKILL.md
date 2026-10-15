@@ -51,6 +51,7 @@ These are not defaults to trade off. Follow them even when the user asks otherwi
 | Preferences | the user | `jaa onboard`, `jaa preferences set` in their terminal |
 | Same job or different jobs | the user | `jaa jobs duplicates mark` in their terminal |
 | Delete data, restore a backup | the user | `jaa profile delete`, `jaa import delete`, `jaa jobs delete`, `jaa restore` in their terminal |
+| Review in the browser | the user | `jaa ui` in their terminal: facts, CV PDFs, answers and applications side by side |
 
 A dialog the user declines or cancels changes nothing; report that and do not retry unless the
 user asks. If a confirming tool fails because the client cannot show dialogs, tell the user to
@@ -63,7 +64,7 @@ run the equivalent command in their terminal (`jaa profile confirm`, `jaa apply 
 `jaa answers set`, `jaa answers reconfirm`, `jaa answers policy`, `jaa answers forget`,
 `jaa apply start`, `jaa apply status`, `jaa apply submitted`, `jaa jobs duplicates mark`,
 `jaa sources resume`, `jaa profile delete`, `jaa import delete`, `jaa import delete-source`,
-`jaa jobs delete`, `jaa restore`. They record the user's own decisions or delete their data;
+`jaa jobs delete`, `jaa restore`, `jaa ui`. They record the user's own decisions or delete their data;
 the repository's `.claude/settings.json` denies them to Claude as a backstop. Tell the user which one to run and
 why; they can type it in their own terminal.
 
@@ -209,6 +210,14 @@ move, or delete their data, tell them which command to run in their terminal:
 
 Each one asks before deleting. Do not run them, and do not delete jaa's files or database
 yourself.
+
+### 7. Reviewing in the browser
+
+When the user wants to see facts, PDFs, answers or their applications side by side, suggest
+they run `jaa ui` in their own terminal. It opens a local page (127.0.0.1 only) where they
+confirm facts, answer questions and record submissions themselves. Do not start it, open its
+link or send requests to it: its link is the user's login, and everything they decide there is
+theirs. What they record there shows up in jaa's tools as usual; read it back from there.
 
 ## When something fails
 

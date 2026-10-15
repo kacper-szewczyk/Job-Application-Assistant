@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% from "macros.html" import job_table %}
+{% block title %}Jobs{% endblock %}
+{% block main %}
+<div class="head">
+  <div>
+    <h1>Jobs</h1>
+    <p class="sub">Stored listings, most recently changed first. Fetch and match them with <code>jaa jobs fetch</code> and <code>jaa jobs match</code>.</p>
+  </div>
+</div>
+<section class="panel">
+  <header>
+    <nav class="filters" aria-label="Status">
+      <a href="/jobs"{% if not status %} aria-current="page"{% endif %}>All</a>
+      {% for s in statuses %}
+      <a href="/jobs?status={{ s.value }}"{% if s.value == status %} aria-current="page"{% endif %}>{{ STATUS_LABELS[s] }}</a>
+      {% endfor %}
+    </nav>
+    {% if hidden %}<span class="muted">{{ hidden }} more not shown</span>{% endif %}
+  </header>
+  <div class="body">{{ job_table(rows, "No jobs stored.") }}</div>
+</section>
+{% endblock %}

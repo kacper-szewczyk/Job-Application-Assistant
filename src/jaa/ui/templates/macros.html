@@ -1,0 +1,24 @@
+{% macro job_table(rows, empty) %}
+{% if rows %}
+<div class="tablewrap">
+<table>
+  <thead><tr><th>Job</th><th>Role</th><th>Company</th><th>Status</th><th>Since</th><th>Submitted</th><th>Possible duplicates</th></tr></thead>
+  <tbody>
+  {% for r in rows %}
+  <tr>
+    <td class="mono">#{{ r.id }}</td>
+    <td><a href="/jobs/{{ r.id }}">{{ r.title }}</a>{% if r.location %}<div class="muted">{{ r.location }}</div>{% endif %}</td>
+    <td>{{ r.employer }}</td>
+    <td><span class="chip {{ r.status }}">{{ r.status | replace("_", " ") }}</span>{% if r.archived %} <span class="chip">archived</span>{% endif %}</td>
+    <td class="num">{{ r.changed | day }}</td>
+    <td class="num">{{ r.submitted | day }}</td>
+    <td>{% for other in r.duplicates %}<a class="chip conflict" href="/jobs/{{ other }}">#{{ other }}</a> {% else %}<span class="muted">-</span>{% endfor %}</td>
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}
+<p class="muted">{{ empty }}</p>
+{% endif %}
+{% endmacro %}

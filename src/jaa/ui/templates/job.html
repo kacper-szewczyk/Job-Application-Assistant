@@ -1,0 +1,238 @@
+{% extends "base.html" %}
+{% block title %}Job #{{ job.id }}{% endblock %}
+{% block main %}
+<div class="head">
+  <div>
+    <span class="eyebrow"><a href="/jobs">Jobs</a> · #{{ job.id }} · {{ job.source }}</span>
+    <h1>{{ job.title }}</h1>
+    <p class="sub">{{ job.employer }}{% if job.location %} · {{ job.location }}{% endif %}</p>
+  </div>
+  <div class="row">
+    <span class="chip {{ status }}">{{ STATUS_LABELS[job.status] }}</span>
+    {% if archived %}<span class="chip">archived</span>{% endif %}
+    {% if job.removed_at %}<span class="chip bad">no longer listed</span>{% endif %}
+  </div>
+</div>
+
+{% for f in flags %}
+{% if f.verdict is none %}
+<div class="banner row">
+  <span>May be the same job as <a href="/jobs/{{ f.partner.id }}">#{{ f.partner.id }} {{ f.partner.title }} at {{ f.partner.employer }}</a> ({{ f.reason | replace("_", " ") }}).</span>
+  <form method="post" action="/duplicates/{{ f.id }}" class="inline">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <button class="btn" name="verdict" value="same_job">Same job</button>
+    <button class="btn" name="verdict" value="different_jobs">Different jobs</button>
+  </form>
+</div>
+{% endif %}
+{% endfor %}
+
+<nav class="tabs" aria-label="Job sections">
+  {% set labels = {"overview": "Overview", "cv": "Tailored CV", "questions": "Questions", "apply": "Apply"} %}
+  {% for t in tabs %}
+  <a href="/jobs/{{ job.id }}?tab={{ t }}"{% if t == tab %} aria-current="page"{% endif %}>{{ labels[t] }}</a>
+  {% endfor %}
+</nav>
+
+{% if tab == "overview" %}
+<div class="two">
+  <section class="panel">
+    <header><h2>Listing</h2><a href="{{ url }}" target="_blank" rel="noopener noreferrer">Open the listing</a></header>
+    <div class="body">
+      <dl class="kv">
+        <dt>Posted</dt><dd>{{ job.posted_at | day }}</dd>
+        <dt>First seen</dt><dd>{{ job.first_seen_at | day }}</dd>
+        <dt>Last seen</dt><dd>{{ job.last_seen_at | day }}</dd>
+      </dl>
+      {% if job.description %}<div class="source">{{ job.description }}</div>{% endif %}
+    </div>
+  </section>
+  <aside class="panel">
+    <header><h2>Match</h2></header>
+    <div class="body">
+      {% if match %}
+      <p><b>{{ match.score or "no score" }}</b> <span class="muted">(advisory) against profile version {{ match.version }}, {{ match.when | day }}</span></p>
+      {% for reason in match.outdated %}<p class="flash bad">{{ reason }}</p>{% endfor %}
+      <p class="muted">The full explanation: <code>jaa jobs match {{ job.id }}</code>.</p>
+      {% else %}
+      <p class="muted">Not matched yet: <code>jaa jobs match {{ job.id }}</code>.</p>
+      {% endif %}
+      <h3>Status history</h3>
+      <ul class="events">
+        {% for e in history %}
+        <li><span class="mono">{{ e.occurred_at | day }}</span><span>{{ e.from_status.value if e.from_status else "new" }} → {{ e.to_status.value }} <span class="muted">by {{ e.actor.value }}</span></span></li>
+        {% endfor %}
+      </ul>
+    </div>
+  </aside>
+</div>
+
+{% elif tab == "cv" %}
+<div class="review">
+  <section class="panel">
+    <header><h2>Changes against your baseline CV</h2></header>
+    <div class="body">
+      {% if tailoring %}
+      <p class="muted">Revision {{ tailoring.revision }} ({{ tailoring.origin }}), profile version {{ tailoring.version }}. Every change cites the confirmed facts behind it; nothing new is added.</p>
+      {% if tailoring.outdated %}<p class="flash bad">Your profile changed since this revision. Propose a new one: <code>jaa cv tailor propose {{ job.id }}</code>.</p>{% endif %}
+      <div class="diff">
+      {% for e in tailoring.edits %}
+        <div class="line">
+          <div class="row"><b>{{ e.number }}. {{ e.kind }}</b> <span class="fact-key">{{ e.target }}</span>
+            {% if e.blocked %}<span class="chip bad">blocked</span>{% else %}<span class="chip ok">applied</span>{% endif %}</div>
+          {% if e.before %}<del>{{ e.before }}</del>{% endif %}
+          {% if e.after and e.after != e.before %}<ins>{{ e.after }}</ins>{% endif %}
+          {% if e.reason %}<span class="muted">{{ e.reason }}</span>{% endif %}
+          <span class="muted">Facts: {% for i in e.facts %}<a href="/profile/facts/{{ i }}">#{{ i }}</a> {% else %}-{% endfor %}</span>
+          {% for issue in e.issues %}<span class="flash bad">{{ issue }}</span>{% endfor %}
+        </div>
+      {% else %}
+        <p class="muted">No changes: the tailored CV is your baseline CV.</p>
+      {% endfor %}
+      </div>
+      {% if tailoring.paragraphs %}
+      <h3>Cover letter draft</h3>
+      {% for p in tailoring.paragraphs %}
+      <div class="line"><p>{{ p.text }}</p><span class="muted">Facts: {% for i in p.facts %}<a href="/profile/facts/{{ i }}">#{{ i }}</a> {% else %}-{% endfor %}{% if p.blocked %} · <span class="chip bad">blocked</span>{% endif %}</span></div>
+      {% endfor %}
+      {% endif %}
+      {% if tailoring.blocked %}
+      <p class="banner">Blocked edits are not applied. Reword them, or approve them in your terminal: <code>jaa cv tailor approve {{ job.id }}</code>.</p>
+      {% endif %}
+      {% else %}
+      <p class="muted">No tailored CV yet: <code>jaa cv tailor propose {{ job.id }}</code>.</p>
+      {% endif %}
+      <p class="banner">To change it with Claude Code, ask there: “tailor my CV for job #{{ job.id }}”. Claude reads the job and your confirmed facts from jaa; you review the result here.</p>
+    </div>
+  </section>
+  <aside class="panel prov">
+    <header><h2>PDF</h2></header>
+    <div class="body">
+      {% for d in documents %}
+      <p><b>{{ d.view.kind }} #{{ d.view.id }}</b> <span class="muted">{{ d.view.created | when }}</span>
+        {% if not d.exists %}<span class="chip bad">file missing</span>{% elif not d.unchanged %}<span class="chip bad">changed since built</span>{% endif %}</p>
+      {% if d.exists %}
+      <iframe class="pdf" src="/files/{{ d.view.id }}" title="{{ d.view.kind }} #{{ d.view.id }}"></iframe>
+      <a href="/files/{{ d.view.id }}" target="_blank" rel="noopener">Open in a new tab</a>
+      {% endif %}
+      {% else %}
+      <p class="muted">No PDF built for this job yet: <code>jaa cv tailor build {{ job.id }}</code>.</p>
+      {% endfor %}
+    </div>
+  </aside>
+</div>
+
+{% elif tab == "questions" %}
+<section class="panel">
+  <header>
+    <h2>Application questions</h2>
+    {% if reveal %}<a class="btn" href="/jobs/{{ job.id }}?tab=questions">Hide sensitive values</a>
+    {% elif any_hidden %}<a class="btn" href="/jobs/{{ job.id }}?tab=questions&amp;reveal=1">Show sensitive values</a>{% endif %}
+  </header>
+  <div class="body">
+    <p class="muted">Answers are saved on this computer and reused as you set them. Sensitive questions are never filled in for you.</p>
+    {% for q in questions %}
+    <div class="q{% if q.sensitive %} sens{% endif %}">
+      <div class="row">
+        <b>{{ q.text }}</b>
+        {% if q.required %}<span class="chip">required</span>{% endif %}
+        {% if q.sensitive %}<span class="chip sensitive">sensitive</span>{% endif %}
+        <span class="chip {{ 'ok' if q.action.value == 'fill' else 'ask' }}">{{ ACTION_LABELS[q.action] }}</span>
+      </div>
+      {% if q.options %}<span class="muted">Options: {{ q.options | join(" | ") }}</span>{% endif %}
+      {% if q.has_value %}
+      <div>
+        <span class="eyebrow">{{ CLASS_LABELS[q.answer_class] }} · {{ q.source }}</span>
+        <p class="suggestion">{{ q.value if q.value is not none else MASK }}</p>
+      </div>
+      {% endif %}
+      {% for n in q.notes %}<span class="muted">{{ n }}</span>{% endfor %}
+      <form method="post" action="/jobs/{{ job.id }}/answers">
+        <input type="hidden" name="csrf" value="{{ csrf }}">
+        <input type="hidden" name="key" value="{{ q.key }}">
+        {% if q.value is not none %}
+        {% if q.sensitive %}<input type="hidden" name="seen" value="1">{% endif %}
+        <div class="row"><button class="btn primary" name="use" value="suggestion">Use this answer</button><span class="muted">or type a different one:</span></div>
+        {% endif %}
+        <label class="field"><span class="sr">Your answer</span>
+          {% if q.options %}
+          <select name="value"><option value="">Choose…</option>{% for o in q.options %}<option>{{ o }}</option>{% endfor %}</select>
+          {% else %}
+          <textarea name="value" maxlength="10000" autocomplete="off"></textarea>
+          {% endif %}
+        </label>
+        <div class="row"><button class="btn" name="use" value="typed">Save my answer</button></div>
+      </form>
+    </div>
+    {% else %}
+    <p class="muted">No questions from the listing. Add the ones the employer's form asks below.</p>
+    {% endfor %}
+    <form method="post" action="/jobs/{{ job.id }}/questions" class="q">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <label class="field">Add a question copied from the employer's form
+        <input type="text" name="text" required maxlength="2000" autocomplete="off">
+      </label>
+      <div class="row">
+        <label class="check"><input type="checkbox" name="required" value="1"> The form requires it</label>
+        <button class="btn">Add question</button>
+      </div>
+    </form>
+  </div>
+</section>
+
+{% else %}
+<div class="two">
+  <section class="panel">
+    <header><h2>Before you apply</h2></header>
+    <div class="body">
+      {% for w in warnings %}<p class="flash bad">{{ w }}</p>{% else %}<p class="flash ok">Nothing to sort out.</p>{% endfor %}
+      <ol class="steps">
+        <li><span>Check the CV and cover letter on the <a href="/jobs/{{ job.id }}?tab=cv">Tailored CV</a> tab.</span></li>
+        <li><span>Answer the questions on the <a href="/jobs/{{ job.id }}?tab=questions">Questions</a> tab{% if asking %} ({{ asking }} still need your answer){% endif %}.</span></li>
+        <li><span>Open <a href="{{ url }}" target="_blank" rel="noopener noreferrer">the employer's page</a>, fill in the form and submit it yourself. jaa never submits for you.</span></li>
+        <li><span>Come back and record that you submitted it.</span></li>
+      </ol>
+      {% if conflicts %}
+      <h3>Possibly the same application</h3>
+      <ul class="plain">
+        {% for c in conflicts %}<li><a href="/jobs/{{ c.job.id }}">#{{ c.job.id }} {{ c.job.title }} at {{ c.job.employer }}</a> <span class="muted">{{ c.job.status.value }}</span></li>{% endfor %}
+      </ul>
+      {% endif %}
+    </div>
+  </section>
+  <aside class="panel">
+    <header><h2>Record what you did</h2></header>
+    <div class="body">
+      {% if application is none %}
+      <form method="post" action="/jobs/{{ job.id }}/start">
+        <input type="hidden" name="csrf" value="{{ csrf }}">
+        {% if conflicts %}<label class="check"><input type="checkbox" name="allow_duplicate" value="1"> These are different jobs; start anyway</label>{% endif %}
+        <button class="btn primary">Start an application</button>
+      </form>
+      {% elif not submitted %}
+      <form method="post" action="/jobs/{{ job.id }}/submitted">
+        <input type="hidden" name="csrf" value="{{ csrf }}">
+        <label class="check"><input type="checkbox" name="self_submitted" value="1" required> I submitted this application myself</label>
+        <label class="field">Submitted on (UTC)<input type="date" name="submitted_on" value="{{ today }}"></label>
+        <label class="field">The employer's reference (optional)<input type="text" name="reference" maxlength="200" autocomplete="off"></label>
+        {% if conflicts %}<label class="check"><input type="checkbox" name="allow_duplicate" value="1"> These are different jobs</label>{% endif %}
+        <button class="btn primary">Record the submission</button>
+      </form>
+      {% else %}
+      <p><span class="chip submitted">submitted</span> {{ application.submitted_at | when }}{% if application.external_reference %} · ref <span class="mono">{{ application.external_reference }}</span>{% endif %}</p>
+      {% endif %}
+      {% if targets %}
+      <form method="post" action="/jobs/{{ job.id }}/status">
+        <input type="hidden" name="csrf" value="{{ csrf }}">
+        <label class="field">Change the status
+          <select name="status">{% for s in targets %}<option value="{{ s.value }}">{{ STATUS_LABELS[s] }}</option>{% endfor %}</select>
+        </label>
+        <label class="field">Note (optional)<input type="text" name="note" maxlength="2000" autocomplete="off"></label>
+        <button class="btn">Change status</button>
+      </form>
+      {% endif %}
+    </div>
+  </aside>
+</div>
+{% endif %}
+{% endblock %}

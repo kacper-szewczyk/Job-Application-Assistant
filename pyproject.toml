@@ -8,10 +8,14 @@ authors = [
 ]
 requires-python = ">=3.12"
 dependencies = [
+    "jinja2>=3.1.6",
     "mcp>=2.3.0",
     "platformdirs>=4.13.0",
     "pypdf>=6.20.1",
+    "python-multipart>=0.0.32",
+    "starlette>=1.8.0",
     "typer>=0.27.3",
+    "uvicorn>=0.54.0",
 ]
 
 [project.scripts]

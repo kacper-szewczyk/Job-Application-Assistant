@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% from "macros.html" import job_table %}
+{% block title %}Applications{% endblock %}
+{% block main %}
+<div class="head">
+  <div>
+    <h1>Applications</h1>
+    <p class="sub">Every job you started an application for, by status. A job is applied for only once you recorded that you submitted it.</p>
+  </div>
+  <span class="muted num">{{ total }} in total</span>
+</div>
+{% for status, rows in groups %}
+<section class="panel">
+  <header><h2>{{ STATUS_LABELS[status] }}</h2><span class="chip {{ status.value }}">{{ rows | length }}</span></header>
+  <div class="body">{{ job_table(rows, "") }}</div>
+</section>
+{% else %}
+{% if not archived %}<p class="muted">No applications yet. Open a job and start one.</p>{% endif %}
+{% endfor %}
+{% if archived %}
+<section class="panel">
+  <header><h2>Archived</h2><span class="chip">{{ archived | length }}</span></header>
+  <div class="body">
+    <p class="muted">Rejected, withdrawn and closed. Kept with their history; nothing is deleted automatically.</p>
+    {{ job_table(archived, "") }}
+  </div>
+</section>
+{% endif %}
+{% endblock %}

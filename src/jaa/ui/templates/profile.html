@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% block title %}Profile review{% endblock %}
+{% block main %}
+<div class="head">
+  <div>
+    <h1>Profile review</h1>
+    <p class="sub">Imported facts are candidates. Only what you confirm is used in CVs, matches and answers.</p>
+  </div>
+  <div class="row">
+    {% if reveal %}
+    <a class="btn" href="/profile?state={{ state }}">Hide sensitive values</a>
+    {% elif any_sensitive or conflicts %}
+    <a class="btn" href="/profile?state={{ state }}&amp;reveal=1">Show sensitive values</a>
+    {% endif %}
+  </div>
+</div>
+
+{% if conflicts %}
+<section class="panel">
+  <header><h2>Conflicting values</h2><span class="chip conflict">{{ conflicts | length }}</span></header>
+  <div class="body">
+    <p class="muted">A new import disagrees with a value for the same field. Nothing was overwritten: pick the one that is right.</p>
+    {% for c in conflicts %}
+    <div class="panel">
+      <header><span class="fact-key">{{ c.key }}</span></header>
+      <div class="body compare">
+        {% if c.current %}
+        <div>
+          <span class="eyebrow">Confirmed now · #{{ c.current.id }}</span>
+          <b>{{ c.current.value }}</b>
+          <span class="muted">{{ c.current.source }}</span>
+          <span class="muted">Keep it: reject the new values.</span>
+        </div>
+        {% endif %}
+        {% for f in c.candidates %}
+        <div>
+          <span class="eyebrow">New import · #{{ f.id }}</span>
+          <b>{{ f.value }}</b>
+          <span class="muted">{{ f.source }}{% if f.location %}, {{ f.location }}{% endif %}</span>
+          <div class="row">
+            <form method="post" action="/profile/decide" class="inline">
+              <input type="hidden" name="csrf" value="{{ csrf }}">
+              <input type="hidden" name="state" value="{{ state }}">
+              <input type="hidden" name="fact_id" value="{{ f.id }}">
+              {% if c.current %}<input type="hidden" name="replace" value="1">{% endif %}
+              <button class="btn primary" name="action" value="confirm">{% if c.current %}Replace with this{% else %}Use this{% endif %}</button>
+              <button class="btn danger" name="action" value="reject">Reject</button>
+            </form>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+<section class="panel">
+  <header>
+    <nav class="filters" aria-label="Fact state">
+      {% for s in states %}
+      <a href="/profile?state={{ s }}{% if reveal %}&amp;reveal=1{% endif %}"{% if s == state %} aria-current="page"{% endif %}>{{ s | capitalize }}</a>
+      {% endfor %}
+    </nav>
+    <span class="muted num">{{ facts | length }} shown{% if hidden %}, {{ hidden }} more not shown{% endif %}</span>
+  </header>
+  <div class="body">
+  {% if facts %}
+  <form method="post" action="/profile/decide">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <input type="hidden" name="state" value="{{ state }}">
+    <div class="tablewrap">
+    <table>
+      <thead><tr><th><span class="sr">Pick</span></th><th>Field</th><th>Value</th><th>State</th><th>Confidence</th><th>Source</th></tr></thead>
+      <tbody>
+      {% for f in facts %}
+      <tr>
+        <td><input type="checkbox" name="fact_id" value="{{ f.id }}" aria-label="Fact #{{ f.id }}"></td>
+        <td><a class="fact-key" href="/profile/facts/{{ f.id }}">#{{ f.id }} {{ f.key }}</a></td>
+        <td>{{ f.value }}{% if f.sensitive %} <span class="chip sensitive">sensitive</span>{% endif %}
+          {% if f.excerpt %}<div class="source">{{ f.excerpt }}</div>{% endif %}</td>
+        <td><span class="chip {{ f.state }}">{{ f.state }}</span></td>
+        <td class="num">{{ f.confidence }}</td>
+        <td class="muted">{{ f.source }}{% if f.location %}<div class="mono">{{ f.location }}</div>{% endif %}</td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    <div class="row">
+      <button class="btn primary" name="action" value="confirm">Confirm ticked</button>
+      <button class="btn danger" name="action" value="reject">Reject ticked</button>
+      <label class="check"><input type="checkbox" name="replace" value="1"> Replace a value already confirmed for the same field</label>
+    </div>
+  </form>
+  {% else %}
+  <p class="muted">No {{ state if state != "all" else "" }} facts.</p>
+  {% endif %}
+  </div>
+</section>
+{% endblock %}

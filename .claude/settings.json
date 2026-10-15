@@ -46,6 +46,8 @@
       "Bash(uv run jaa jobs delete:*)",
       "Bash(jaa restore:*)",
       "Bash(uv run jaa restore:*)",
+      "Bash(jaa ui:*)",
+      "Bash(uv run jaa ui:*)",
       "WebFetch(domain:linkedin.com)",
       "WebFetch(domain:www.linkedin.com)"
     ]

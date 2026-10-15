@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% from "macros.html" import job_table %}
+{% block title %}Overview{% endblock %}
+{% block main %}
+<div class="head">
+  <div>
+    <h1>Overview</h1>
+    <p class="sub">What needs your decision. Nothing here is sent anywhere; you submit applications yourself.</p>
+  </div>
+</div>
+
+<section class="queues" aria-label="Waiting for you">
+  <a class="panel queue{% if unreviewed %} attn{% endif %}" href="/profile?state=unreviewed">
+    <span class="eyebrow">Facts to review</span><span class="big">{{ unreviewed }}</span>
+    <span class="muted">Imported facts count only once you confirm them.</span>
+  </a>
+  <a class="panel queue{% if conflicts %} attn{% endif %}" href="/profile?state=all">
+    <span class="eyebrow">Conflicting values</span><span class="big">{{ conflicts }}</span>
+    <span class="muted">Fields where an import disagrees with what you confirmed.</span>
+  </a>
+  <a class="panel queue{% if asking %} sens{% endif %}" href="/applications">
+    <span class="eyebrow">Questions to answer</span><span class="big">{{ asking }}</span>
+    <span class="muted">In applications you are preparing.</span>
+  </a>
+  <a class="panel queue{% if open_flags %} attn{% endif %}" href="/applications">
+    <span class="eyebrow">Possible duplicates</span><span class="big">{{ open_flags }}</span>
+    <span class="muted">Job pairs that may be the same job.</span>
+  </a>
+</section>
+
+<section class="panel">
+  <header><h2>Applications by status</h2><a href="/applications">All applications</a></header>
+  <div class="pipeline">
+    {% for status, n in pipeline %}
+    <div class="stage"><span class="eyebrow">{{ STATUS_LABELS[status] }}</span><span class="n">{{ n }}</span></div>
+    {% endfor %}
+  </div>
+</section>
+
+<section class="panel">
+  <header><h2>Recently changed</h2></header>
+  <div class="body">{{ job_table(recent, "No applications yet. Open a job and start one.") }}</div>
+</section>
+{% endblock %}
