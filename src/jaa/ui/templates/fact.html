@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}Fact #{{ fact.id }}{% endblock %}
+{% block main %}
+<div class="head">
+  <div>
+    <span class="eyebrow"><a href="/profile">Profile review</a></span>
+    <h1>Fact #{{ fact.id }}</h1>
+    <p class="fact-key">{{ fact.key }}</p>
+  </div>
+  <span class="chip {{ fact.state }}">{{ fact.state }}</span>
+</div>
+
+<div class="review">
+  <section class="panel">
+    <header><h2>Value</h2>{% if fact.sensitive %}<span class="chip sensitive">sensitive</span>{% endif %}</header>
+    <div class="body">
+      <p class="suggestion">{{ fact.value }}</p>
+      <form method="post" action="/profile/decide" class="row">
+        <input type="hidden" name="csrf" value="{{ csrf }}">
+        <input type="hidden" name="return" value="fact">
+        <input type="hidden" name="fact_id" value="{{ fact.id }}">
+        {% if fact.state != "confirmed" %}<button class="btn primary" name="action" value="confirm">Confirm</button>{% endif %}
+        {% if fact.state != "rejected" %}<button class="btn danger" name="action" value="reject">Reject</button>{% endif %}
+        {% if other_confirmed and fact.state != "confirmed" %}
+        <label class="check"><input type="checkbox" name="replace" value="1"> Replace confirmed fact #{{ other_confirmed }}</label>
+        {% endif %}
+      </form>
+      <form method="post" action="/profile/facts/{{ fact.id }}/correct">
+        <input type="hidden" name="csrf" value="{{ csrf }}">
+        <label class="field">Correct it: the value as it should be
+          <input type="text" name="value" required maxlength="10000" autocomplete="off">
+        </label>
+        <div class="row">
+          <button class="btn">Save correction</button>
+          {% if other_confirmed %}
+          <label class="check"><input type="checkbox" name="replace" value="1"> Replace confirmed fact #{{ other_confirmed }}</label>
+          {% endif %}
+        </div>
+        <p class="muted">The correction is saved as a new confirmed fact; this one keeps its source and is marked rejected.</p>
+      </form>
+    </div>
+  </section>
+
+  <aside class="panel prov">
+    <header><h2>Provenance</h2></header>
+    <div class="body">
+      <dl class="kv">
+        <dt>Origin</dt><dd>{{ fact.origin }}</dd>
+        <dt>Source</dt><dd>{{ fact.source }}</dd>
+        <dt>Location</dt><dd class="mono">{{ fact.location or "-" }}</dd>
+        <dt>Confidence</dt><dd>{{ fact.confidence }}</dd>
+      </dl>
+      {% if fact.excerpt %}<div class="source">{{ fact.excerpt }}</div>{% endif %}
+      {% for earlier in chain %}
+      <div>
+        <span class="eyebrow">Corrects #{{ earlier.id }}</span>
+        <p>{{ earlier.value }}</p>
+        <p class="muted">{{ earlier.source }}</p>
+      </div>
+      {% endfor %}
+      <h3>History</h3>
+      <ul class="events">
+        {% for e in history %}
+        <li><span class="mono">{{ e.occurred_at | day }}</span><span>{{ e.from_state or "new" }} → {{ e.to_state }}{% if e.profile_version_id %} (profile version {{ e.profile_version_id }}){% endif %}</span></li>
+        {% else %}
+        <li><span></span><span class="muted">Not reviewed yet.</span></li>
+        {% endfor %}
+      </ul>
+    </div>
+  </aside>
+</div>
+{% endblock %}

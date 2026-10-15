@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>{% block title %}jaa{% endblock %} · jaa</title>
+<link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+<div class="app">
+  <aside class="rail">
+    <div class="brand"><b>jaa</b><span class="eyebrow">Review desk</span></div>
+    <nav class="nav" aria-label="Sections">
+      {% set sections = [
+        ("/", "Overview", none),
+        ("/profile", "Profile review", nav.facts),
+        ("/jobs", "Jobs", none),
+        ("/applications", "Applications", nav.apps),
+        ("/documents", "Documents", none),
+      ] %}
+      {% for href, label, count in sections %}
+      <a href="{{ href }}"{% if request_path == href or (href != "/" and request_path.startswith(href)) %} aria-current="page"{% endif %}>
+        <span>{{ label }}</span>
+        {% if count %}<span class="count{% if href == '/profile' %} hot{% endif %}">{{ count }}</span>{% endif %}
+      </a>
+      {% endfor %}
+    </nav>
+    <div class="local">
+      <span><span class="dot"></span>Local only · {{ origin.removeprefix("http://") }}</span>
+      <span class="mono">{{ data_dir }}</span>
+    </div>
+  </aside>
+  <main>
+    {% for f in flashes %}
+    <p class="flash {{ f.kind }}" role="status">{{ f.text }}</p>
+    {% endfor %}
+    {% block main %}{% endblock %}
+  </main>
+</div>
+</body>
+</html>

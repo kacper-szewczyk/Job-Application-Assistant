@@ -196,6 +196,33 @@ def reconfirm_answer(
     )
 
 
+def accept_suggestion(conn: sqlite3.Connection, resolution: Resolution, job_id: int) -> Answer:
+    """Save a suggested value as the user's answer, keeping where it came from.
+
+    Accepting the current saved answer again re-confirms it instead of copying it.
+    """
+    p = resolution.provenance
+    saved = current_answers(conn).get(resolution.question_key)
+    if saved is not None and p.answer_id == saved.id:
+        return reconfirm_answer(conn, resolution.question_key)
+    if resolution.value is None:
+        raise AnswerError("nothing to accept")
+    fact_ids = p.fact_ids
+    if p.answer_id is not None:
+        fact_ids = (*fact_ids, *answer_fact_ids(conn, p.answer_id))
+    return save_answer(
+        conn,
+        question_text=resolution.question.text,
+        value=resolution.value,
+        key=resolution.question_key,
+        origin=AnswerOrigin.ACCEPTED,
+        fact_ids=fact_ids,
+        preference_key=p.preference_key,
+        source_answer_id=p.answer_id,
+        job_id=job_id,
+    )
+
+
 def set_reuse_policy(
     conn: sqlite3.Connection, key: str, policy: ReusePolicy, *, at: datetime | None = None
 ) -> Answer:

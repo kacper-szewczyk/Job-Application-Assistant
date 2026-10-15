@@ -16,6 +16,7 @@ from jaa.cli.preferences import onboard, preferences_app
 from jaa.cli.profile import profile_app
 from jaa.cli.sources import sources_app
 from jaa.cli.tailor import tailor_app
+from jaa.cli.ui import ui
 from jaa.config import ensure_data_dir, load_settings
 from jaa.core.errors import DatabaseNotEmptyError, JaaError
 from jaa.logging import setup_logging
@@ -41,6 +42,7 @@ app.add_typer(answers_app, name="answers")
 app.add_typer(apply_app, name="apply")
 app.add_typer(mcp_app, name="mcp")
 app.command()(onboard)
+app.command()(ui)
 
 
 def _version_callback(value: bool) -> None:

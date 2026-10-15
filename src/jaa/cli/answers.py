@@ -28,7 +28,7 @@ from jaa.answers.topics import is_explicit_key, question_key
 from jaa.cli.common import MASK, console, err_console, open_existing, settings_from
 from jaa.core.clock import utcnow
 from jaa.core.errors import AnswerError, JaaError
-from jaa.core.models import Answer, AnswerOrigin, ReusePolicy
+from jaa.core.models import Answer, ReusePolicy
 from jaa.storage import answers as service
 
 answers_app = typer.Typer(
@@ -180,32 +180,6 @@ def prepare(ctx: typer.Context, job: JobArg, reveal: RevealOpt = False) -> None:
         console.print("Sensitive values are hidden; pass --reveal to show them.")
 
 
-def _accept(
-    conn: sqlite3.Connection, r: Resolution, job: int, current: dict[str, Answer]
-) -> Answer:
-    """Save the suggested value as the user's answer, keeping where it came from."""
-    p = r.provenance
-    saved = current.get(r.question_key)
-    if saved is not None and p.answer_id == saved.id:
-        return service.reconfirm_answer(conn, r.question_key)
-    fact_ids = p.fact_ids
-    if p.answer_id is not None:
-        fact_ids = (*fact_ids, *service.answer_fact_ids(conn, p.answer_id))
-    if r.value is None:
-        raise AnswerError("nothing to accept")
-    return service.save_answer(
-        conn,
-        question_text=r.question.text,
-        value=r.value,
-        key=r.question_key,
-        origin=AnswerOrigin.ACCEPTED,
-        fact_ids=fact_ids,
-        preference_key=p.preference_key,
-        source_answer_id=p.answer_id,
-        job_id=job,
-    )
-
-
 @answers_app.command("review")
 def review(
     ctx: typer.Context,
@@ -248,7 +222,7 @@ def review(
                 skipped += 1
                 continue
             if text.casefold() in ("y", "yes") and r.value is not None:
-                _accept(conn, r, job, service.current_answers(conn))
+                service.accept_suggestion(conn, r, job)
             else:
                 service.save_answer(conn, question_text=r.question.text, value=text, job_id=job)
             saved += 1

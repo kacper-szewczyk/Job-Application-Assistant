@@ -195,6 +195,15 @@ uv run jaa answers forget <key>          # delete every version of a saved answe
 
 Each delete command asks first (`--yes` skips the question). `restore` builds the restored database next to yours and swaps it in only once it is complete and checked; when it replaces records, a copy of your current database is saved in the `backups` folder of the data directory first. Stop `jaa mcp serve` before restoring. Generated documents are deleted with their job only when they are in the data directory and unchanged. See [ADR 0021](docs/decisions/0021-retention-and-deletion.md).
 
+### Reviewing in the browser
+
+```bash
+uv run jaa ui               # prints a one-time link and opens it in your browser
+uv run jaa ui --no-browser  # just print the link
+```
+
+`jaa ui` serves a review desk on this computer only (127.0.0.1, a free port): confirm, reject or correct facts and settle conflicts with their sources side by side, look at the tailored CV changes next to the built PDF, answer a job's questions (sensitive ones are never filled in for you), and see your applications by status with possible duplicates flagged. You still submit applications yourself; the UI records a submission only when you tick "I submitted this application myself". The link works once; press Ctrl+C to stop the server. The pages load nothing from the network and run no scripts. See [ADR 0022](docs/decisions/0022-local-review-ui.md).
+
 ### Using jaa from Claude Code (MCP)
 
 jaa ships an MCP server, so Claude Code can call it with typed tools. Inside this repository the server is already registered in [`.mcp.json`](.mcp.json); Claude Code asks you to approve it the first time. Elsewhere, register it yourself:
@@ -239,18 +248,19 @@ Claude Code ── skill (workflows, checkpoints)
      │
      └── MCP server ─┐
                      ├── core services (profile, facts, jobs, answers, applications)
-CLI (Typer + Rich) ──┘        │
+CLI (Typer + Rich) ──┤        │
+Review UI (jaa ui) ──┘        │
                               ├── SQLite (numbered migrations, backup/export)
                               ├── importers   (PDF, DOCX, LaTeX, LinkedIn archive, text)
                               ├── connectors  (one per permitted job source)
                               └── documents   (content model → LaTeX → PDF + manifest)
 ```
 
-The CLI and the MCP server are thin layers over the same core services. Importers and connectors return data and never write to storage directly. Review happens in the CLI first; a local web UI may follow (see [ADR 0002](docs/decisions/0002-cli-first-review-surface.md)).
+The CLI, the MCP server and the review UI are thin layers over the same core services. Importers and connectors return data and never write to storage directly. The CLI covers every step; the local review UI adds side-by-side review (see [ADR 0022](docs/decisions/0022-local-review-ui.md)).
 
 ## Tech stack
 
-Python 3.12+ managed with [uv](https://docs.astral.sh/uv/), Typer + Rich, pydantic v2, stdlib `sqlite3`, the official `mcp` Python SDK, LaTeX for PDF output, and platformdirs for the data directory. Tooling: ruff, pyright (strict) and pytest. See [`docs/decisions/`](docs/decisions/) for the rationale.
+Python 3.12+ managed with [uv](https://docs.astral.sh/uv/), Typer + Rich, Starlette + uvicorn + Jinja2 for the review UI, pydantic v2, stdlib `sqlite3`, the official `mcp` Python SDK, LaTeX for PDF output, and platformdirs for the data directory. Tooling: ruff, pyright (strict) and pytest. See [`docs/decisions/`](docs/decisions/) for the rationale.
 
 ## Privacy
 

@@ -1,6 +1,6 @@
 # 0002 — CLI-first review surface
 
-- **Status:** Accepted
+- **Status:** Accepted; the UI reconsidered in T18 was built, see ADR 0022
 - **Date:** 2026-10-14
 - **Issue:** #1
 
