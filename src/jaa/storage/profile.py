@@ -75,19 +75,22 @@ def add_imported_facts(
     """
     with conn:
         stored_run = import_runs.insert(conn, run)
-        seen: set[tuple[str, str]] = {
-            (str(row["field_key"]), str(row["value_normalized"]))
-            for row in conn.execute("SELECT field_key, value_normalized FROM profile_facts")
-        }
+        # The oldest fact per (key, value), so a skipped candidate links to a stable fact.
+        seen: dict[tuple[str, str], int] = {}
+        for row in conn.execute(
+            "SELECT id, field_key, value_normalized FROM profile_facts ORDER BY id"
+        ):
+            seen.setdefault((str(row["field_key"]), str(row["value_normalized"])), int(row["id"]))
         added: list[ProfileFact] = []
+        linked: set[int] = set()
         duplicates = 0
         for candidate in candidates:
             # value_normalized is stored as value_key() text, so the stored text is comparable.
             marker = (candidate.field_key, value_key(candidate.value_normalized))
             if marker in seen:
                 duplicates += 1
+                linked.add(seen[marker])
                 continue
-            seen.add(marker)
             sensitive = (
                 is_sensitive_key(candidate.field_key)
                 if candidate.is_sensitive is None
@@ -112,6 +115,12 @@ def add_imported_facts(
                     ),
                 )
             )
+            seen[marker] = _id(added[-1].id)
+            linked.add(seen[marker])
+        conn.executemany(
+            "INSERT INTO import_run_facts (import_run_id, fact_id) VALUES (?, ?)",
+            [(stored_run.id, fact_id) for fact_id in sorted(linked)],
+        )
     log.info(
         "import run id=%s stored facts=%d duplicates=%d",
         stored_run.id,
@@ -309,6 +318,22 @@ def correct_fact(
         _record(conn, transitions, at, version)
     log.info("corrected fact id=%s new id=%s", fact_id, correction.id)
     return ReviewResult(tuple(f for f, _ in transitions), version)
+
+
+def run_fact_ids(conn: sqlite3.Connection, run_id: int) -> list[int]:
+    """Every fact the run's candidates matched, including values stored by earlier imports.
+
+    Runs stored before migration 0014 have no links; for them this is the facts they added.
+    """
+    rows = conn.execute(
+        "SELECT fact_id FROM import_run_facts WHERE import_run_id = ? ORDER BY fact_id", (run_id,)
+    ).fetchall()
+    if not rows:
+        rows = conn.execute(
+            "SELECT id AS fact_id FROM profile_facts WHERE import_run_id = ? ORDER BY id",
+            (run_id,),
+        ).fetchall()
+    return [int(r["fact_id"]) for r in rows]
 
 
 def fact_history(conn: sqlite3.Connection, fact_id: int) -> list[ProfileFactEvent]:

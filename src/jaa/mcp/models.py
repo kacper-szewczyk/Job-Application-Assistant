@@ -221,3 +221,36 @@ class StatusOut(BaseModel):
     documents_linked: int
     answers_linked: int
     message: str
+
+
+class LinkedInSuggestionOut(BaseModel):
+    kind: str = Field(description="add, update, or check (a LinkedIn value the user rejected).")
+    section: str
+    address: str = Field(description="What to change, e.g. headline or experience.acme.title.")
+    text: str = Field(
+        description="Confirmed wording to use on LinkedIn, copied from the cited facts."
+    )
+    current: str | None = Field(description="What the LinkedIn import showed, if anything.")
+    fact_ids: list[int] = Field(description="Confirmed facts the suggestion is based on.")
+    linkedin_fact_ids: list[int]
+    job_ids: list[int] = Field(description="Target jobs whose requirements these facts meet.")
+    required_by_jobs: bool
+
+
+class LinkedInGapOut(BaseModel):
+    requirement: str
+    importance: str
+    job_ids: list[int]
+    unreviewed_only: bool = Field(description="Only unreviewed facts would back it.")
+
+
+class LinkedInSuggestionsOut(BaseModel):
+    linkedin_import_id: int | None = Field(description="None when there is no LinkedIn import.")
+    linkedin_imported_at: datetime | None
+    target_job_ids: list[int]
+    suggestions: list[LinkedInSuggestionOut]
+    gaps: list[LinkedInGapOut] = Field(
+        description="Requirements no confirmed fact meets. Never suggest claiming them."
+    )
+    unreviewed_linkedin_facts: int
+    next_step: str

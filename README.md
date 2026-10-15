@@ -81,6 +81,7 @@ uv run jaa profile reject 14
 uv run jaa profile edit 15 "Senior Engineer"  # correction; the original stays in history
 uv run jaa profile conflicts                  # re-imported values next to confirmed ones
 uv run jaa profile versions
+uv run jaa profile linkedin                   # LinkedIn changes backed by confirmed facts (read-only)
 ```
 
 ### Search and application preferences

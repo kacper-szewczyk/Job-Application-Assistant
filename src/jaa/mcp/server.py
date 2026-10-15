@@ -50,6 +50,7 @@ from jaa.core.models import (
 )
 from jaa.core.review import find_conflicts
 from jaa.core.search import JobQuery
+from jaa.documents import linkedin_suggestions as linkedin_text
 from jaa.documents import tailoring as tailor
 from jaa.documents.content import CvLanguage
 from jaa.documents.engine import find_engine
@@ -65,9 +66,9 @@ from jaa.mcp import models as out
 from jaa.storage import applications as tracker
 from jaa.storage import documents as artifacts
 from jaa.storage import duplicates as dupes
+from jaa.storage import linkedin_profile, searches
 from jaa.storage import matches as matching
 from jaa.storage import profile as review
-from jaa.storage import searches
 from jaa.storage import tailoring as tailoring_service
 from jaa.storage.db import open_database
 from jaa.storage.profile import active_version_id
@@ -800,6 +801,55 @@ def build_server(settings: Settings) -> MCPServer:
         """
         with _database(settings, "get_job") as conn:
             return _job_detail(conn, job_id, description_chars)
+
+    @server.tool(annotations=READ)
+    def suggest_linkedin_updates(
+        job_ids: Annotated[
+            list[int] | None,
+            Field(description="Jobs to compare with; default: saved and applied jobs."),
+        ] = None,
+    ) -> out.LinkedInSuggestionsOut:
+        """Suggest LinkedIn profile changes backed by confirmed facts and the user's target jobs.
+
+        Read-only. Compares the latest LinkedIn import with the confirmed profile. Every
+        suggestion quotes confirmed facts; offer only that wording, never claims from `gaps`.
+        The user edits LinkedIn themselves: never open, fetch or automate LinkedIn pages.
+        """
+        with _database(settings, "suggest_linkedin_updates") as conn:
+            report = linkedin_profile.linkedin_suggestions(conn, job_ids or ())
+        if report is None:
+            return out.LinkedInSuggestionsOut(
+                linkedin_import_id=None,
+                linkedin_imported_at=None,
+                target_job_ids=[],
+                suggestions=[],
+                gaps=[],
+                unreviewed_linkedin_facts=0,
+                next_step="No LinkedIn import yet: import the user's data archive with "
+                "import_profile, or the user runs `jaa import linkedin-api` themselves.",
+            )
+        found = report.result
+        return out.LinkedInSuggestionsOut(
+            linkedin_import_id=report.run.id,
+            linkedin_imported_at=report.run.imported_at,
+            target_job_ids=[_id(j.id) for j in report.jobs],
+            suggestions=[
+                out.LinkedInSuggestionOut.model_validate(linkedin_text.to_json(s))
+                for s in found.suggestions
+            ],
+            gaps=[
+                out.LinkedInGapOut(
+                    requirement=g.requirement,
+                    importance=g.importance.value,
+                    job_ids=list(g.job_ids),
+                    unreviewed_only=g.unreviewed_only,
+                )
+                for g in found.gaps
+            ],
+            unreviewed_linkedin_facts=found.unreviewed_linkedin,
+            next_step="Go through the suggestions with the user; they edit LinkedIn "
+            "themselves. For a gap, ask whether it is true and add it as a fact first.",
+        )
 
     @server.tool(annotations=READ)
     def get_tailored_cv(

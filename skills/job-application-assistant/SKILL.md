@@ -83,6 +83,7 @@ why; they can type it in their own terminal.
 | `draft_tailored_cv` | propose a tailored CV plan for a job (no `plan`), or save the user's edited plan | adds a revision |
 | `get_tailored_cv` | show a job's plan, its evidence and checks, without a new revision | read only |
 | `generate_cv_pdf` | build the general CV (no `job_id`) or a job's tailored CV from confirmed facts | writes a PDF in the data directory |
+| `suggest_linkedin_updates` | suggest LinkedIn profile changes backed by confirmed facts, ranked by what the user's target jobs ask for (`job_ids` to pick jobs) | read only |
 | `list_applications` | list applications by status | read only |
 | `update_application_status` | start an application (`preparing`) or move it on (`ready_for_review`, `submitted`, `interviewing`, `rejected`, `withdrawn`, `closed`) | asks the user |
 
@@ -114,6 +115,8 @@ with Bash (`uv run jaa …` in the repository); they only read, or add records t
 - `jaa answers prepare JOB`: how each question would be answered and where each answer comes from.
 - `jaa apply handoff JOB`: the link, documents and answers to take to the employer's page.
 - `jaa apply show JOB`: an application's history, documents and answers used.
+- `jaa profile linkedin [--job JOB…]`: the same LinkedIn suggestions as
+  `suggest_linkedin_updates`, as a table.
 - `jaa cv preview`, `jaa cv templates`, `jaa cv tailor show JOB`: look before building.
 - `jaa cv tailor letter JOB [--language pl] [--opening TEXT] [--closing TEXT]`: build the cover
   letter PDF from the plan's checked paragraphs. The recipient is the job's employer unless the
@@ -245,6 +248,26 @@ they run `jaa ui` in their own terminal. It opens a local page (127.0.0.1 only) 
 confirm facts, answer questions and record submissions themselves. Do not start it, open its
 link or send requests to it: its link is the user's login, and everything they decide there is
 theirs. What they record there shows up in jaa's tools as usual; read it back from there.
+
+### 8. LinkedIn profile: suggest updates
+
+jaa can compare the user's latest LinkedIn import (archive or `jaa import linkedin-api`) with
+their confirmed facts and the jobs they saved or applied to. It is read-only: the user changes
+LinkedIn themselves, and you never open, fetch or automate LinkedIn pages.
+
+1. Call `suggest_linkedin_updates` (or pass `job_ids` for the jobs the user names). With no
+   LinkedIn import, offer workflow 1's LinkedIn step first; with an old one, suggest a fresh
+   archive so the comparison shows what LinkedIn says today.
+2. Go through `suggestions` in order: jobs-backed first. For each, say what to change
+   (`address`), what LinkedIn shows (`current`) and the suggested `text`, which is the user's
+   confirmed wording, and cite the `fact_ids`. You may help shorten or reorder that wording,
+   but keep to what the cited facts say: no new numbers, tools, titles or achievements.
+3. A `check` suggestion is a LinkedIn value the user rejected during review: ask whether to
+   remove or correct it on LinkedIn. Do not decide for them.
+4. `gaps` are requirements no confirmed fact meets. Never suggest adding them to LinkedIn.
+   Ask whether one is true; if so, the user adds it (pasted text through `import_profile`,
+   then reviewed) before it can be suggested. `unreviewed_only` gaps need `review_facts` first.
+5. If `unreviewed_linkedin_facts` is more than zero, offer to review those facts (workflow 1).
 
 ## When something fails
 

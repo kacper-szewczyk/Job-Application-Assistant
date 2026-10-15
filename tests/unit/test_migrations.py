@@ -15,6 +15,7 @@ EXPECTED_TABLES = {
     "profile",
     "import_runs",
     "profile_facts",
+    "import_run_facts",
     "profile_versions",
     "profile_version_facts",
     "profile_fact_events",

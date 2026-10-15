@@ -27,7 +27,9 @@ from jaa.cli.common import (
 from jaa.core.errors import FactConflictError, JaaError
 from jaa.core.models import FactOrigin, FactState, JsonValue, ProfileFact
 from jaa.core.review import find_conflicts
+from jaa.documents.linkedin_suggestions import SuggestionKind
 from jaa.storage import profile as service
+from jaa.storage.linkedin_profile import linkedin_suggestions
 from jaa.storage.repository import import_runs, profile_facts, profile_versions
 
 profile_app = typer.Typer(
@@ -304,3 +306,66 @@ def versions(ctx: typer.Context) -> None:
             "active" if version.id == active else "",
         )
     console.print(table)
+
+
+_KIND_LABEL: Final = {
+    SuggestionKind.ADD: "add",
+    SuggestionKind.UPDATE: "update",
+    SuggestionKind.CHECK: "check",
+}
+
+
+@profile_app.command("linkedin")
+def linkedin(
+    ctx: typer.Context,
+    job: Annotated[
+        list[int] | None,
+        typer.Option(
+            "--job", help="Compare with this job (repeatable). Default: saved and applied jobs."
+        ),
+    ] = None,
+) -> None:
+    """Suggest LinkedIn profile changes backed by your confirmed facts (read-only).
+
+    Compares the latest LinkedIn import with your confirmed facts and the jobs you target.
+    You make the changes on LinkedIn yourself; jaa never edits or opens LinkedIn.
+    """
+    with _database(ctx) as conn:
+        report = linkedin_suggestions(conn, job or ())
+    if report is None:
+        console.print(
+            "No LinkedIn import yet. Import your data archive with `jaa import linkedin`."
+        )
+        return
+    run, found = report.run, report.result
+    console.print(
+        f"Compared LinkedIn import #{run.id} ({run.imported_at:%Y-%m-%d}) with your confirmed "
+        f"facts and {len(report.jobs)} target job{'s' if len(report.jobs) != 1 else ''}."
+    )
+    if found.suggestions:
+        table = Table("#", "Change", "Suggested wording", "LinkedIn now", "Based on", "Jobs")
+        table.columns[1].overflow = "fold"
+        for index, s in enumerate(found.suggestions, 1):
+            table.add_row(
+                str(index),
+                Text(f"{_KIND_LABEL[s.kind]} {s.address}"),
+                Text(s.text or "(remove it, or confirm it with `jaa profile`)"),
+                Text(s.current or "-"),
+                Text(", ".join(f"#{i}" for i in s.fact_ids) or "rejected value"),
+                Text(", ".join(f"#{i}" for i in s.job_ids) or "-"),
+            )
+        console.print(table)
+    else:
+        console.print("Your LinkedIn profile already shows what your confirmed facts say.")
+    if found.gaps:
+        console.print("\nTarget jobs ask for these, and no confirmed fact shows them:")
+        for gap in found.gaps:
+            jobs_text = ", ".join(f"#{i}" for i in gap.job_ids)
+            note = " (only unreviewed facts back it)" if gap.unreviewed_only else ""
+            console.print(Text(f"  - {gap.requirement} [{gap.importance}] jobs {jobs_text}{note}"))
+        console.print("jaa does not suggest claiming these; add a fact first if one is true.")
+    if found.unreviewed_linkedin:
+        console.print(
+            f"{found.unreviewed_linkedin} LinkedIn value(s) are not reviewed yet; "
+            "review them with `jaa profile facts --state unreviewed`."
+        )

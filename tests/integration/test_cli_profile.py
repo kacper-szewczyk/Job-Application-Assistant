@@ -8,6 +8,8 @@ from jaa.core import models as m
 from jaa.storage.db import open_database
 from jaa.storage.profile import add_imported_facts
 from tests.conftest import SYNTHETIC_EMAIL, SYNTHETIC_TITLE, T0
+from tests.fixtures.cv_profile import PROFILE, store_profile
+from tests.fixtures.linkedin_builders import sample_archive
 
 runner = CliRunner()
 TITLE_KEY = "experience.example-co.title"
@@ -130,3 +132,29 @@ def test_commands_need_database(tmp_path: Path) -> None:
     result = runner.invoke(app, ["profile", "facts"], env={"JAA_DATA_DIR": str(tmp_path / "x")})
     assert result.exit_code == 1
     assert "jaa init" in result.output
+
+
+def test_linkedin_without_an_import_says_how_to_get_one(env: dict[str, str]) -> None:
+    assert "No LinkedIn import yet" in _run(env, "linkedin")
+
+
+def test_linkedin_suggests_confirmed_wording(env: dict[str, str], tmp_path: Path) -> None:
+    conn = open_database(Path(env["JAA_DATA_DIR"]) / "jaa.sqlite3")
+    try:
+        store_profile(conn)
+    finally:
+        conn.close()
+    archive = tmp_path / "linkedin.zip"
+    archive.write_bytes(sample_archive())
+    imported = runner.invoke(app, ["import", "linkedin", str(archive), "--keep-source"], env=env)
+    assert imported.exit_code == 0, imported.output
+
+    out = _run(env, "linkedin")
+
+    assert "Compared LinkedIn import #2" in out
+    assert "update headline" in out
+    assert str(PROFILE["headline"]) in out
+    assert "Backend engineer for widget platforms" in out
+    assert "add skills.react-native" in out
+    assert str(PROFILE["contact.email"]) not in out
+    assert "not reviewed yet" in out
