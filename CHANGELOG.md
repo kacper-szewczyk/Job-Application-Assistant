@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.26.0](https://github.com/kacper-szewczyk/Job-Application-Assistant/compare/jaa-v0.25.0...jaa-v0.26.0) (2026-10-15)
+
+
+### Features
+
+* **importers:** import Polish and mixed-language CVs ([#89](https://github.com/kacper-szewczyk/Job-Application-Assistant/issues/89)) ([02a48c4](https://github.com/kacper-szewczyk/Job-Application-Assistant/commit/02a48c4d634e304cbfacde6f5a7b3511f48ebac9)), closes [#32](https://github.com/kacper-szewczyk/Job-Application-Assistant/issues/32)
+
 ## [0.25.0](https://github.com/kacper-szewczyk/Job-Application-Assistant/compare/jaa-v0.24.0...jaa-v0.25.0) (2026-10-15)
 
 
