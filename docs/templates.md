@@ -11,13 +11,53 @@ must provide so jaa can fill it. `jaa templates check PATH` checks a template ag
 | `moderncv-classic` | CV (default) | name header, dates in a left column |
 | `moderncv-banking` | CV | centred header, full-width sections |
 | `moderncv-casual` | CV | large right-aligned name, contact details in the footer |
+| `jaa-minimal` | CV | ATS-first single column, dates flush right ([below](#jaas-own-designs)) |
+| `jaa-compact` | CV | dense one-page layout for senior profiles |
+| `jaa-serif` | CV | serif, dates in a margin column, long-form |
 | `moderncv-letter` | cover letter (default) | moderncv letter |
+| `jaa-minimal-letter` | cover letter | matches `jaa-minimal` |
 
 `jaa templates show ID --preview` builds a preview PDF from synthetic sample data (never your
 profile) into `previews/` in the data directory.
 
-The template files are MIT-licensed (this repository). They use the moderncv class (LPPL 1.3c),
-which comes with the TeX distribution or Tectonic's bundle and is not shipped with jaa.
+The template files are MIT-licensed (this repository). The `moderncv-*` templates use the
+moderncv class (LPPL 1.3c), which comes with the TeX distribution or Tectonic's bundle and is not
+shipped with jaa.
+
+## jaa's own designs
+
+The `jaa-*` templates (ADR 0030) do not use moderncv: each one defines the contract's macros
+itself on top of LaTeX's `article` class, so they double as worked examples for writing your
+own. They share these choices:
+
+- **ATS first.** One reading order (the header, then each section top to bottom; an entry's
+  title before its details), real text everywhere, no icons, standard section headings, no
+  hyphenation, ragged lines, and no kerning (strong kerns such as "Te" make text extraction
+  split words). The tests check that the extracted text contains the facts in reading order.
+- **Fonts and licences.** TeX Gyre Heros, Heros Condensed and Pagella (GUST Font License), loaded
+  by file name with `fontspec`, plus `titlesec`, `needspace` and `etoolbox` (LPPL). All come
+  with TeX Live, MiKTeX and Tectonic's bundle; nothing is shipped with jaa. The fonts have the
+  full Polish alphabet.
+- **English and Polish.** Headings and dates come from jaa in the CV's language; babel loads
+  the language's hyphenation patterns, though hyphenation itself is off.
+- **Photo and consent** appear only when you pass `--photo` or have saved a consent clause; the
+  consent clause sits in small type at the bottom of the last page.
+- **Paper.** A4. For US Letter, change `a4paper` to `letterpaper` in the `\documentclass` line
+  of a copy and add it with `jaa templates add`; the margins follow.
+- **Page breaks.** A heading is never the last line of a page, an entry's first lines stay
+  together, and long entries break between bullet points.
+
+| Template | Intended use | Preview (synthetic data) |
+| --- | --- | --- |
+| `jaa-minimal` | Most applications: a clean single column that every applicant tracking system reads. 10pt sans, 1–2 pages. | ![jaa-minimal, English](images/templates/jaa-minimal-en.png) |
+| `jaa-compact` | Senior and lead profiles that must fit one page: condensed type, narrow margins, one line per role, contact details beside the name. | ![jaa-compact, English](images/templates/jaa-compact-en.png) |
+| `jaa-serif` | Academic, public-sector and traditional employers, and long-form CVs: serif type, dates and language names in a margin column, breaks cleanly onto later pages. | ![jaa-serif, English](images/templates/jaa-serif-en.png) |
+| `jaa-minimal-letter` | Cover letters that match `jaa-minimal`. | ![jaa-minimal-letter, Polish](images/templates/jaa-minimal-letter-pl.png) |
+
+Polish previews: [jaa-minimal](images/templates/jaa-minimal-pl.png),
+[jaa-compact](images/templates/jaa-compact-pl.png), [jaa-serif](images/templates/jaa-serif-pl.png).
+They were made with `jaa templates show ID --preview --language LANG` and
+`pdftoppm -png -r 60 -singlefile`; rebuild them when a design changes.
 
 ## Adding your own
 

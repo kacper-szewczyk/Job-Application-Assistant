@@ -1,0 +1,9 @@
+{
+  "id": "jaa-serif",
+  "version": 1,
+  "name": "jaa serif",
+  "family": "custom",
+  "description": "Traditional CV for academic, public-sector and long-form profiles: centred name, dates and language names in a left margin column, serif type. Breaks cleanly onto a second page. TeX Gyre Pagella, 11pt, A4 (US Letter: one class option).",
+  "requires": ["fontspec", "titlesec", "needspace", "etoolbox", "TeX Gyre fonts"],
+  "license": "MIT (this repository). Uses only packages and fonts from standard TeX distributions: titlesec, needspace, etoolbox (LPPL) and TeX Gyre Pagella (GUST Font License)."
+}

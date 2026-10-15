@@ -48,7 +48,9 @@ def test_letter_template_is_a_separate_kind() -> None:
     assert template.version_label == "moderncv-letter@1"
     assert template.kind is TemplateKind.COVER_LETTER
     assert DEFAULT_LETTER_TEMPLATE not in available_templates(TemplateKind.CV)
-    assert set(available_templates(TemplateKind.COVER_LETTER)) == {DEFAULT_LETTER_TEMPLATE}
+    letters = available_templates(TemplateKind.COVER_LETTER)
+    assert DEFAULT_LETTER_TEMPLATE in letters
+    assert not set(letters) & set(available_templates(TemplateKind.CV))
     with pytest.raises(TemplateError, match="unknown cv template"):
         get_template(DEFAULT_LETTER_TEMPLATE)
     with pytest.raises(TemplateError, match="unknown cover_letter template"):

@@ -1,0 +1,9 @@
+{
+  "id": "jaa-minimal",
+  "version": 1,
+  "name": "jaa minimal",
+  "family": "custom",
+  "description": "ATS-first single-column CV: large name, contact details on one line, ruled section headings, each entry's dates flush right of its title. TeX Gyre Heros, 10pt, A4 (US Letter: one class option). For most applications.",
+  "requires": ["fontspec", "titlesec", "needspace", "etoolbox", "TeX Gyre fonts"],
+  "license": "MIT (this repository). Uses only packages and fonts from standard TeX distributions: titlesec, needspace, etoolbox (LPPL) and TeX Gyre Heros (GUST Font License)."
+}

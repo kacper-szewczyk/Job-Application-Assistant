@@ -4,6 +4,7 @@ import pytest
 
 from jaa.core.models import TemplateFamily, TemplateKind
 from jaa.documents.contract import REQUIRED_MACROS, check_template, defined_macros
+from jaa.documents.latex import CvTemplate, available_templates
 
 PREAMBLE = "\\documentclass{moderncv}\n\\hyphenpenalty=10000\n%%jaa:babel%%\n%%jaa:header%%\n"
 CV = PREAMBLE + "\\begin{document}\n\\makecvtitle\n%%jaa:body%%\n%%jaa:consent%%\n\\end{document}\n"
@@ -149,3 +150,17 @@ def test_no_document_class_or_begin_document() -> None:
     result = _check("%%jaa:babel%%\n%%jaa:header%%\n%%jaa:body%%\n%%jaa:consent%%\n")
     assert "no \\begin{document} in the main file" in result.problems
     assert "no \\documentclass in the main file" in result.problems
+
+
+@pytest.mark.parametrize(
+    "template",
+    [t for t in available_templates().values() if t.family is TemplateFamily.CUSTOM],
+    ids=lambda t: t.id,
+)
+def test_shipped_custom_templates_would_pass_as_uploads(template: CvTemplate) -> None:
+    # The custom designs (ADR 0030) show that the contract is enough to write a template
+    # without moderncv: they pass every check an uploaded template gets, without warnings.
+    result = check_template("cv.tex", {"cv.tex": template.source}, {}, template.kind)
+    assert result.ok, result.problems
+    assert result.warnings == ()
+    assert result.family is TemplateFamily.CUSTOM
