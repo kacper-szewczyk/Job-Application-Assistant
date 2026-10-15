@@ -195,6 +195,16 @@ claude mcp add --scope user jaa -- uv run --project /path/to/Job-Application-Ass
 
 The two confirmation dialogs are answered by you, not by Claude. A client that cannot show them gets an error, and nothing changes. Blocked tailoring edits can only be approved in the terminal (`jaa cv tailor approve`). Sensitive fact values are not returned to Claude. See [ADR 0019](docs/decisions/0019-mcp-server.md).
 
+#### The skill
+
+The [`job-application-assistant`](skills/job-application-assistant/SKILL.md) skill tells Claude how to run the workflows: onboarding, searching and matching jobs, tailoring a CV, preparing answers, and applying and tracking. It says when to call each tool, which CLI commands Claude may run, and where you decide. Inside this repository Claude Code loads it automatically; ask for help with your job search, or type `/job-application-assistant`. To use it elsewhere, link it into your user skills:
+
+```bash
+ln -s /path/to/Job-Application-Assistant/skills/job-application-assistant ~/.claude/skills/
+```
+
+Commands that record your own decisions (`jaa profile confirm`, `jaa onboard`, `jaa answers review`, `jaa cv tailor approve`, `jaa apply submitted`, …) are yours to run in your terminal. In this repository, [`.claude/settings.json`](.claude/settings.json) also denies them to Claude, and denies fetching linkedin.com. See [ADR 0020](docs/decisions/0020-claude-code-skill.md).
+
 ### Configuration
 
 | Variable | Default | Purpose |
