@@ -1,9 +1,11 @@
 """Real PDF builds. Skipped without a LaTeX engine; CI requires one (JAA_REQUIRE_LATEX=1)."""
 
+import logging
 import stat
 import struct
 import zlib
 from dataclasses import replace
+from datetime import date
 from pathlib import Path
 
 import pytest
@@ -11,8 +13,14 @@ import pytest
 from jaa.core.errors import LatexCompileError
 from jaa.documents.content import CvLanguage, build_content
 from jaa.documents.engine import Engine
-from jaa.documents.latex import DEFAULT_TEMPLATE, get_template
-from jaa.documents.pipeline import BuildOptions, build_cv, extract_text
+from jaa.documents.latex import (
+    DEFAULT_LETTER_TEMPLATE,
+    DEFAULT_TEMPLATE,
+    TemplateKind,
+    get_template,
+)
+from jaa.documents.letter import LetterContent
+from jaa.documents.pipeline import BuildOptions, build_cover_letter, build_cv, extract_text
 from tests.fixtures.cv_profile import confirmed_facts
 
 pytestmark = pytest.mark.latex
@@ -92,3 +100,43 @@ def test_compile_errors_are_explained(latex_engine: Engine, tmp_path: Path) -> N
     problems = " ".join(exc_info.value.problems)
     assert "Undefined control sequence" in problems
     assert "command that is not defined" in problems
+
+
+@pytest.mark.parametrize("language", list(CvLanguage))
+def test_cover_letter_text_matches_its_sources(
+    latex_engine: Engine, tmp_path: Path, language: CvLanguage, caplog: pytest.LogCaptureFixture
+) -> None:
+    paragraph = "Zarządzałam migracją 100% potoków w Example Co {bez} $problemów_#."
+    letter = LetterContent(
+        sender=build_content(confirmed_facts()).content,
+        recipient=("Gadgets Sp. z o.o.", "Wrocław"),
+        date=date(2026, 10, 15),
+        paragraphs=(paragraph, "Second paragraph."),
+        closing="Z poważaniem,",
+    )
+    with caplog.at_level(logging.DEBUG, logger="jaa"):
+        out = build_cover_letter(
+            letter,
+            template=get_template(DEFAULT_LETTER_TEMPLATE, TemplateKind.COVER_LETTER),
+            engine=latex_engine,
+            output_dir=tmp_path / "out",
+            language=language,
+            profile_version_id=7,
+            job_id=3,
+            fact_ids=(1, 8),
+            tailoring={"revision": 2},
+        )
+    assert out.missing_text == ()
+    assert out.warnings == ()
+    assert out.pages == 1
+    text, _ = extract_text(out.pdf)
+    assert ("15 października 2026" in text) == (language is CvLanguage.PL)
+    assert "Example Co {bez} $problemów_#." in text
+    for path in (out.pdf, out.tex):
+        assert stat.S_IMODE(path.stat().st_mode) == 0o600
+    assert out.manifest["kind"] == "cover_letter"
+    assert out.manifest["job_id"] == 3
+    assert out.manifest["fact_ids"] == [1, 8]
+    assert out.manifest["letter_date"] == "2026-10-15"
+    for value in ("Zarządzałam", "Gadgets", "Avery", "poważaniem"):
+        assert value not in caplog.text

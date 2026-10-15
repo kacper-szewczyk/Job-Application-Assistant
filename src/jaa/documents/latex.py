@@ -9,6 +9,7 @@ import hashlib
 import json
 import re
 from dataclasses import dataclass
+from enum import StrEnum
 from importlib import resources
 from importlib.resources.abc import Traversable
 from typing import Final, cast
@@ -17,7 +18,16 @@ from jaa.core.errors import TemplateError
 from jaa.core.models import JsonValue
 from jaa.documents.content import LABELS, CvContent, CvEntry, CvLanguage, format_period
 
+
+class TemplateKind(StrEnum):
+    CV = "cv"
+    COVER_LETTER = "cover_letter"
+
+
 SLOTS: Final = ("babel", "header", "body", "consent")
+# A cover letter's `letter` slot sets the recipient, date, opening and closing (ADR 0024).
+LETTER_SLOTS: Final = ("babel", "header", "letter", "body")
+_KIND_SLOTS: Final = {TemplateKind.CV: SLOTS, TemplateKind.COVER_LETTER: LETTER_SLOTS}
 _SLOT_LINE: Final = re.compile(r"^%%jaa:([a-z_]+)%%[ \t]*$", re.MULTILINE)
 _FAMILIES: Final = frozenset({"moderncv"})
 
@@ -53,6 +63,7 @@ class CvTemplate:
     family: str
     description: str
     license: str
+    kind: TemplateKind = TemplateKind.CV
     source: str
     # sha256 of template.tex, recorded in each manifest.
     sha256: str
@@ -83,6 +94,7 @@ def _load(folder: Traversable) -> CvTemplate:
             family=str(data["family"]),
             description=str(data.get("description", "")),
             license=str(data["license"]),
+            kind=TemplateKind(str(data.get("kind", TemplateKind.CV))),
             source=source,
             sha256=hashlib.sha256(source.encode()).hexdigest(),
         )
@@ -92,9 +104,10 @@ def _load(folder: Traversable) -> CvTemplate:
         raise TemplateError(f"template {folder.name}: id {template.id!r} must match its folder")
     if template.family not in _FAMILIES:
         raise TemplateError(f"template {template.id}: unsupported family {template.family!r}")
+    slots = _KIND_SLOTS[template.kind]
     found = _SLOT_LINE.findall(source)
-    unknown = sorted(set(found) - set(SLOTS))
-    missing = [s for s in SLOTS if s not in found]
+    unknown = sorted(set(found) - set(slots))
+    missing = [s for s in slots if s not in found]
     if unknown or missing or len(found) != len(set(found)):
         raise TemplateError(
             f"template {template.id}: slots must appear once each; "
@@ -103,21 +116,24 @@ def _load(folder: Traversable) -> CvTemplate:
     return template
 
 
-def available_templates() -> dict[str, CvTemplate]:
-    """Every template shipped with jaa, by id."""
+def available_templates(kind: TemplateKind | None = None) -> dict[str, CvTemplate]:
+    """Every template shipped with jaa (of one kind, if given), by id."""
     root = _templates_root()
     folders = sorted((f for f in root.iterdir() if f.is_dir()), key=lambda f: f.name)
-    return {t.id: t for t in (_load(f) for f in folders if f.joinpath("template.json").is_file())}
+    loaded = (_load(f) for f in folders if f.joinpath("template.json").is_file())
+    return {t.id: t for t in loaded if kind is None or t.kind is kind}
 
 
 DEFAULT_TEMPLATE: Final = "moderncv-classic"
+DEFAULT_LETTER_TEMPLATE: Final = "moderncv-letter"
 
 
-def get_template(template_id: str) -> CvTemplate:
-    templates = available_templates()
+def get_template(template_id: str, kind: TemplateKind = TemplateKind.CV) -> CvTemplate:
+    """The shipped template `template_id`, which must be a `kind` template."""
+    templates = available_templates(kind)
     if template_id not in templates:
         known = ", ".join(sorted(templates))
-        raise TemplateError(f"unknown template {template_id!r}; available: {known}")
+        raise TemplateError(f"unknown {kind.value} template {template_id!r}; available: {known}")
     return templates[template_id]
 
 
@@ -148,6 +164,22 @@ def _header(content: CvContent, photo_file: str | None) -> str:
     lines = [f"\\name{_name_arg(first)}{_name_arg(family)}"]
     if content.headline:
         lines.append(f"\\title{_arg(content.headline)}")
+    lines.extend(_contact(content))
+    if photo_file:
+        lines.append(f"\\photo[64pt][0.4pt]{_arg(photo_file)}")
+    if content.summary:
+        lines.append(f"\\quote{_arg(content.summary)}")
+    return "\n".join(lines)
+
+
+def sender_header(content: CvContent) -> str:
+    """The name and contact details only: the sender block of a cover letter."""
+    first, family = _name_parts(content.name)
+    return "\n".join([f"\\name{_name_arg(first)}{_name_arg(family)}", *_contact(content)])
+
+
+def _contact(content: CvContent) -> list[str]:
+    lines: list[str] = []
     if content.location:
         lines.append(f"\\address{_arg(content.location)}{{}}{{}}")
     if content.phone:
@@ -158,11 +190,7 @@ def _header(content: CvContent, photo_file: str | None) -> str:
         # Shown as text, not icons, so the URLs survive text extraction.
         joined = " | ".join(url for _, url in content.links)
         lines.append(f"\\extrainfo{_arg(joined)}")
-    if photo_file:
-        lines.append(f"\\photo[64pt][0.4pt]{_arg(photo_file)}")
-    if content.summary:
-        lines.append(f"\\quote{_arg(content.summary)}")
-    return "\n".join(lines)
+    return lines
 
 
 # A private-use character marks where the dash goes; it cannot occur in date text.
@@ -255,10 +283,21 @@ def render(
     `consent_text` is the user's own clause, never a default. `photo_file` is the name of a photo
     the caller placed next to the .tex file.
     """
-    slots = {
-        "babel": f"\\usepackage[{LABELS[language].babel}]{{babel}}",
-        "header": _header(content, photo_file),
-        "body": _body(content, language),
-        "consent": _consent(consent_text, language),
-    }
+    return fill_slots(
+        template,
+        {
+            "babel": babel(language),
+            "header": _header(content, photo_file),
+            "body": _body(content, language),
+            "consent": _consent(consent_text, language),
+        },
+    )
+
+
+def babel(language: CvLanguage) -> str:
+    return f"\\usepackage[{LABELS[language].babel}]{{babel}}"
+
+
+def fill_slots(template: CvTemplate, slots: dict[str, str]) -> str:
+    """The template's source with each slot line replaced by generated LaTeX."""
     return _SLOT_LINE.sub(lambda m: slots[m.group(1)], template.source)

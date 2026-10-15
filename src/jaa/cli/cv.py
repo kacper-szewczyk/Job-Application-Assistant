@@ -18,7 +18,7 @@ from rich.text import Text
 
 from jaa.cli.common import MASK, console, err_console, open_existing, settings_from
 from jaa.core.errors import FactConflictError, JaaError, LatexCompileError, ReviewError
-from jaa.core.models import FactState, ProfileFact
+from jaa.core.models import ArtifactKind, FactState, ProfileFact
 from jaa.documents.content import CvContent, CvLanguage, build_content, format_period
 from jaa.documents.engine import find_engine
 from jaa.documents.latex import DEFAULT_TEMPLATE, available_templates, get_template
@@ -244,10 +244,10 @@ def build(
         typer.launch(str(built.output.pdf))
 
 
-def report_build(out: BuildOutput, document_id: int | None) -> None:
+def report_build(out: BuildOutput, document_id: int | None, what: str = "CV") -> None:
     """Where the PDF went, and the layout and text-extraction warnings."""
     console.print(
-        f"[green]CV written:[/green] {out.pdf} ({out.pages} page(s), document #{document_id})"
+        f"[green]{what} written:[/green] {out.pdf} ({out.pages} page(s), document #{document_id})"
     )
     console.print(f"LaTeX source: {out.tex}")
     for warning in out.warnings:
@@ -262,18 +262,19 @@ def report_build(out: BuildOutput, document_id: int | None) -> None:
 
 @cv_app.command("list")
 def list_cvs(ctx: typer.Context) -> None:
-    """List generated CVs with their template and profile version."""
+    """List generated CVs and cover letters with their template and profile version."""
     with database(ctx) as conn:
-        cvs = artifacts.list_cvs(conn)
+        cvs = artifacts.list_pdfs(conn)
     if not cvs:
         console.print("No CVs built yet. Run `jaa cv build`.")
         return
-    table = Table("ID", "Created (UTC)", "Job", "Template", "Profile version", "File")
+    table = Table("ID", "Created (UTC)", "Kind", "Job", "Template", "Profile version", "File")
     for doc in cvs:
         exists = "" if Path(doc.path).is_file() else " (missing)"
         table.add_row(
             str(doc.id),
             f"{doc.created_at:%Y-%m-%d %H:%M}",
+            "cover letter" if doc.kind is ArtifactKind.COVER_LETTER_PDF else "CV",
             str(doc.job_id or "-"),
             doc.template_version or "-",
             str(doc.profile_version_id or "-"),
@@ -284,10 +285,14 @@ def list_cvs(ctx: typer.Context) -> None:
 
 @cv_app.command()
 def templates() -> None:
-    """List the CV templates that ship with jaa."""
-    table = Table("ID", "Version", "Description", "License")
+    """List the CV and cover letter templates that ship with jaa."""
+    table = Table("ID", "Version", "Kind", "Description", "License")
     for template in available_templates().values():
         table.add_row(
-            template.id, str(template.version), Text(template.description), Text(template.license)
+            template.id,
+            str(template.version),
+            template.kind.value.replace("_", " "),
+            Text(template.description),
+            Text(template.license),
         )
     console.print(table)
