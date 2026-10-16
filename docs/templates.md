@@ -11,6 +11,7 @@ must provide so jaa can fill it. `jaa templates check PATH` checks a template ag
 | `moderncv-classic` | CV (default) | name header, dates in a left column |
 | `moderncv-banking` | CV | centred header, full-width sections |
 | `moderncv-casual` | CV | large right-aligned name, contact details in the footer |
+| `moderncv-fancy` | CV | serif, large name right of a rule, contact details in the left column |
 | `jaa-minimal` | CV | ATS-first single column, dates flush right ([below](#jaas-own-designs)) |
 | `jaa-compact` | CV | dense one-page layout for senior profiles |
 | `jaa-serif` | CV | serif, dates in a margin column, long-form |
@@ -22,7 +23,13 @@ profile) into `previews/` in the data directory.
 
 The template files are MIT-licensed (this repository). The `moderncv-*` templates use the
 moderncv class (LPPL 1.3c), which comes with the TeX distribution or Tectonic's bundle and is not
-shipped with jaa.
+shipped with jaa. `moderncv-fancy` uses EB Garamond (SIL Open Font License), which also comes
+with the TeX distribution.
+
+`moderncv-fancy` sets the contact details in a narrow column. Long email addresses and links
+break onto the next line after `/`, `.`, `@` or `-` (and, if a part is still too long, between
+any two characters) instead of running into the margin; no hyphen is added, so text extraction
+only gains line breaks. In its extracted text the contact details come before the name.
 
 ## jaa's own designs
 

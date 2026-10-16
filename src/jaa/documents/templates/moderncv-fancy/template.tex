@@ -1,0 +1,72 @@
+% jaa CV template "moderncv-fancy", version 1 (ADR 0012, ADR 0029).
+% Lines of the form %%jaa:<slot>%% are replaced with LaTeX generated from confirmed profile
+% facts; every other line is copied as-is. Generated text is escaped, so facts cannot inject
+% LaTeX commands.
+\documentclass[10pt,a4paper]{moderncv}
+\moderncvstyle{fancy}
+\moderncvcolor{blue}
+% fancy sets EB Garamond (SIL Open Font License, part of the TeX distribution), which has the
+% full Polish alphabet. It is set again with kerning off: strong kerns ("Te", "Wy") make text
+% extraction split words ("T est").
+\setmainfont{EBGaramond}[
+  Extension=.otf,
+  UprightFont=*-Regular,
+  ItalicFont=*-Italic,
+  BoldFont=*-Bold,
+  BoldItalicFont=*-BoldItalic,
+  Ligatures=TeX,
+  Kerning=Off,
+]
+%%jaa:babel%%
+\usepackage[scale=0.75]{geometry}
+
+% ATS-friendly output: no hyphenation (split words break keyword matching), and plain text
+% labels instead of icon glyphs, which text extraction turns into stray characters.
+\hyphenpenalty=10000
+\exhyphenpenalty=10000
+\renewcommand*{\mobilephonesymbol}{}
+\renewcommand*{\fixedphonesymbol}{}
+\renewcommand*{\faxphonesymbol}{}
+\renewcommand*{\emailsymbol}{}
+\renewcommand*{\homepagesymbol}{}
+\renewcommand*{\listitemsymbol}{\textbullet~}
+
+% fancy puts the contact details in the narrow date column, where a long link or email address
+% cannot fit on one line. Allow a line break there (never a hyphen) after "/", ".", "@" and "-",
+% and as a last resort between any two characters, so nothing runs into the margin. Text
+% extraction only gains line breaks; spaces between words are kept.
+\ExplSyntaxOn
+\seq_new:N \l__jaa_words_seq
+\cs_new_protected:Npn \jaa_breakable:n #1
+  {
+    \seq_set_split:Nnn \l__jaa_words_seq { ~ } {#1}
+    \seq_map_indexed_inline:Nn \l__jaa_words_seq
+      {
+        \int_compare:nNnF {##1} = { 1 } { \c_space_tl }
+        \tl_map_function:nN {##2} \__jaa_breakable_char:n
+      }
+  }
+\cs_new_protected:Npn \__jaa_breakable_char:n #1
+  {
+    #1
+    \str_case:nnF {#1}
+      { { / } { \penalty 0 \scan_stop: } { . } { \penalty 0 \scan_stop: } { @ } { \penalty 0 \scan_stop: } { - } { \penalty 0 \scan_stop: } }
+      { \penalty 5000 \scan_stop: }
+  }
+\NewDocumentCommand \jaabreakable { m } { \jaa_breakable:n {#1} }
+\ExplSyntaxOff
+\renewcommand*{\emaillink}[2][]{\href{mailto:#2}{\expandafter\jaabreakable\expandafter{#2}}}
+
+%%jaa:header%%
+\makeatletter
+\ifdefined\@extrainfo
+  \let\jaa@extrainfo\@extrainfo
+  \renewcommand*{\@extrainfo}{\expandafter\jaabreakable\expandafter{\jaa@extrainfo}}
+\fi
+\makeatother
+
+\begin{document}
+\makecvtitle
+%%jaa:body%%
+%%jaa:consent%%
+\end{document}
