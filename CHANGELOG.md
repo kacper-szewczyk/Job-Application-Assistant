@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.29.0](https://github.com/kacper-szewczyk/Job-Application-Assistant/compare/jaa-v0.28.0...jaa-v0.29.0) (2026-10-16)
+
+
+### Features
+
+* **documents:** add the moderncv fancy CV template ([#98](https://github.com/kacper-szewczyk/Job-Application-Assistant/issues/98)) ([78f6925](https://github.com/kacper-szewczyk/Job-Application-Assistant/commit/78f6925c7fc46108663ac9ed3fc70d11c08a6167)), closes [#93](https://github.com/kacper-szewczyk/Job-Application-Assistant/issues/93)
+
 ## [0.28.0](https://github.com/kacper-szewczyk/Job-Application-Assistant/compare/jaa-v0.27.0...jaa-v0.28.0) (2026-10-16)
 
 
