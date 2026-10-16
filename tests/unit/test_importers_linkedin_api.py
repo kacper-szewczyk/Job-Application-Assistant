@@ -6,10 +6,12 @@ import pytest
 
 from jaa.connectors.http import HttpResponse, TransportError
 from jaa.core.errors import ImportSourceError
-from jaa.core.models import ImportSourceType, ImportStatus
+from jaa.core.models import FactCandidate, ImportSourceType, ImportStatus, JsonValue
 from jaa.importers import linkedin_api as api
+from jaa.importers.linkedin import CsvFile, parse_linkedin_files
 from jaa.logging import Sensitive, setup_logging
 from tests.fixtures.linkedin_api import TOKEN, FakeSnapshotApi, page_body
+from tests.fixtures.linkedin_builders import LI_CAUSE, SAMPLE_FILES
 
 ADDRESS = "1 Synthetic Lane, Exampleton"
 PHONE = "+44 20 7946 0958"
@@ -152,6 +154,41 @@ def test_profile_domains_become_reviewable_facts_with_archive_keys() -> None:
     assert run.source_path is None
     assert run.status is ImportStatus.PARTIAL  # Profile.csv-style left-out columns
     assert set(prepared.empty_domains) == {"PHONE_NUMBERS", "EDUCATION", "CERTIFICATIONS"}
+
+
+def test_more_sections_map_to_the_same_keys_as_the_archive() -> None:
+    sections = ("projects", "volunteering", "publications", "patents", "honors", "courses")
+    prepared = api.prepare_linkedin_api_import(api.fetch_snapshot(_token(), FakeSnapshotApi()))
+    archive = parse_linkedin_files([CsvFile(name=n, data=d) for n, d in SAMPLE_FILES.items()])
+
+    def of(candidates: tuple[FactCandidate, ...]) -> dict[str, JsonValue]:
+        return {
+            c.field_key: c.value_normalized
+            for c in candidates
+            if c.field_key.split(".", 1)[0] in sections
+        }
+
+    from_api = of(prepared.candidates)
+    assert {k.split(".", 1)[0] for k in from_api} == set(sections)
+    assert from_api == of(archive.candidates)
+    by_key = {c.field_key: c for c in prepared.candidates}
+    assert by_key["projects.widget-telemetry-toolkit.title"].source_location == (
+        "LinkedIn PROJECTS row 1"
+    )
+    assert by_key["projects.synthetic-side-project.title"].source_location == (
+        "LinkedIn PROJECTS row 2"  # the second page
+    )
+    assert LI_CAUSE not in repr(list(from_api.values()))
+    counts = prepared.run.summary["sections"]
+    assert isinstance(counts, dict)
+    assert {s: counts.get(s) for s in sections} == {
+        "projects": 5,
+        "volunteering": 4,
+        "publications": 5,
+        "patents": 4,
+        "honors": 3,
+        "courses": 2,
+    }
 
 
 def test_data_minimization_matches_the_archive_import() -> None:

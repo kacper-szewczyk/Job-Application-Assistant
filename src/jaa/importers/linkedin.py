@@ -47,7 +47,8 @@ How to get your LinkedIn data archive
 
 1. On linkedin.com, open Me → Settings & Privacy → Data privacy → Get a copy of your data.
 2. Choose the data you want. Pick at least Profile, Positions, Education, Skills, Languages,
-   Certifications, Email addresses and Phone numbers (or request the larger archive).
+   Certifications, Projects, Honors, Courses, Publications, Patents, Volunteering, Email
+   addresses and Phone numbers (or request the larger archive).
 3. Select "Request archive". LinkedIn emails you when it is ready (often within minutes for
    selected data, up to a day for the full archive).
 4. Download the ZIP file and run:  jaa import linkedin <file.zip>
@@ -73,12 +74,6 @@ _ZIP_MAGIC: Final = (b"PK\x03\x04", b"PK\x05\x06")
 # LinkedIn profile sections that the archive has but we do not import yet.
 _NOT_IMPORTED: Final = frozenset(
     {
-        "projects.csv",
-        "honors.csv",
-        "courses.csv",
-        "volunteering.csv",
-        "publications.csv",
-        "patents.csv",
         "organizations.csv",
         "testscores.csv",
         "recommendationsreceived.csv",
@@ -505,7 +500,168 @@ def _certifications(file: _Named, rows: list[Row], out: _Collector) -> None:
         )
 
 
+def _point(file: _Named, index: int, raw: str, out: _Collector) -> str | None:
+    """A single date (`Issued On`, `Published On`) as `YYYY-MM` or `YYYY`, warning if unknown."""
+    date = parse_date(raw)
+    if date is None:
+        out.warn(
+            "date_not_recognized",
+            f"The date “{_short(raw)}” was not recognized and was not imported.",
+            _where(file, index),
+        )
+    return date
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class _EntrySection:
+    """A section whose rows are entries like positions: one fact per field (ADR 0032).
+
+    Each field reads the first non-empty of its columns, so a column LinkedIn renamed can be
+    listed beside the old one.
+    """
+
+    section: str
+    # The entry's naming field and its columns; the entry key is its slug.
+    name: tuple[str, tuple[str, ...]]
+    texts: tuple[tuple[str, tuple[str, ...]], ...] = ()
+    # Start and end columns of a period, stored as `dates` in the CV importer's shape.
+    period: tuple[str, str] | None = None
+    open_end_is_current: bool = False
+    # A single date column, stored as `date`.
+    date: str | None = None
+    url: str | None = None
+    description: str | None = None
+    # Columns left out on purpose; their names (never values) are reported once per file.
+    left_out: tuple[str, ...] = ()
+
+
+def _first(row: Row, columns: Sequence[str]) -> str:
+    return next((value for column in columns if (value := row.get(column, ""))), "")
+
+
+def _entry_rows(spec: _EntrySection, file: _Named, rows: list[Row], out: _Collector) -> None:
+    used: set[str] = set()
+    name_field, name_columns = spec.name
+    for index, row in enumerate(rows, 1):
+        where = _where(file, index)
+        name = _first(row, name_columns)
+        if not name:
+            out.warn(
+                "missing_value",
+                f"An entry without a {name_columns[0]} was not imported.",
+                where,
+            )
+            continue
+        dates = (
+            _dates(
+                file,
+                index,
+                row.get(spec.period[0], ""),
+                row.get(spec.period[1], ""),
+                out,
+                open_end_is_current=spec.open_end_is_current,
+            )
+            if spec.period
+            else None
+        )
+        date_raw = row.get(spec.date, "") if spec.date else ""
+        date = _point(file, index, date_raw, out) if date_raw else None
+        start = dates[0].get("start") if dates else date
+        prefix = f"{spec.section}.{_unique(slug(name), start, used)}"
+        out.add(where, f"{prefix}.{name_field}", name, name)
+        for field_name, columns in spec.texts:
+            if text := _first(row, columns):
+                out.add(where, f"{prefix}.{field_name}", text, text)
+        if dates:
+            out.add(where, f"{prefix}.dates", dates[1], dates[0])
+        if date:
+            out.add(where, f"{prefix}.date", date_raw, date)
+        if spec.url and (url := row.get(spec.url, "")):
+            normalized = url if url.lower().startswith("http") else f"https://{url}"
+            out.add(where, f"{prefix}.url", url, normalized)
+        if spec.description and (text := row.get(spec.description, "")):
+            out.add(
+                where,
+                f"{prefix}.description",
+                text,
+                list[JsonValue](_lines(text)),
+                DESCRIPTION_CONFIDENCE,
+            )
+    left_out = [c for c in spec.left_out if any(r.get(c) for r in rows)]
+    if left_out:
+        out.warn(
+            "fields_not_imported",
+            f"Not imported because CVs do not use them: {', '.join(left_out)}.",
+            file.name,
+        )
+
+
+_PROJECTS: Final = _EntrySection(
+    section="projects",
+    name=("title", ("title",)),
+    period=("started on", "finished on"),
+    url="url",
+    description="description",
+)
+_VOLUNTEERING: Final = _EntrySection(
+    section="volunteering",
+    name=("organization", ("company name", "organization")),
+    texts=(("role", ("role",)),),
+    period=("started on", "finished on"),
+    open_end_is_current=True,
+    description="description",
+    # A cause ("Politics", "Human Rights", …) can reveal beliefs; CVs do not need it.
+    left_out=("cause",),
+)
+_PUBLICATIONS: Final = _EntrySection(
+    section="publications",
+    name=("title", ("name", "title")),
+    texts=(("publisher", ("publisher",)),),
+    date="published on",
+    url="url",
+    description="description",
+)
+_PATENTS: Final = _EntrySection(
+    section="patents",
+    name=("title", ("title",)),
+    texts=(
+        ("number", ("patent number", "number")),
+        ("application_number", ("application number",)),
+    ),
+    date="issued on",
+    url="url",
+    description="description",
+)
+_HONORS: Final = _EntrySection(
+    section="honors",
+    name=("title", ("title",)),
+    texts=(("issuer", ("issuer",)),),
+    date="issued on",
+    description="description",
+)
+
+
 type _Handler = Callable[[_Named, list[Row], _Collector], None]
+
+
+def _entry_handler(spec: _EntrySection) -> _Handler:
+    def handle(file: _Named, rows: list[Row], out: _Collector) -> None:
+        _entry_rows(spec, file, rows, out)
+
+    return handle
+
+
+def _courses(file: _Named, rows: list[Row], out: _Collector) -> None:
+    for index, row in enumerate(rows, 1):
+        if name := row.get("name", ""):
+            number = row.get("number", "") or None
+            raw = f"{name} ({number})" if number else name
+            out.add(
+                _where(file, index),
+                f"courses.{slug(name)}",
+                raw,
+                {"name": name, "number": number},
+            )
 
 
 @dataclass(frozen=True, slots=True)
@@ -524,6 +680,12 @@ _KNOWN: Final[dict[str, _Known]] = {
     "skills.csv": _Known(_skills, ("name",)),
     "languages.csv": _Known(_languages, ("name",)),
     "certifications.csv": _Known(_certifications, ("name",)),
+    "projects.csv": _Known(_entry_handler(_PROJECTS), ("title",)),
+    "volunteering.csv": _Known(_entry_handler(_VOLUNTEERING), ("company name",)),
+    "publications.csv": _Known(_entry_handler(_PUBLICATIONS), ("name",)),
+    "patents.csv": _Known(_entry_handler(_PATENTS), ("title",)),
+    "honors.csv": _Known(_entry_handler(_HONORS), ("title",)),
+    "courses.csv": _Known(_courses, ("name",)),
 }
 
 

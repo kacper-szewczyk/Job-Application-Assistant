@@ -147,7 +147,9 @@ with Bash (`uv run jaa …` in the repository); they only read, or add records t
 3. Call `import_profile` for each source. Report what was added, skipped and any issues by
    count and field, not by quoting the whole CV back.
 4. Call `review_facts` and go through the facts with the user in small groups (contact,
-   experience per employer, education, skills, languages). Show each value and its source.
+   experience per employer, education, skills, languages, and from LinkedIn also projects,
+   volunteering, publications, patents, honors and courses). Show each value and its source.
+   CV templates do not show the LinkedIn-only groups yet; they stay in the profile.
    Ask; do not assume. Then call `decide_facts` with exactly what the user decided:
    - `confirm` for facts they said are right,
    - `reject` for facts they said are wrong,

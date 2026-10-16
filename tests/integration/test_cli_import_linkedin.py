@@ -8,11 +8,13 @@ from typer.testing import CliRunner
 from jaa.cli import app
 from jaa.core import models as m
 from jaa.storage.db import open_database
+from jaa.storage.profile import confirm_facts
 from jaa.storage.repository import import_runs, profile_facts
 from tests.fixtures.cv_builders import SAMPLE_CV
 from tests.fixtures.linkedin_builders import (
     LI_ADDRESS,
     LI_BIRTH_DATE,
+    LI_CAUSE,
     LI_EMAIL,
     LI_MESSAGE,
     LI_PHONE,
@@ -62,7 +64,7 @@ def test_archive_imports_into_reviewable_facts_and_lists_skipped_files(
     assert "Skipped 2 files that are not profile data: Connections.csv, messages.csv" in (
         result.output
     )
-    assert "Projects.csv: This section is not imported yet" in result.output
+    assert "Organizations.csv: This section is not imported yet" in result.output
     assert "Kept the imported file(s)" in result.output
     assert archive.exists()
 
@@ -225,6 +227,47 @@ def test_linkedin_import_never_logs_or_prints_values(
     result = runner.invoke(app, ["import", "linkedin", str(archive), "--delete-source"], env=env)
     assert result.exit_code == 0
     # Logging goes to stderr at DEBUG; the summary names files and fields, not values.
-    for value in (LI_EMAIL, LI_PHONE, LI_ADDRESS, LI_BIRTH_DATE, LI_MESSAGE, "Avery"):
+    for value in (
+        LI_EMAIL,
+        LI_PHONE,
+        LI_ADDRESS,
+        LI_BIRTH_DATE,
+        LI_MESSAGE,
+        LI_CAUSE,
+        "Avery",
+        "Widget Telemetry Toolkit",
+        "Example Code Club",
+        "EX-0000001",
+    ):
         assert value not in result.output
         assert value not in result.stderr
+
+
+def test_reimport_sends_a_changed_project_to_review_and_keeps_the_confirmed_one(
+    env: dict[str, str], db: sqlite3.Connection, tmp_path: Path
+) -> None:
+    first = tmp_path / "first.zip"
+    first.write_bytes(sample_archive())
+    assert (
+        runner.invoke(app, ["import", "linkedin", str(first), "--keep-source"], env=env).exit_code
+        == 0
+    )
+    key = "projects.widget-telemetry-toolkit.url"
+    (fact,) = profile_facts.list(db, field_key=key)
+    assert fact.state is m.FactState.UNREVIEWED
+    assert fact.id is not None
+    confirm_facts(db, [fact.id])
+
+    changed = dict(SAMPLE_FILES)
+    changed["Projects.csv"] = changed["Projects.csv"].replace(
+        b"https://example.test/widget-telemetry", b"https://example.test/telemetry-v2"
+    )
+    second = tmp_path / "second.zip"
+    second.write_bytes(build_zip(changed))
+    result = runner.invoke(app, ["import", "linkedin", str(second), "--keep-source"], env=env)
+    assert result.exit_code == 0, result.output
+    states = {f.value_normalized: f.state for f in profile_facts.list(db, field_key=key)}
+    assert states == {
+        "https://example.test/widget-telemetry": m.FactState.CONFIRMED,
+        "https://example.test/telemetry-v2": m.FactState.UNREVIEWED,
+    }

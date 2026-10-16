@@ -20,6 +20,7 @@ from tests.fixtures.cv_builders import SAMPLE_CV
 from tests.fixtures.linkedin_builders import (
     LI_ADDRESS,
     LI_BIRTH_DATE,
+    LI_CAUSE,
     LI_EMAIL,
     LI_MESSAGE,
     LI_OTHER_EMAIL,
@@ -109,6 +110,100 @@ def test_sample_archive_maps_to_cv_style_keys() -> None:
     }
 
 
+def test_more_profile_sections_become_entries_with_stable_keys() -> None:
+    facts = parsed_sample()
+    project = "projects.widget-telemetry-toolkit"
+    assert facts[f"{project}.title"].value_raw == "Widget Telemetry Toolkit"
+    assert facts[f"{project}.dates"].value_normalized == {
+        "start": "2022-02",
+        "end": "2022-11",
+        "current": False,
+    }
+    assert facts[f"{project}.url"].value_normalized == "https://example.test/widget-telemetry"
+    assert facts[f"{project}.description"].value_normalized == [
+        "Open-source collector for widget metrics.",
+        "Used by three example teams.",
+    ]
+    assert facts[f"{project}.description"].source_location == "Projects.csv row 1"
+    # A project with only a title is still an entry; nothing else is made up for it.
+    assert [k for k in facts if k.startswith("projects.synthetic-side-project")] == [
+        "projects.synthetic-side-project.title"
+    ]
+
+    club = "volunteering.example-code-club"
+    assert facts[f"{club}.organization"].value_raw == "Example Code Club"
+    assert facts[f"{club}.role"].value_raw == "Mentor"
+    # An open end means ongoing, as for positions.
+    assert facts[f"{club}.dates"].value_normalized == {
+        "start": "2019-09",
+        "end": None,
+        "current": True,
+    }
+    assert facts[f"{club}.description"].value_normalized == ["Weekly coding sessions."]
+
+    paper = "publications.streaming-widgets-at-scale"
+    assert facts[f"{paper}.title"].value_raw == "Streaming Widgets at Scale"
+    assert facts[f"{paper}.publisher"].value_raw == "Example Press"
+    assert facts[f"{paper}.date"].value_raw == "Jun 2023"
+    assert facts[f"{paper}.date"].value_normalized == "2023-06"
+    assert facts[f"{paper}.url"].value_normalized == "https://example.test/papers/widgets"
+
+    patent = "patents.self-balancing-widget"
+    assert facts[f"{patent}.number"].value_raw == "EX-0000001"
+    assert facts[f"{patent}.application_number"].value_raw == "EX-APP-01"
+    assert facts[f"{patent}.date"].value_normalized == "2020-04"
+    assert f"{patent}.description" not in facts
+
+    award = "honors.example-widget-award"
+    assert facts[f"{award}.title"].value_raw == "Example Widget Award"
+    assert facts[f"{award}.date"].value_normalized == "2021-12"
+    assert facts[f"{award}.description"].value_normalized == ["For reliability work."]
+
+    assert facts["courses.distributed-systems"].value_raw == "Distributed Systems (CS-401)"
+    assert facts["courses.distributed-systems"].value_normalized == {
+        "name": "Distributed Systems",
+        "number": "CS-401",
+    }
+    assert facts["courses.go"].value_normalized == {"name": "Go", "number": None}
+
+
+def test_volunteering_cause_is_left_out_by_name_only() -> None:
+    parsed = parse_linkedin_files([CsvFile(name=n, data=d) for n, d in SAMPLE_FILES.items()])
+    issue = next(
+        i
+        for i in parsed.issues
+        if (i.code, i.location) == ("fields_not_imported", "Volunteering.csv")
+    )
+    assert "cause" in issue.message
+    assert LI_CAUSE not in issue.message
+    assert all(LI_CAUSE not in repr((c.value_raw, c.value_normalized)) for c in parsed.candidates)
+
+
+def test_repeated_entries_and_unknown_single_dates() -> None:
+    parsed = parse_linkedin_files(
+        [
+            CsvFile(
+                name="Honors.csv",
+                data=csv_bytes(
+                    ["Title", "Description", "Issued On"],
+                    [["Best Widget", "", "2019"], ["Best Widget", "", "2021"], ["Prize", "", "x"]],
+                ),
+            ),
+            CsvFile(
+                name="Projects.csv",
+                data=csv_bytes(["Title", "Started On", "Finished On"], [["", "2020", ""]]),
+            ),
+        ]
+    )
+    keys = {c.field_key for c in parsed.candidates}
+    assert {"honors.best-widget.date", "honors.best-widget-2021.date", "honors.prize.title"} <= keys
+    assert "honors.prize.date" not in keys
+    codes = [(i.code, i.location) for i in parsed.issues]
+    assert ("date_not_recognized", "Honors.csv row 3") in codes
+    assert ("missing_value", "Projects.csv row 1") in codes
+    assert parsed.sections == {"honors": 5}
+
+
 def test_provenance_names_the_file_and_row_and_keeps_the_raw_value() -> None:
     facts = parsed_sample()
     title = facts["experience.example-gadgets.title"]
@@ -144,7 +239,7 @@ def test_unknown_files_are_skipped_and_unimported_sections_reported() -> None:
     assert set(parsed.skipped_files) == {"messages.csv", "Connections.csv"}
     assert "Positions.csv" in parsed.imported_files
     codes = [(i.code, i.location) for i in parsed.issues]
-    assert ("section_not_imported", "Projects.csv") in codes
+    assert ("section_not_imported", "Organizations.csv") in codes
 
 
 def test_unused_personal_fields_are_named_but_their_values_never_appear() -> None:

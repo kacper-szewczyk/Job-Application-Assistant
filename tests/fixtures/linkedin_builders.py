@@ -17,6 +17,7 @@ LI_PHONE: Final = "+44 20 7946 0958"
 LI_ADDRESS: Final = "1 Synthetic Lane, Exampleton"
 LI_BIRTH_DATE: Final = "Feb 29, 1990"
 LI_MESSAGE: Final = "synthetic private message body"
+LI_CAUSE: Final = "Synthetic Political Cause"
 
 type Rows = Sequence[Sequence[str]]
 
@@ -102,8 +103,44 @@ SAMPLE_FILES: Final[dict[str, bytes]] = {
     ),
     "Projects.csv": csv_bytes(
         ["Title", "Description", "Url", "Started On", "Finished On"],
-        [["Synthetic project", "", "", "", ""]],
+        [
+            [
+                "Widget Telemetry Toolkit",
+                "• Open-source collector for widget metrics.\n• Used by three example teams.",
+                "https://example.test/widget-telemetry",
+                "Feb 2022",
+                "Nov 2022",
+            ],
+            ["Synthetic Side Project", "", "", "", ""],
+        ],
     ),
+    "Volunteering.csv": csv_bytes(
+        ["Company Name", "Role", "Cause", "Started On", "Finished On", "Description"],
+        [["Example Code Club", "Mentor", LI_CAUSE, "Sep 2019", "", "Weekly coding sessions."]],
+    ),
+    "Publications.csv": csv_bytes(
+        ["Name", "Published On", "Description", "Publisher", "Url"],
+        [
+            [
+                "Streaming Widgets at Scale",
+                "Jun 2023",
+                "A synthetic conference paper.",
+                "Example Press",
+                "https://example.test/papers/widgets",
+            ]
+        ],
+    ),
+    "Patents.csv": csv_bytes(
+        ["Title", "Issued On", "Description", "Url", "Patent Number", "Application Number"],
+        [["Self-balancing widget", "Apr 2020", "", "", "EX-0000001", "EX-APP-01"]],
+    ),
+    "Honors.csv": csv_bytes(
+        ["Title", "Description", "Issued On"],
+        [["Example Widget Award", "For reliability work.", "Dec 2021"]],
+    ),
+    "Courses.csv": csv_bytes(["Name", "Number"], [["Distributed Systems", "CS-401"], ["Go", ""]]),
+    # A profile section jaa does not import: reported, not read.
+    "Organizations.csv": csv_bytes(["Name", "Position"], [["Example Society", "Member"]]),
     # Not profile data: never read, only listed as skipped.
     "messages.csv": csv_bytes(["FROM", "TO", "CONTENT"], [["a", "b", LI_MESSAGE]]),
     "Connections.csv": csv_bytes(["First Name", "Last Name"], [["Other", "Person"]]),
