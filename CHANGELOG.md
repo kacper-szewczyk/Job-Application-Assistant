@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.28.0](https://github.com/kacper-szewczyk/Job-Application-Assistant/compare/jaa-v0.27.0...jaa-v0.28.0) (2026-10-16)
+
+
+### Features
+
+* **documents:** build CVs and cover letters on A4 or US Letter ([#96](https://github.com/kacper-szewczyk/Job-Application-Assistant/issues/96)) ([82484c5](https://github.com/kacper-szewczyk/Job-Application-Assistant/commit/82484c5b52d088fc9958c5556bed25c104d516c1)), closes [#92](https://github.com/kacper-szewczyk/Job-Application-Assistant/issues/92)
+
 ## [0.27.0](https://github.com/kacper-szewczyk/Job-Application-Assistant/compare/jaa-v0.26.0...jaa-v0.27.0) (2026-10-16)
 
 
