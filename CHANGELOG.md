@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.27.0](https://github.com/kacper-szewczyk/Job-Application-Assistant/compare/jaa-v0.26.0...jaa-v0.27.0) (2026-10-16)
+
+
+### Features
+
+* **importers:** import LinkedIn projects, volunteering, publications, patents, honors and courses ([#94](https://github.com/kacper-szewczyk/Job-Application-Assistant/issues/94)) ([dbc7d14](https://github.com/kacper-szewczyk/Job-Application-Assistant/commit/dbc7d1470464a4123429aa64c6dad229190052b3)), closes [#91](https://github.com/kacper-szewczyk/Job-Application-Assistant/issues/91)
+
 ## [0.26.0](https://github.com/kacper-szewczyk/Job-Application-Assistant/compare/jaa-v0.25.0...jaa-v0.26.0) (2026-10-15)
 
 
