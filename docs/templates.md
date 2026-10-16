@@ -42,8 +42,7 @@ own. They share these choices:
   the language's hyphenation patterns, though hyphenation itself is off.
 - **Photo and consent** appear only when you pass `--photo` or have saved a consent clause; the
   consent clause sits in small type at the bottom of the last page.
-- **Paper.** A4. For US Letter, change `a4paper` to `letterpaper` in the `\documentclass` line
-  of a copy and add it with `jaa templates add`; the margins follow.
+- **Paper.** A4 or US Letter, chosen per build ([Paper](#paper)); the margins follow.
 - **Page breaks.** A heading is never the last line of a page, an entry's first lines stay
   together, and long entries break between bullet points.
 
@@ -95,6 +94,26 @@ with generated LaTeX; every other line is copied unchanged.
 | `%%jaa:letter%%` | preamble, cover letter only | `\recipient`, `\date`, `\opening`, `\closing` |
 
 Preamble slots come before `\begin{document}`, the others after it.
+
+## Paper
+
+Every template builds on A4 or US Letter (ADR 0033). The size comes from `--paper a4|letter` on
+`jaa cv build`, `jaa cv tailor build`, `jaa cv tailor letter` and `jaa templates show
+--preview` (or `paper` on the `generate_cv_pdf` MCP tool), else from the
+`documents.paper_size` preference (`jaa preferences set documents.paper_size letter`), else A4.
+Each PDF's manifest records it as `"paper": "a4"` or `"letter"`.
+
+jaa sets the size as an option of your main file's `\documentclass`: it replaces a paper option
+already there (`a4paper`, `letterpaper`, `a5paper`, …) or adds one. Standard classes, moderncv
+and `geometry` all follow the class option, so a template needs nothing else; set margins with
+`geometry` options such as `margin=18mm` or `scale=0.75`, never with a paper size.
+
+The main file must not fix the paper anywhere else; `jaa templates check` refuses a paper name
+outside the class options (e.g. `\usepackage[a4paper]{geometry}`), `paper=`, `paperwidth=` or
+`paperheight=` options, assignments to `\paperwidth`, `\paperheight`, `\pdfpagewidth` or
+`\pdfpageheight`, and `\special{papersize=…}`. Reading those dimensions
+(`\textwidth=\paperwidth`) is fine. A template's own `.cls` or `.sty` files are not scanned, so
+every build also checks the PDF's page size and saves nothing if a page is not the chosen paper.
 
 ## Macros
 

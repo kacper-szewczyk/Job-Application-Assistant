@@ -32,6 +32,7 @@ def test_catalogue_covers_spec_preferences() -> None:
         "search.start_date",
         "answer_reuse.default",
         "answer_reuse.sensitive",
+        "documents.paper_size",
     ]
     for q in QUESTIONS:
         has_choices = q.kind in (QuestionKind.CHOICE, QuestionKind.MULTI_CHOICE)

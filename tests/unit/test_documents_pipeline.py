@@ -3,8 +3,10 @@ import stat
 from pathlib import Path
 
 import pytest
+from pypdf import PdfWriter
 
 from jaa.core.errors import DocumentError, LatexCompileError
+from jaa.core.models import PaperSize
 from jaa.documents.content import CvLanguage, build_content
 from jaa.documents.engine import CompileResult, Engine
 from jaa.documents.latex import DEFAULT_TEMPLATE, get_template
@@ -72,3 +74,49 @@ def test_logs_hold_no_cv_text(tmp_path: Path, caplog: pytest.LogCaptureFixture) 
         _build(tmp_path)
     for value in ("Avery", "Example Co", "Undefined control"):
         assert value not in caplog.text
+
+
+class _BlankPage:
+    """A compiler that writes one blank page of the given size and keeps each source."""
+
+    def __init__(self, width: float, height: float) -> None:
+        self.size = (width, height)
+        self.sources: list[str] = []
+
+    def __call__(self, engine: Engine, tex: Path) -> CompileResult:
+        self.sources.append(tex.read_text())
+        writer = PdfWriter()
+        writer.add_blank_page(width=self.size[0], height=self.size[1])
+        pdf = tex.with_suffix(".pdf")
+        with pdf.open("wb") as fh:
+            writer.write(fh)
+        return CompileResult(pdf=pdf, warnings=())
+
+
+def test_paper_is_set_and_checked(tmp_path: Path) -> None:
+    content = build_content(confirmed_facts()).content
+    letter_page = _BlankPage(612, 792)
+    out = build_cv(
+        content,
+        template=get_template(DEFAULT_TEMPLATE),
+        engine=FAKE_ENGINE,
+        output_dir=tmp_path / "out",
+        options=BuildOptions(paper=PaperSize.LETTER),
+        profile_version_id=1,
+        compiler=letter_page,
+    )
+    assert out.manifest["paper"] == "letter"
+    assert "\\documentclass[10pt,letterpaper,sans]{moderncv}" in letter_page.sources[0]
+
+    # A template whose own class or package ignores the option: nothing is saved.
+    with pytest.raises(DocumentError, match=r"ignored the paper size.*not a4"):
+        build_cv(
+            content,
+            template=get_template(DEFAULT_TEMPLATE),
+            engine=FAKE_ENGINE,
+            output_dir=tmp_path / "a4",
+            options=BuildOptions(paper=PaperSize.A4),
+            profile_version_id=1,
+            compiler=_BlankPage(612, 792),
+        )
+    assert list((tmp_path / "a4").iterdir()) == []

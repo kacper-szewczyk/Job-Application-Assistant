@@ -13,7 +13,7 @@ from enum import StrEnum
 from typing import Final, cast
 
 from jaa.core.errors import PreferenceError
-from jaa.core.models import JsonValue, ReusePolicy
+from jaa.core.models import JsonValue, PaperSize, ReusePolicy
 from jaa.core.sensitivity import is_sensitive_key
 
 
@@ -184,6 +184,16 @@ QUESTIONS: Final[tuple[Question, ...]] = (
             ),
         ),
     ),
+    Question(
+        key="documents.paper_size",
+        prompt="Which paper size should your CVs and cover letters use?",
+        kind=QuestionKind.CHOICE,
+        hint="a number or name; A4 if you skip",
+        choices=(
+            Choice(PaperSize.A4.value, "A4 (Europe and most of the world)"),
+            Choice(PaperSize.LETTER.value, "US Letter (United States and Canada)"),
+        ),
+    ),
 )
 
 _BY_KEY: Final = {q.key: q for q in QUESTIONS}
@@ -191,6 +201,14 @@ _BY_KEY: Final = {q.key: q for q in QUESTIONS}
 # Used when the user skipped the reuse questions.
 DEFAULT_REUSE_POLICY: Final = ReusePolicy.REUSE_WITH_REVIEW
 DEFAULT_SENSITIVE_REUSE_POLICY: Final = ReusePolicy.ALWAYS_ASK
+# Used when the user skipped the paper question (ADR 0033).
+DEFAULT_PAPER_SIZE: Final = PaperSize.A4
+
+
+def paper_size(values: Mapping[str, JsonValue]) -> PaperSize:
+    """The paper size preference among answered values, else A4."""
+    value = values.get("documents.paper_size")
+    return PaperSize(value) if isinstance(value, str) else DEFAULT_PAPER_SIZE
 
 
 def question(key: str) -> Question:

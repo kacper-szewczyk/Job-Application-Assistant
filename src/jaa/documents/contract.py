@@ -11,6 +11,9 @@ also checked for file access: TeX engines can read any file the user can read (T
 sandbox), so paths that leave the template's folder, Lua code and shell or file-writing
 primitives are refused. That check only sees what is written out; low-level TeX that builds
 command names at run time is reported as a warning.
+
+The paper size is a `\\documentclass` option that jaa sets for each build (ADR 0033), so a
+template must not fix the paper anywhere else in its main file.
 """
 
 import re
@@ -19,7 +22,7 @@ from dataclasses import dataclass, field
 from pathlib import PurePosixPath
 from typing import Final
 
-from jaa.core.models import TemplateFamily, TemplateKind, TemplateOrigin
+from jaa.core.models import PaperSize, TemplateFamily, TemplateKind, TemplateOrigin
 
 SLOTS: Final[dict[TemplateKind, tuple[str, ...]]] = {
     TemplateKind.CV: ("babel", "header", "body", "consent"),
@@ -87,6 +90,28 @@ _FORBIDDEN: Final = re.compile(
 _OUTSIDE_PATH: Final = re.compile(
     r"(?:[{=\"]|\\input\s|\\openin\s*\\?[A-Za-z@]*\s*=?)\s*(?:/|~)[\w.~/-]"
     r"|(?:^|[{=\s/\"])\.\.[/\\]"
+)
+# The class option jaa sets for each paper size; geometry and the classes follow it.
+PAPER_OPTIONS: Final[dict[PaperSize, str]] = {
+    PaperSize.A4: "a4paper",
+    PaperSize.LETTER: "letterpaper",
+}
+# Width and height in PostScript points, to check the built PDF.
+PAPER_POINTS: Final[dict[PaperSize, tuple[float, float]]] = {
+    PaperSize.A4: (595.28, 841.89),
+    PaperSize.LETTER: (612.0, 792.0),
+}
+_PAPER_NAME: Final = r"(?:[abc][0-9]|letter|legal|executive)paper"
+_PAPER_OPTION: Final = re.compile(rf"^{_PAPER_NAME}$")
+_CLASS_OPTIONS: Final = re.compile(r"\\documentclass\s*(?:\[([^\]]*)\])?\s*\{")
+# Paper set anywhere but the class options would override the size jaa chose: a paper name
+# (geometry or class options), key=value sizes, or assignments to the page dimensions.
+_FIXED_PAPER: Final = re.compile(
+    rf"(?<![A-Za-z]){_PAPER_NAME}(?![A-Za-z])"
+    r"|(?<![A-Za-z])paper(?:size|width|height)?\s*="
+    r"|\\(?:pdf)?(?:paper|page)(?:width|height)\s*=?\s*-?[\d.]"
+    r"|\\setlength\s*\{?\s*\\(?:pdf)?(?:paper|page)(?:width|height)"
+    r"|\\special\s*\{\s*papersize"
 )
 # Primitives that build command names or re-read text at run time, which hides what is read.
 _OPAQUE: Final = re.compile(r"\\(csname|catcode|scantokens)(?![A-Za-z@])")
@@ -162,6 +187,53 @@ def slot_problems(source: str, kind: TemplateKind) -> list[str]:
 def document_class(source: str) -> str | None:
     match = _DOCUMENTCLASS.search(strip_comments(source))
     return match.group(1) if match else None
+
+
+def _class_options(source: str) -> re.Match[str] | None:
+    """The `\\documentclass` command in `source` that is not commented out."""
+    for match in _CLASS_OPTIONS.finditer(source):
+        line_start = source.rfind("\n", 0, match.start()) + 1
+        if not _COMMENT.search(source[line_start : match.start()]):
+            return match
+    return None
+
+
+def paper_problems(source: str) -> list[str]:
+    """A main file may choose its paper only through `\\documentclass` options (ADR 0033)."""
+    code = strip_comments(source)
+    found = _class_options(code)
+    if found is not None:
+        code = code[: found.start()] + code[found.end() :]
+    fixed = _FIXED_PAPER.search(code)
+    if fixed is None:
+        return []
+    return [
+        f"the main file sets the paper size ({fixed.group(0).strip()}) outside the "
+        "\\documentclass options; jaa sets the paper for each build, so remove it"
+    ]
+
+
+def set_paper(source: str, paper: PaperSize) -> str:
+    """`source` with its `\\documentclass` paper option set to `paper`.
+
+    Replaces the first paper option in place, drops any others, or adds one when the class has
+    none. Raises `ValueError` when there is no `\\documentclass` (the contract requires one).
+    """
+    found = _class_options(source)
+    if found is None:
+        raise ValueError("no \\documentclass in the main file")
+    options = [o.strip() for o in (found.group(1) or "").split(",") if o.strip()]
+    chosen = PAPER_OPTIONS[paper]
+    kept: list[str] = []
+    for option in options:
+        if not _PAPER_OPTION.match(option):
+            kept.append(option)
+        elif chosen not in kept:
+            kept.append(chosen)
+    if chosen not in kept:
+        kept.append(chosen)
+    command = f"\\documentclass[{','.join(kept)}]{{"
+    return source[: found.start()] + command + source[found.end() :]
 
 
 def defined_macros(sources: Mapping[str, str]) -> set[str]:
@@ -240,6 +312,7 @@ def check_template(
     doc_class = document_class(main)
     if doc_class is None:
         problems.append(r"no \documentclass in the main file")
+    problems += paper_problems(main)
     family = TemplateFamily.MODERNCV if doc_class == "moderncv" else TemplateFamily.CUSTOM
     if family is TemplateFamily.CUSTOM:
         missing = [m for m in REQUIRED_MACROS[kind] if m not in defined_macros(texts)]

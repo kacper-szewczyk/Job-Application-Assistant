@@ -43,16 +43,17 @@ def test_onboard_skip_everything_then_answer_later(env: dict[str, str]) -> None:
 
     # Skipped questions are asked again; a bad answer re-prompts instead of failing.
     answers = ["Widget Engineer", "senior", "Berlin", "remote, hybrid", SALARY_TEXT, "lots"]
-    answers += ["1", "", "1", "1", "1", "immediately", "", ""]
+    answers += ["1", "", "1", "1", "1", "immediately", "", "", "letter"]
     out = _run(env, "onboard", input="\n".join(answers) + "\n")
     assert "salary.range: expected" not in out  # salary was valid
     assert "search.employment_types: expected one of" in out  # "lots" was not
-    assert "10 answered, 3 skipped" in out
+    assert "11 answered, 3 skipped" in out
 
     stored = _stored(env)
     assert stored["search.employment_types"].value == ["full_time"]
     assert stored["search.industries"].status is PreferenceStatus.SKIPPED
     assert stored["salary.range"].is_sensitive
+    assert stored["documents.paper_size"].value == "letter"
 
 
 def test_onboard_all_keeps_answers_on_enter(env: dict[str, str]) -> None:
@@ -66,9 +67,9 @@ def test_onboard_all_keeps_answers_on_enter(env: dict[str, str]) -> None:
 
 def test_onboard_with_nothing_left(env: dict[str, str]) -> None:
     answers = ["Widget Engineer", "1", "Berlin", "1", SALARY_TEXT, "1", "climate"]
-    answers += ["1", "1", "1", "2026-12-01", "1", "1"]
+    answers += ["1", "1", "1", "2026-12-01", "1", "1", "1"]
     assert len(answers) == len(QUESTIONS)
-    assert "13 answered, 0 skipped" in _run(env, "onboard", input="\n".join(answers) + "\n")
+    assert "14 answered, 0 skipped" in _run(env, "onboard", input="\n".join(answers) + "\n")
     out = _run(env, "onboard")
     assert "All preference questions are answered." in out
 

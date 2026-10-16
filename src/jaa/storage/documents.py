@@ -20,6 +20,7 @@ from jaa.core.models import (
     FactState,
     JsonObject,
     JsonValue,
+    PaperSize,
     ProfileFact,
 )
 from jaa.documents.content import CvLanguage, build_content
@@ -267,6 +268,7 @@ def build_cover_letter(
     engine: Engine,
     output_dir: Path,
     language: CvLanguage,
+    paper: PaperSize = PaperSize.A4,
     recipient: tuple[str, ...] = (),
     opening: str | None = None,
     closing: str | None = None,
@@ -332,6 +334,7 @@ def build_cover_letter(
         job_id=job_id,
         fact_ids=tuple(sorted({*sender_ids, *cited})),
         tailoring=plan_info,
+        paper=paper,
     )
     pdf = _record(conn, out, template, row.profile_version_id, job_id)
     return BuiltLetter(

@@ -19,12 +19,13 @@ from rich.text import Text
 from jaa.cli.common import MASK, console, err_console, open_existing, settings_from
 from jaa.cli.templates import list_all, template_database
 from jaa.core.errors import FactConflictError, JaaError, LatexCompileError, ReviewError
-from jaa.core.models import ArtifactKind, FactState, ProfileFact
+from jaa.core.models import ArtifactKind, FactState, PaperSize, ProfileFact
 from jaa.documents.content import CvContent, CvLanguage, build_content, format_period
 from jaa.documents.engine import find_engine
 from jaa.documents.pipeline import BuildOptions, BuildOutput
 from jaa.storage import documents as artifacts
 from jaa.storage import profile as service
+from jaa.storage.preferences import paper_size
 from jaa.storage.repository import profile_facts
 from jaa.storage.templates import resolve_template
 
@@ -39,6 +40,14 @@ MAX_SHOWN: Final = 70
 
 LanguageOption = Annotated[
     CvLanguage, typer.Option("--language", "-l", help="Language of headings and dates.")
+]
+PaperOption = Annotated[
+    PaperSize | None,
+    typer.Option(
+        "--paper",
+        help="Paper size (default: your documents.paper_size preference, else a4).",
+        case_sensitive=False,
+    ),
 ]
 
 
@@ -199,6 +208,7 @@ def build(
         ),
     ] = None,
     language: LanguageOption = CvLanguage.EN,
+    paper: PaperOption = None,
     photo: Annotated[
         Path | None, typer.Option("--photo", help="JPEG or PNG photo to show in the header.")
     ] = None,
@@ -239,7 +249,12 @@ def build(
             template=chosen_template,
             engine=engine,
             output_dir=output or settings.documents_dir,
-            options=BuildOptions(language=language, photo=photo, consent_text=consent),
+            options=BuildOptions(
+                language=language,
+                paper=paper_size(conn, paper),
+                photo=photo,
+                consent_text=consent,
+            ),
         )
     console.print(f"{built.facts_used} facts used, profile version {built.profile_version_id}.")
     report_build(built.output, built.pdf.id)
