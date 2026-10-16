@@ -124,6 +124,10 @@ with Bash (`uv run jaa …` in the repository); they only read, or add records t
   marked. `jaa templates show ID --preview` builds a preview PDF from synthetic sample data, never
   from the profile. Builds use the user's default unless `--template ID` (or `id@version`) is
   given, on `jaa cv build`, `jaa cv tailor build`, `jaa cv tailor letter` and `generate_cv_pdf`.
+- Paper: CVs and cover letters are A4 unless the user chose US Letter with the
+  `documents.paper_size` preference. For one build, pass `--paper a4|letter` to `jaa cv build`,
+  `jaa cv tailor build` or `jaa cv tailor letter`, or `paper` to `generate_cv_pdf`; suggest
+  Letter for employers in the United States or Canada, but let the user decide.
 - `jaa templates check PATH` and `jaa templates add PATH --id NAME`: check a LaTeX template the
   user gave you (a .tex file, folder or .zip; `--candidate ID` for one kept with
   `jaa import cv --as-template`) against the template contract in `docs/templates.md`, and add

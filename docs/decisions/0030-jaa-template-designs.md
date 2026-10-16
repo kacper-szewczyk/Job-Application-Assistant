@@ -17,7 +17,7 @@
 
 ## Deviations from #41
 - **No two-column sidebar design.** The generated body is one stream of sections in a fixed order; a sidebar for skills and languages would need the template to collect and move sections, and two text columns are the layout ATS parsers most often read out of order. `jaa-compact` puts the contact details beside the name instead; the body stays one column.
-- **US Letter is a one-line change, not a build option.** The contract has no paper slot, so each design is A4 and says in its first lines how to switch (`letterpaper` in `\documentclass`; geometry follows). A test builds every design that way. A `--paper` build option would need a contract change and is left for later.
+- **US Letter is a one-line change, not a build option.** The contract has no paper slot, so each design is A4 and says in its first lines how to switch (`letterpaper` in `\documentclass`; geometry follows). A test builds every design that way. A `--paper` build option would need a contract change and is left for later. *(Superseded by ADR 0033: jaa now sets the paper option for each build.)*
 - **Hyphenation is off**, so "correct hyphenation for both languages" means babel loads the right patterns, not that words are split: split words break ATS keyword matching (ADR 0012).
 
 ## Consequences

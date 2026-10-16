@@ -16,9 +16,9 @@ from importlib.resources.abc import Traversable
 from typing import Final, cast
 
 from jaa.core.errors import TemplateError
-from jaa.core.models import JsonValue, TemplateFamily, TemplateKind
+from jaa.core.models import JsonValue, PaperSize, TemplateFamily, TemplateKind
 from jaa.documents.content import LABELS, CvContent, CvEntry, CvLanguage, format_period
-from jaa.documents.contract import SLOT_LINE, check_template
+from jaa.documents.contract import SLOT_LINE, check_template, set_paper
 
 _SPECIAL: Final = {
     "\\": r"\textbackslash{}",
@@ -271,8 +271,9 @@ def render(
     *,
     consent_text: str | None = None,
     photo_file: str | None = None,
+    paper: PaperSize = PaperSize.A4,
 ) -> str:
-    """LaTeX source for `content`.
+    """LaTeX source for `content` on `paper`.
 
     `consent_text` is the user's own clause, never a default. `photo_file` is the name of a photo
     the caller placed next to the .tex file.
@@ -285,6 +286,7 @@ def render(
             "body": _body(content, language),
             "consent": _consent(consent_text, language),
         },
+        paper,
     )
 
 
@@ -292,6 +294,10 @@ def babel(language: CvLanguage) -> str:
     return f"\\usepackage[{LABELS[language].babel}]{{babel}}"
 
 
-def fill_slots(template: CvTemplate, slots: dict[str, str]) -> str:
-    """The template's source with each slot line replaced by generated LaTeX."""
-    return SLOT_LINE.sub(lambda m: slots[m.group(1)], template.source)
+def fill_slots(template: CvTemplate, slots: dict[str, str], paper: PaperSize) -> str:
+    """The template's source on `paper`, with each slot line replaced by generated LaTeX."""
+    try:
+        source = set_paper(template.source, paper)
+    except ValueError as exc:
+        raise TemplateError(f"{template.version_label}: {exc}") from exc
+    return SLOT_LINE.sub(lambda m: slots[m.group(1)], source)

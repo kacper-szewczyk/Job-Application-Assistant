@@ -12,6 +12,7 @@ from datetime import date
 from typing import Final
 
 from jaa.core.errors import DocumentError
+from jaa.core.models import PaperSize
 from jaa.documents.content import CvContent, CvLanguage
 from jaa.documents.latex import CvTemplate, babel, escape, fill_slots, sender_header
 
@@ -70,8 +71,13 @@ def _optional(text: str | None) -> str:
     return escape(text) if text and text.strip() else "\\mbox{}"
 
 
-def render_letter(template: CvTemplate, letter: LetterContent, language: CvLanguage) -> str:
-    """LaTeX source for `letter`. Every piece of text is escaped."""
+def render_letter(
+    template: CvTemplate,
+    letter: LetterContent,
+    language: CvLanguage,
+    paper: PaperSize = PaperSize.A4,
+) -> str:
+    """LaTeX source for `letter` on `paper`. Every piece of text is escaped."""
     if not letter.paragraphs:
         raise DocumentError("the cover letter has no paragraphs")
     if not letter.recipient or not letter.recipient[0].strip():
@@ -95,6 +101,7 @@ def render_letter(template: CvTemplate, letter: LetterContent, language: CvLangu
             "letter": letter_setup,
             "body": "\n\n".join(escape(p) for p in letter.paragraphs),
         },
+        paper,
     )
 
 

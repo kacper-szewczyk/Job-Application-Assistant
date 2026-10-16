@@ -19,7 +19,7 @@ from rich.text import Text
 
 from jaa.cli.common import YesOpt, confirm_or_exit, console, err_console, settings_from
 from jaa.core.errors import JaaError, LatexCompileError
-from jaa.core.models import TemplateKind
+from jaa.core.models import PaperSize, TemplateKind
 from jaa.documents.content import CvLanguage
 from jaa.documents.contract import TemplateCheck, TemplateFiles
 from jaa.documents.engine import find_engine
@@ -141,6 +141,10 @@ def show(
     language: Annotated[
         CvLanguage, typer.Option("--language", "-l", help="Language of the preview.")
     ] = CvLanguage.EN,
+    paper: Annotated[
+        PaperSize,
+        typer.Option("--paper", help="Paper size of the preview.", case_sensitive=False),
+    ] = PaperSize.A4,
     output: Annotated[
         Path | None,
         typer.Option("--output", "-o", help="Folder for the preview (default: data dir)."),
@@ -174,7 +178,7 @@ def show(
                 template=template,
                 engine=engine,
                 output_dir=folder,
-                options=BuildOptions(language=language),
+                options=BuildOptions(language=language, paper=paper),
                 profile_version_id=None,
             )
         else:
@@ -188,6 +192,7 @@ def show(
                 job_id=None,
                 fact_ids=(),
                 tailoring=None,
+                paper=paper,
             )
     _report_preview(out)
     if open_pdf:

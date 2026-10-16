@@ -1,9 +1,15 @@
-"""The template contract (ADR 0029): slots, macros, files and file access."""
+"""The template contract (ADR 0029, ADR 0033): slots, macros, paper, files and file access."""
 
 import pytest
 
-from jaa.core.models import TemplateFamily, TemplateKind
-from jaa.documents.contract import REQUIRED_MACROS, check_template, defined_macros
+from jaa.core.models import PaperSize, TemplateFamily, TemplateKind
+from jaa.documents.contract import (
+    REQUIRED_MACROS,
+    check_template,
+    defined_macros,
+    paper_problems,
+    set_paper,
+)
 from jaa.documents.latex import CvTemplate, available_templates
 
 PREAMBLE = "\\documentclass{moderncv}\n\\hyphenpenalty=10000\n%%jaa:babel%%\n%%jaa:header%%\n"
@@ -164,3 +170,58 @@ def test_shipped_custom_templates_would_pass_as_uploads(template: CvTemplate) ->
     assert result.ok, result.problems
     assert result.warnings == ()
     assert result.family is TemplateFamily.CUSTOM
+
+
+@pytest.mark.parametrize(
+    ("documentclass", "paper", "expected"),
+    [
+        (
+            "\\documentclass[10pt,a4paper,sans]{moderncv}",
+            PaperSize.LETTER,
+            "[10pt,letterpaper,sans]",
+        ),
+        ("\\documentclass[10pt,a4paper,sans]{moderncv}", PaperSize.A4, "[10pt,a4paper,sans]"),
+        ("\\documentclass{article}", PaperSize.A4, "[a4paper]"),
+        ("\\documentclass[ 11pt , letterpaper ]{article}", PaperSize.A4, "[11pt,a4paper]"),
+        ("\\documentclass[a5paper,legalpaper,10pt]{article}", PaperSize.A4, "[a4paper,10pt]"),
+    ],
+)
+def test_set_paper_rewrites_the_class_options(
+    documentclass: str, paper: PaperSize, expected: str
+) -> None:
+    source = f"% \\documentclass[b5paper]{{x}}\n{documentclass}\n\\begin{{document}}\n"
+    result = set_paper(source, paper)
+    assert result.splitlines()[0] == "% \\documentclass[b5paper]{x}"  # comments are left alone
+    assert result.splitlines()[1].startswith(f"\\documentclass{expected}{{")
+
+
+def test_set_paper_needs_a_documentclass() -> None:
+    with pytest.raises(ValueError, match="documentclass"):
+        set_paper("\\begin{document}\n", PaperSize.A4)
+
+
+@pytest.mark.parametrize(
+    "line",
+    [
+        "\\usepackage[a4paper,margin=2cm]{geometry}",
+        "\\geometry{letterpaper}",
+        "\\usepackage[paper=a4paper]{geometry}",
+        "\\usepackage[paperwidth=8.5in,paperheight=11in]{geometry}",
+        "\\KOMAoptions{paper=letter}",
+        "\\paperwidth=210mm",
+        "\\setlength{\\paperheight}{297mm}",
+        "\\pdfpagewidth 8.5in",
+        "\\special{papersize=8.5in,11in}",
+    ],
+)
+def test_paper_fixed_outside_the_class_options_is_refused(line: str) -> None:
+    result = _check(CV.replace("%%jaa:header%%\n", f"%%jaa:header%%\n{line}\n"))
+    assert any("sets the paper size" in p for p in result.problems), result.problems
+
+
+def test_paper_dimensions_may_be_read() -> None:
+    main = CV.replace("{moderncv}", "[a4paper]{moderncv}").replace(
+        "%%jaa:header%%\n", "%%jaa:header%%\n% a4paper\n\\setlength{\\textwidth}{\\paperwidth}\n"
+    )
+    assert paper_problems(main) == []
+    assert _check(main).ok

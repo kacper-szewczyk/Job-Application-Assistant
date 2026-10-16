@@ -23,6 +23,7 @@ from jaa.cli.apply import print_conflicts
 from jaa.cli.common import console, err_console, settings_from
 from jaa.cli.cv import (
     LanguageOption,
+    PaperOption,
     database,
     outline,
     read_consent,
@@ -37,6 +38,7 @@ from jaa.documents.tailoring import Change, Check, EditKind, plan_from_json
 from jaa.storage import applications as tracker
 from jaa.storage import documents as artifacts
 from jaa.storage import tailoring as service
+from jaa.storage.preferences import paper_size
 from jaa.storage.profile import active_version_id
 from jaa.storage.templates import resolve_template
 
@@ -295,6 +297,7 @@ def build(
         ),
     ] = None,
     language: LanguageOption = CvLanguage.EN,
+    paper: PaperOption = None,
     photo: Annotated[
         Path | None, typer.Option("--photo", help="JPEG or PNG photo to show in the header.")
     ] = None,
@@ -331,7 +334,12 @@ def build(
             template=chosen_template,
             engine=engine,
             output_dir=output or settings.documents_dir,
-            options=BuildOptions(language=language, photo=photo, consent_text=consent),
+            options=BuildOptions(
+                language=language,
+                paper=paper_size(conn, paper),
+                photo=photo,
+                consent_text=consent,
+            ),
         )
     console.print(f"{built.changes} change(s) applied.")
     report_build(built.output, built.pdf.id)
@@ -353,6 +361,7 @@ def letter(
         ),
     ] = None,
     language: LanguageOption = CvLanguage.EN,
+    paper: PaperOption = None,
     recipient: Annotated[
         list[str] | None,
         typer.Option(
@@ -398,6 +407,7 @@ def letter(
             engine=engine,
             output_dir=output or settings.documents_dir,
             language=language,
+            paper=paper_size(conn, paper),
             recipient=tuple(recipient or ()),
             opening=opening,
             closing=closing,

@@ -13,8 +13,15 @@ from datetime import datetime
 
 from jaa.core.clock import utcnow
 from jaa.core.errors import StorageError
-from jaa.core.models import JsonValue, Preference, PreferenceEvent, PreferenceStatus
+from jaa.core.models import (
+    JsonValue,
+    PaperSize,
+    Preference,
+    PreferenceEvent,
+    PreferenceStatus,
+)
 from jaa.core.preferences import QUESTIONS, check_value, is_sensitive_question, question
+from jaa.core.preferences import paper_size as core_paper_size
 from jaa.core.review import same_value
 from jaa.storage.repository import preference_events, preferences
 
@@ -95,6 +102,11 @@ def answered_values(conn: sqlite3.Connection) -> dict[str, JsonValue]:
         for key, p in list_preferences(conn).items()
         if p.status is PreferenceStatus.ANSWERED
     }
+
+
+def paper_size(conn: sqlite3.Connection, override: PaperSize | None = None) -> PaperSize:
+    """The paper to build on: `override` (a per-build choice), else the preference, else A4."""
+    return override or core_paper_size(answered_values(conn))
 
 
 def unanswered_keys(conn: sqlite3.Connection) -> list[str]:

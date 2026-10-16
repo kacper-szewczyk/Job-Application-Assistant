@@ -8,7 +8,14 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field
 
-from jaa.core.models import FactOrigin, FactState, ImportSourceType, ImportStatus, JobStatus
+from jaa.core.models import (
+    FactOrigin,
+    FactState,
+    ImportSourceType,
+    ImportStatus,
+    JobStatus,
+    PaperSize,
+)
 
 
 class Confirmation(BaseModel):
@@ -198,6 +205,7 @@ class CvPdfOut(BaseModel):
     pages: int
     template: str
     engine: str
+    paper: PaperSize
     profile_version_id: int
     job_id: int | None
     facts_used: int

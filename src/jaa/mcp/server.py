@@ -44,6 +44,7 @@ from jaa.core.models import (
     JobMatch,
     JobStatus,
     JsonValue,
+    PaperSize,
     ProfileFact,
     RetentionChoice,
     SubmissionConfirmation,
@@ -70,6 +71,7 @@ from jaa.storage import matches as matching
 from jaa.storage import profile as review
 from jaa.storage import tailoring as tailoring_service
 from jaa.storage.db import open_database
+from jaa.storage.preferences import paper_size
 from jaa.storage.profile import active_version_id
 from jaa.storage.repository import jobs as jobs_table
 from jaa.storage.repository import profile_facts
@@ -913,6 +915,10 @@ def build_server(settings: Settings) -> MCPServer:
         language: Annotated[
             CvLanguage, Field(description="Language of headings and dates.")
         ] = CvLanguage.EN,
+        paper: Annotated[
+            PaperSize | None,
+            Field(description="Paper size; the user's documents.paper_size preference, else a4."),
+        ] = None,
         photo_path: Annotated[
             str | None, Field(description="Absolute path to a JPEG or PNG photo.")
         ] = None,
@@ -928,8 +934,13 @@ def build_server(settings: Settings) -> MCPServer:
             raise ToolError("revision needs job_id")
         photo = None if photo_path is None else _user_path(photo_path, "photo_path")
         consent = None if consent_file is None else _read_text_file(consent_file, "consent_file")
-        options = BuildOptions(language=language, photo=photo, consent_text=consent)
         with _database(settings, "generate_cv_pdf") as conn:
+            options = BuildOptions(
+                language=language,
+                paper=paper_size(conn, paper),
+                photo=photo,
+                consent_text=consent,
+            )
             chosen = resolve_template(conn, template)
             engine = find_engine()
             if job_id is None:
@@ -958,6 +969,7 @@ def build_server(settings: Settings) -> MCPServer:
             pages=result.pages,
             template=chosen.version_label,
             engine=engine.name,
+            paper=options.paper,
             profile_version_id=built.profile_version_id,
             job_id=job_id,
             facts_used=built.facts_used,

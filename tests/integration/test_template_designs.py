@@ -3,14 +3,13 @@
 Real PDF builds, skipped without a LaTeX engine; CI requires one (JAA_REQUIRE_LATEX=1).
 """
 
-import re
 from dataclasses import replace
 from pathlib import Path
 
 import pytest
 from pypdf import PdfReader
 
-from jaa.core.models import TemplateFamily, TemplateKind
+from jaa.core.models import PaperSize, TemplateFamily, TemplateKind
 from jaa.documents.content import LABELS, CvContent, CvLanguage, build_content
 from jaa.documents.engine import Engine
 from jaa.documents.latex import CvTemplate, available_templates, get_template
@@ -111,15 +110,13 @@ def test_us_letter_photo_and_consent(
     latex_engine: Engine, tmp_path: Path, template_id: str
 ) -> None:
     template = available_templates()[template_id]
-    # The one change the template's comment describes: the paper option of \documentclass.
-    source = re.sub(r"(\\documentclass\[[^]]*)a4paper", r"\1letterpaper", template.source)
-    assert source != template.source
-    letter = replace(template, source=source)
     photo = tmp_path / "photo.png"
     photo.write_bytes(png())
     consent = "Wyrażam zgodę na przetwarzanie moich danych osobowych (tekst syntetyczny)."
-    options = BuildOptions(language=CvLanguage.PL, photo=photo, consent_text=consent)
-    out = _build(latex_engine, letter, sample_cv(CvLanguage.PL), tmp_path / "out", options)
+    options = BuildOptions(
+        language=CvLanguage.PL, paper=PaperSize.LETTER, photo=photo, consent_text=consent
+    )
+    out = _build(latex_engine, template, sample_cv(CvLanguage.PL), tmp_path / "out", options)
     assert out.missing_text == ()
     assert out.pages == 1
     width, height = (float(v) for v in PdfReader(out.pdf).pages[0].mediabox.upper_right)

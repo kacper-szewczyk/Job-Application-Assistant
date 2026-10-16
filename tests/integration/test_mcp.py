@@ -410,6 +410,9 @@ def test_generate_cv_pdf(profile: Settings, latex_engine: Engine) -> None:
     assert Path(general["pdf_path"]).is_file()
     assert Path(general["pdf_path"]).parent == profile.documents_dir
     assert general["job_id"] is None and general["unreviewed_left_out"] == 1
+    assert general["paper"] == "a4"
+    letter = call(profile, "generate_cv_pdf", {"paper": "letter"}).data
+    assert letter["paper"] == "letter"
 
     _matched(profile)
     call(profile, "draft_tailored_cv", {"job_id": 1})

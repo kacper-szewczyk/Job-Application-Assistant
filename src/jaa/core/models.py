@@ -119,6 +119,13 @@ class TemplateKind(StrEnum):
     COVER_LETTER = "cover_letter"
 
 
+class PaperSize(StrEnum):
+    """Paper a CV or cover letter is built on (ADR 0033)."""
+
+    A4 = "a4"
+    LETTER = "letter"
+
+
 class TemplateFamily(StrEnum):
     # moderncv: the template uses the moderncv class, which provides the contract's macros.
     MODERNCV = "moderncv"

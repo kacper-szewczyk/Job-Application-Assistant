@@ -22,8 +22,9 @@ from pypdf.errors import PyPdfError
 
 from jaa.core.clock import utcnow
 from jaa.core.errors import DocumentError
-from jaa.core.models import JsonObject, JsonValue
+from jaa.core.models import JsonObject, JsonValue, PaperSize
 from jaa.documents.content import CvContent, CvLanguage, format_period
+from jaa.documents.contract import PAPER_POINTS
 from jaa.documents.engine import CompileResult, Engine, compile_tex
 from jaa.documents.latex import CvTemplate, TemplateKind, render
 from jaa.documents.letter import LetterContent, expected_letter_text, render_letter
@@ -35,6 +36,8 @@ DIR_MODE: Final = 0o700
 MAX_PHOTO_BYTES: Final = 10 * 1024 * 1024
 # CVs longer than this are usually trimmed by recruiters; it is a warning, not an error.
 PAGE_WARNING: Final = 2
+# How far (in points) a page may differ from the chosen paper; PDF sizes are rounded.
+PAPER_TOLERANCE: Final = 2.0
 # Hyphen, dashes and minus sign (U+2010 to U+2015, U+2212).
 _DASHES: Final = re.compile(f"[{chr(0x2010)}-{chr(0x2015)}{chr(0x2212)}]")
 _PHOTO_TYPES: Final = {b"\xff\xd8\xff": ".jpg", b"\x89PNG\r\n\x1a\n": ".png"}
@@ -45,6 +48,7 @@ type Compiler = Callable[[Engine, Path], CompileResult]
 @dataclass(frozen=True, slots=True, kw_only=True)
 class BuildOptions:
     language: CvLanguage = CvLanguage.EN
+    paper: PaperSize = PaperSize.A4
     photo: Path | None = None
     # The user's own consent clause (e.g. the Polish RODO "Oświadczenie"); never a default.
     consent_text: str | None = field(default=None, repr=False)
@@ -124,6 +128,22 @@ def extract_text(pdf: Path) -> tuple[str, int]:
         raise DocumentError(f"the generated PDF cannot be read back: {exc}") from exc
 
 
+def paper_mismatch(pdf: Path, paper: PaperSize) -> str | None:
+    """Why the PDF's pages are not `paper`, or None when every page is."""
+    want_w, want_h = PAPER_POINTS[paper]
+    try:
+        pages = PdfReader(pdf).pages
+        for number, page in enumerate(pages, start=1):
+            width, height = (float(v) for v in page.mediabox.upper_right)
+            width -= float(page.mediabox.left)
+            height -= float(page.mediabox.bottom)
+            if abs(width - want_w) > PAPER_TOLERANCE or abs(height - want_h) > PAPER_TOLERANCE:
+                return f"page {number} is {width:.0f}x{height:.0f} pt, not {paper.value}"
+    except (PyPdfError, OSError, ValueError) as exc:
+        raise DocumentError(f"the generated PDF cannot be read back: {exc}") from exc
+    return None
+
+
 def missing_from(text: str, expected: list[str]) -> list[str]:
     haystack = _normalize(text)
     return [t for t in expected if _normalize(t) not in haystack]
@@ -161,12 +181,15 @@ def _compile_into(
     engine: Engine,
     output_dir: Path,
     compiler: Compiler,
+    paper: PaperSize,
     assets: Mapping[str, bytes] | None = None,
     extra_files: dict[str, Path] | None = None,
 ) -> _Compiled:
     """Compile `source` in a private build folder; write `<stem>.pdf` and `<stem>.tex`.
 
     `assets` are the template's own files (uploaded templates), `extra_files` the user's photo.
+    The PDF is saved only if its pages are `paper`: a template's own class or package could
+    still fix another size (ADR 0033).
     """
     if (output_dir / f"{stem}.pdf").exists():
         raise DocumentError(f"{output_dir / stem}.pdf already exists; try again in a second")
@@ -194,6 +217,10 @@ def _compile_into(
                 "the template read files outside its folder, so the PDF was not saved: "
                 + ", ".join(result.absolute_reads)
             )
+        if mismatch := paper_mismatch(result.pdf, paper):
+            raise DocumentError(
+                f"the template ignored the paper size, so the PDF was not saved: {mismatch}"
+            )
         pdf_bytes = result.pdf.read_bytes()
         pdf_out = output_dir / f"{stem}.pdf"
         tex_out = output_dir / f"{stem}.tex"
@@ -216,6 +243,7 @@ def _manifest(
     template: CvTemplate,
     engine: Engine,
     language: CvLanguage,
+    paper: PaperSize,
     compiled: _Compiled,
     pages: int,
     checked: tuple[int, int],
@@ -233,6 +261,7 @@ def _manifest(
         },
         "engine": {"name": engine.name, "version": engine.version},
         "language": language.value,
+        "paper": paper.value,
         "source": {"path": str(compiled.tex), "sha256": compiled.tex_sha256},
         "pdf": {"path": str(compiled.pdf), "sha256": compiled.pdf_sha256, "pages": pages},
         "text_check": {"expected": expected, "missing": missing},
@@ -277,6 +306,7 @@ def build_cv(
         options.language,
         consent_text=options.consent_text,
         photo_file=photo_name,
+        paper=options.paper,
     )
     compiled = _compile_into(
         source,
@@ -284,6 +314,7 @@ def build_cv(
         engine=engine,
         output_dir=output_dir,
         compiler=compiler,
+        paper=options.paper,
         assets=template.assets,
         extra_files={photo_name: photo[0]} if photo and photo_name else None,
     )
@@ -295,7 +326,15 @@ def build_cv(
     if pages > PAGE_WARNING:
         warnings.append(f"the CV is {pages} pages long; recruiters usually expect 1-2")
     manifest = _manifest(
-        "cv", at, template, engine, options.language, compiled, pages, (len(expected), len(missing))
+        "cv",
+        at,
+        template,
+        engine,
+        options.language,
+        options.paper,
+        compiled,
+        pages,
+        (len(expected), len(missing)),
     )
     manifest |= {
         "profile_version_id": profile_version_id,
@@ -338,6 +377,7 @@ def build_cover_letter(
     job_id: int | None,
     fact_ids: tuple[int, ...],
     tailoring: JsonObject | None,
+    paper: PaperSize = PaperSize.A4,
     compiler: Compiler = compile_tex,
 ) -> BuildOutput:
     """Render, compile and verify a cover letter for a job (ADR 0024).
@@ -350,13 +390,14 @@ def build_cover_letter(
         raise DocumentError(f"{template.version_label} is not a cover letter template")
     output_dir = _prepare(output_dir)
     at = utcnow()
-    source = render_letter(template, letter, language)
+    source = render_letter(template, letter, language, paper)
     compiled = _compile_into(
         source,
         stem=_stem(template, language, at, job_id),
         engine=engine,
         output_dir=output_dir,
         compiler=compiler,
+        paper=paper,
         assets=template.assets,
     )
     text, pages = extract_text(compiled.pdf)
@@ -371,6 +412,7 @@ def build_cover_letter(
         template,
         engine,
         language,
+        paper,
         compiled,
         pages,
         (len(expected), len(missing)),

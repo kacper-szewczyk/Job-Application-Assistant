@@ -85,3 +85,19 @@ def test_build_offers_unreviewed_facts_and_records_manifest(
     assert set(excluded) == {pending["headline"], pending["skills.rust"]}
     assert json.dumps(cv.manifest)  # manifest is plain JSON
     assert "moderncv-classic@1" in _run(env, "cv", "list")
+
+
+@pytest.mark.latex
+def test_paper_follows_the_preference_unless_overridden(
+    env: dict[str, str], latex_engine: Engine, tmp_path: Path
+) -> None:
+    folder = str(tmp_path / "cvs")
+    _run(env, "preferences", "set", "documents.paper_size", "letter")
+    _run(env, "cv", "build", "--confirmed-only", "--output", folder)
+    _run(env, "cv", "build", "--confirmed-only", "--output", folder, "--paper", "a4")
+    conn = open_database(Path(env["JAA_DATA_DIR"]) / "jaa.sqlite3")
+    try:
+        papers = [str(cv.manifest["paper"]) for cv in documents.list_cvs(conn)]
+    finally:
+        conn.close()
+    assert sorted(papers) == ["a4", "letter"]
