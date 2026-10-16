@@ -1,0 +1,9 @@
+{
+  "id": "moderncv-fancy",
+  "version": 1,
+  "name": "moderncv fancy (blue)",
+  "family": "moderncv",
+  "description": "Large name and headline right of a vertical rule, contact details in the left column, dates in a left column below. moderncv 'fancy' style, blue, 10pt, A4, serif; long links and email addresses break after '/', '.' and '@' instead of running into the margin.",
+  "requires": ["moderncv >= 2.3"],
+  "license": "Template file: MIT (this repository). It uses the moderncv class (LPPL 1.3c), which is installed with the TeX distribution and not shipped with jaa. Font: EB Garamond (SIL Open Font License 1.1), also part of the TeX distribution."
+}

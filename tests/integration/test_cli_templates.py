@@ -48,7 +48,13 @@ def _zip(tmp_path: Path, main: str) -> Path:
 
 def test_list_without_a_database(tmp_path: Path) -> None:
     out = _run({"JAA_DATA_DIR": str(tmp_path / "none"), "COLUMNS": "200"}, "templates", "list")
-    for template_id in ("moderncv-classic (default)", "moderncv-banking", "moderncv-casual"):
+    shipped = (
+        "moderncv-classic (default)",
+        "moderncv-banking",
+        "moderncv-casual",
+        "moderncv-fancy",
+    )
+    for template_id in shipped:
         assert template_id in out
     assert "moderncv-letter (default)" in out
 
@@ -102,6 +108,17 @@ def test_add_from_a_template_candidate(env: dict[str, str], tmp_path: Path) -> N
     out = _run(env, "templates", "add", "--candidate", "1", "--id", "from-import")
     assert "Added user-from-import@1." in out
     _run(env, "templates", "add", str(cv), "--candidate", "1", "--id", "x", code=2)
+
+
+@pytest.mark.latex
+@pytest.mark.parametrize("language", ["en", "pl"])
+def test_preview_a_shipped_template(
+    env: dict[str, str], tmp_path: Path, latex_engine: Engine, language: str
+) -> None:
+    out = _run(env, "templates", "show", "moderncv-fancy", "--preview", "--language", language)
+    assert "Preview written:" in out
+    previews = (tmp_path / "data" / "previews").glob(f"cv-*-moderncv-fancy-{language}.pdf")
+    assert len(list(previews)) == 1
 
 
 @pytest.mark.latex

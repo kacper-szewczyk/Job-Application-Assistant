@@ -25,3 +25,16 @@ T08 (ADR 0012) shipped one CV template, `moderncv-classic`, and #53 one cover le
 - Templates from #41 only need to meet the contract; a custom class defines the moderncv macros.
 - A template made from the user's own CV (a candidate) stores their CV text in `user_templates.files`; it is covered by export, backup and `jaa templates delete`.
 - There is no UI screen for templates yet.
+
+## Amendment (#93): moderncv-fancy
+
+`moderncv-fancy` (version 1) now ships. Its contact details sit in the narrow date column, which
+is why it was left out. The template wraps the email address and the links (`\extrainfo`) in a
+macro that allows a line break after `/`, `.`, `@` and `-` (penalty 0) and between any other two
+characters as a last resort (penalty 5000). Nothing is hidden or shortened and no hyphen is
+inserted; the build's overfull-box check stays the guard against text in the margin. fancy loads
+EB Garamond, whose strong kerns split words on extraction ("T est"), so the template sets it again
+with `Kerning=Off` (as ADR 0030 does for its own fonts). In the extracted text the contact
+details come before the name, because the left column is written first; every fact is still
+present and in order within the header and the body. `oldstyle` stays out.
+
